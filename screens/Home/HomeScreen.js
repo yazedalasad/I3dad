@@ -2,10 +2,11 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FeatureCard from '../../components/FeatureCard';
 import StudentCard from '../../components/StudentCard';
 import { useAuth } from '../../contexts/AuthContext';
+
 
 const studentsData = [
   {
@@ -241,8 +242,8 @@ export default function HomeScreen({ navigateTo }) {
         </View>
       </View>
 
-      {/* University Image Section */}
-      <View style={styles.imageSection}>
+      {/* University Image Section - Temporarily disabled for web compatibility */}
+      {/* <View style={styles.imageSection}>
         <Image
           source={require('../../assets/images/home/Jerusalem University College.jpeg')}
           style={styles.universityImage}
@@ -256,7 +257,7 @@ export default function HomeScreen({ navigateTo }) {
           <Text style={styles.imageTitle}>{t('home.university.title')}</Text>
           <Text style={styles.imageDescription}>{t('home.university.description')}</Text>
         </LinearGradient>
-      </View>
+      </View> */}
 
       {/* Activities & Opportunities Section */}
       <View style={styles.opportunitiesSection}>
@@ -312,8 +313,8 @@ export default function HomeScreen({ navigateTo }) {
         </View>
       </View>
 
-      {/* Office Image Section */}
-      <View style={styles.imageSection}>
+      {/* Office Image Section - Temporarily disabled for web compatibility */}
+      {/* <View style={styles.imageSection}>
         <Image
           source={require('../../assets/images/home/Minute Media Offices - Tel Aviv _ Office Snapshots.jpeg')}
           style={styles.universityImage}
@@ -327,7 +328,7 @@ export default function HomeScreen({ navigateTo }) {
           <Text style={styles.imageTitle}>{t('home.career.title')}</Text>
           <Text style={styles.imageDescription}>{t('home.career.description')}</Text>
         </LinearGradient>
-      </View>
+      </View> */}
 
       {/* Success Stories Section */}
       <View style={styles.studentsSection}>

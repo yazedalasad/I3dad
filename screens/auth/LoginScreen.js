@@ -43,18 +43,18 @@ export default function LoginScreen({ navigateTo }) {
     setLoading(false);
 
     if (error) {
-      let errorMessage = 'حدث خطأ أثناء تسجيل الدخول';
+      let errorMessage = t('auth.login.errors.generic');
       
       if (error.message.includes('Invalid login credentials')) {
-        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+        errorMessage = t('auth.login.errors.invalidCredentials');
       } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = 'يرجى تأكيد بريدك الإلكتروني أولاً';
+        errorMessage = t('auth.login.errors.emailNotConfirmed');
       }
 
-      Alert.alert('خطأ', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     } else {
-      // Navigation will be handled by AuthContext
-      console.log('Login successful');
+      // Navigate to home page after successful login
+      navigateTo('home');
     }
   };
 

@@ -24,11 +24,11 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
     }
 
     if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'كلمات المرور غير متطابقة';
+      newErrors.confirmPassword = t('validation.passwordsNotMatch');
     }
 
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'يرجى تأكيد كلمة المرور';
+      newErrors.confirmPassword = t('validation.required');
     }
 
     setErrors(newErrors);
@@ -54,24 +54,24 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
       }
 
       Alert.alert(
-        'تم بنجاح!',
-        'تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة',
+        t('auth.resetPassword.success.title'),
+        t('auth.resetPassword.success.message'),
         [
           {
-            text: 'تسجيل الدخول',
+            text: t('auth.resetPassword.success.loginButton'),
             onPress: () => navigateTo('login'),
           },
         ]
       );
     } catch (error) {
       setLoading(false);
-      let errorMessage = 'حدث خطأ أثناء تغيير كلمة المرور';
+      let errorMessage = t('auth.resetPassword.errors.generic');
       
       if (error.message.includes('Same password')) {
-        errorMessage = 'كلمة المرور الجديدة يجب أن تكون مختلفة عن القديمة';
+        errorMessage = t('auth.resetPassword.errors.samePassword');
       }
 
-      Alert.alert('خطأ', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     }
   };
 

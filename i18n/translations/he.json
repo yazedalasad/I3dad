@@ -9,7 +9,8 @@
     "back": "חזרה",
     "next": "הבא",
     "submit": "שלח",
-    "save": "שמור"
+    "save": "שמור",
+    "or": "או"
   },
   "home": {
     "title": "I3dad",
@@ -166,6 +167,11 @@
       "subtitle": "התחל את המסע שלך לעתיד המקצועי שלך",
       "personalInfo": "מידע אישי",
       "accountInfo": "פרטי חשבון",
+      "contactInfo": "פרטי התקשרות",
+      "contactDescription": "איך נוכל ליצור איתך קשר?",
+      "passwordSetup": "הגדרת סיסמה",
+      "passwordDescription": "בחר סיסמה חזקה לחשבון שלך",
+      "passwordInfo": "הסיסמה חייבת להכיל לפחות 8 תווים",
       "studentId": "תעודת זהות",
       "firstName": "שם פרטי",
       "lastName": "שם משפחה",
@@ -173,15 +179,27 @@
       "email": "אימייל",
       "birthday": "תאריך לידה",
       "schoolName": "שם בית הספר",
+      "school": "בית ספר",
       "grade": "כיתה",
       "password": "סיסמה",
       "confirmPassword": "אישור סיסמה",
       "signupButton": "צור חשבון",
+      "createAccount": "צור חשבון",
       "haveAccount": "כבר יש לך חשבון? ",
       "loginLink": "התחבר",
       "backToHome": "חזרה לדף הבית",
       "selectGrade": "בחר כיתה",
-      "selectSchool": "בחר בית ספר או הקלד את שמו"
+      "selectSchool": "בחר בית ספר או הקלד את שמו",
+      "success": {
+        "title": "החשבון נוצר בהצלחה!",
+        "message": "אנא בדוק את האימייל שלך לאימות החשבון",
+        "button": "אישור"
+      },
+      "errors": {
+        "emailExists": "האימייל כבר רשום",
+        "weakPassword": "הסיסמה חלשה מדי",
+        "generic": "אירעה שגיאה ביצירת החשבון"
+      }
     },
     "forgotPassword": {
       "title": "שכחת סיסמה?",

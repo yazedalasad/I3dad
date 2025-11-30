@@ -59,12 +59,12 @@ export default function SignupScreen({ navigateTo }) {
       newErrors.studentId = studentIdValidation.error;
     }
 
-    const firstNameValidation = validateName(formData.firstName, 'الاسم الأول');
+    const firstNameValidation = validateName(formData.firstName, t('auth.signup.firstName'));
     if (!firstNameValidation.isValid) {
       newErrors.firstName = firstNameValidation.error;
     }
 
-    const lastNameValidation = validateName(formData.lastName, 'اسم العائلة');
+    const lastNameValidation = validateName(formData.lastName, t('auth.signup.lastName'));
     if (!lastNameValidation.isValid) {
       newErrors.lastName = lastNameValidation.error;
     }
@@ -161,22 +161,22 @@ export default function SignupScreen({ navigateTo }) {
     setLoading(false);
 
     if (error) {
-      let errorMessage = 'حدث خطأ أثناء إنشاء الحساب';
+      let errorMessage = t('auth.signup.errors.generic');
 
       if (error.message.includes('already registered')) {
-        errorMessage = 'البريد الإلكتروني مسجل بالفعل';
+        errorMessage = t('auth.signup.errors.emailExists');
       } else if (error.message.includes('Password')) {
-        errorMessage = 'كلمة المرور ضعيفة جداً';
+        errorMessage = t('auth.signup.errors.weakPassword');
       }
 
-      Alert.alert('خطأ', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     } else {
       Alert.alert(
-        'تم إنشاء الحساب بنجاح!',
-        'يرجى التحقق من بريدك الإلكتروني لتأكيد حسابك',
+        t('auth.signup.success.title'),
+        t('auth.signup.success.message'),
         [
           {
-            text: 'حسناً',
+            text: t('auth.signup.success.button'),
             onPress: () => navigateTo('login'),
           },
         ]
@@ -237,7 +237,7 @@ export default function SignupScreen({ navigateTo }) {
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>{t('auth.signup.personalInfo')}</Text>
       <Text style={styles.stepDescription}>
-        {t('auth.signup.selectGrade')}
+        {t('auth.signup.subtitle')}
       </Text>
 
       <CustomTextInput
@@ -353,7 +353,7 @@ export default function SignupScreen({ navigateTo }) {
 
   const renderStep3 = () => (
     <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>{t('auth.signup.passwordSetup')}</Text>
+      <Text style={styles.stepTitle}>{t('auth.signup.accountInfo')}</Text>
       <Text style={styles.stepDescription}>
         {t('auth.signup.passwordDescription')}
       </Text>
@@ -381,7 +381,7 @@ export default function SignupScreen({ navigateTo }) {
       <View style={styles.infoBox}>
         <FontAwesome name="info-circle" size={20} color="#3498db" />
         <Text style={styles.infoText}>
-          {t('auth.signup.passwordInfo')}
+          {t('auth.resetPassword.info')}
         </Text>
       </View>
 

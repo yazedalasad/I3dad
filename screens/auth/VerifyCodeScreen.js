@@ -61,7 +61,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
     const verificationCode = code.join('');
 
     if (verificationCode.length !== 6) {
-      Alert.alert('خطأ', 'يرجى إدخال رمز التحقق المكون من 6 أرقام');
+      Alert.alert(t('common.error'), t('auth.verifyCode.errors.incompleteCode'));
       return;
     }
 
@@ -83,24 +83,24 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
       // If verification successful, navigate to reset password
       Alert.alert(
-        'تم التحقق!',
-        'تم التحقق من الرمز بنجاح',
+        t('auth.verifyCode.success.title'),
+        t('auth.verifyCode.success.message'),
         [
           {
-            text: 'حسناً',
+            text: t('common.confirm'),
             onPress: () => navigateTo('resetPassword', { email }),
           },
         ]
       );
     } catch (error) {
       setLoading(false);
-      let errorMessage = 'رمز التحقق غير صحيح';
+      let errorMessage = t('auth.verifyCode.errors.invalidCode');
       
       if (error.message.includes('expired')) {
-        errorMessage = 'انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد';
+        errorMessage = t('auth.verifyCode.errors.expiredCode');
       }
 
-      Alert.alert('خطأ', errorMessage);
+      Alert.alert(t('common.error'), errorMessage);
     }
   };
 
@@ -124,10 +124,10 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
       // Reset timer
       setTimer(60);
-      Alert.alert('تم الإرسال!', 'تم إرسال رمز تحقق جديد إلى بريدك الإلكتروني');
+      Alert.alert(t('auth.forgotPassword.success.title'), t('auth.forgotPassword.success.message'));
     } catch (error) {
       setResendLoading(false);
-      Alert.alert('خطأ', 'حدث خطأ أثناء إعادة إرسال الرمز');
+      Alert.alert(t('common.error'), t('auth.verifyCode.errors.resendError'));
     }
   };
 

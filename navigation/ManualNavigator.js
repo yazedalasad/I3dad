@@ -4,6 +4,8 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import FloatingLanguageSwitcher from '../components/FloatingLanguageSwitcher';
 import Navbar from '../components/Navigation/Navbar';
 import { useAuth } from '../contexts/AuthContext';
+import AdaptiveTestScreen from '../screens/AdaptiveTest/AdaptiveTestScreen';
+import TestResultsScreen from '../screens/AdaptiveTest/TestResultsScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
@@ -67,6 +69,21 @@ export default function ManualNavigator() {
       return <ResetPasswordScreen navigateTo={navigateTo} email={screenParams.email} />;
     }
 
+    // Adaptive Test screens
+    if (currentScreen === 'adaptiveTest') {
+      if (!user) {
+        return <LoginScreen navigateTo={navigateTo} />;
+      }
+      return <AdaptiveTestScreen navigateTo={navigateTo} />;
+    }
+
+    if (currentScreen === 'testResults') {
+      if (!user) {
+        return <LoginScreen navigateTo={navigateTo} />;
+      }
+      return <TestResultsScreen navigateTo={navigateTo} sessionId={screenParams.sessionId} />;
+    }
+
     // Main screens
     switch (currentScreen) {
       case 'home':
@@ -75,15 +92,9 @@ export default function ManualNavigator() {
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
         }
-        return (
-          <View style={styles.screenContainer}>
-            <Text style={styles.screenTitle}>قسم التقييم</Text>
-            <Text style={styles.screenSubtitle}>قريباً!</Text>
-            <Text style={styles.welcomeText}>
-              مرحباً {studentData?.first_name}!
-            </Text>
-          </View>
-        );
+        // Redirect to adaptive test
+        navigateTo('adaptiveTest');
+        return null;
       case 'profile':
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
