@@ -1,8 +1,9 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FloatingLanguageSwitcher from '../components/FloatingLanguageSwitcher';
 import Navbar from '../components/Navigation/Navbar';
+import { supabase } from '../config/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import AdaptiveTestScreen from '../screens/AdaptiveTest/AdaptiveTestScreen';
 import TestResultsScreen from '../screens/AdaptiveTest/TestResultsScreen';
@@ -12,12 +13,41 @@ import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
 import SignupScreen from '../screens/Auth/SignupScreen';
 import VerifyCodeScreen from '../screens/Auth/VerifyCodeScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
+import PersonalityResultsScreen from '../screens/PersonalityTest/PersonalityResultsScreen';
+import PersonalityTestScreen from '../screens/PersonalityTest/PersonalityTestScreen';
 
 export default function ManualNavigator() {
   const { user, loading, signOut, studentData } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
   const [screenParams, setScreenParams] = useState({});
+  const [subjects, setSubjects] = useState([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  // Load subjects from database
+  useEffect(() => {
+    if (currentScreen === 'accountant' && user) {
+      loadSubjects();
+    }
+  }, [currentScreen, user]);
+
+  const loadSubjects = async () => {
+    try {
+      setLoadingSubjects(true);
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('name_ar');
+
+      if (error) throw error;
+      console.log('Loaded subjects:', data);
+      setSubjects(data || []);
+    } catch (error) {
+      console.error('Error loading subjects:', error);
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
 
   const navigateTo = (screen, params = {}) => {
     console.log('Navigating to:', screen, 'with params:', params);
@@ -70,18 +100,26 @@ export default function ManualNavigator() {
     }
 
     // Adaptive Test screens
-    if (currentScreen === 'adaptiveTest') {
-      if (!user) {
-        return <LoginScreen navigateTo={navigateTo} />;
-      }
-      return <AdaptiveTestScreen navigateTo={navigateTo} />;
-    }
-
     if (currentScreen === 'testResults') {
       if (!user) {
         return <LoginScreen navigateTo={navigateTo} />;
       }
-      return <TestResultsScreen navigateTo={navigateTo} sessionId={screenParams.sessionId} />;
+      return <TestResultsScreen navigateTo={navigateTo} results={screenParams.results} subjectName={screenParams.subjectName} />;
+    }
+
+    // Personality Test screens
+    if (currentScreen === 'personalityTest') {
+      if (!user) {
+        return <LoginScreen navigateTo={navigateTo} />;
+      }
+      return <PersonalityTestScreen navigateTo={navigateTo} />;
+    }
+
+    if (currentScreen === 'personalityResults') {
+      if (!user) {
+        return <LoginScreen navigateTo={navigateTo} />;
+      }
+      return <PersonalityResultsScreen navigateTo={navigateTo} profiles={screenParams.profiles} />;
     }
 
     // Main screens
@@ -92,9 +130,49 @@ export default function ManualNavigator() {
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
         }
-        // Redirect to adaptive test
-        navigateTo('adaptiveTest');
-        return null;
+        // Show subject selection
+        return (
+          <View style={styles.screenContainer}>
+            <View style={styles.selectionHeader}>
+              <Text style={styles.selectionTitle}>اختر موضوع الاختبار</Text>
+              <Text style={styles.selectionSubtitle}>اختر المادة التي تريد تقييم قدراتك فيها</Text>
+            </View>
+            {loadingSubjects ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#27ae60" />
+                <Text style={styles.loadingText}>جاري تحميل المواد...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.subjectList}>
+                {subjects.map((subject) => (
+                  <TouchableOpacity
+                    key={subject.id}
+                    style={styles.subjectCard}
+                    onPress={() => navigateTo('adaptiveTest', { 
+                      subjectId: subject.id, 
+                      subjectName: subject.name_ar 
+                    })}
+                  >
+                    <FontAwesome name="book" size={32} color="#27ae60" />
+                    <Text style={styles.subjectName}>{subject.name_ar}</Text>
+                    <FontAwesome name="arrow-left" size={20} color="#94A3B8" />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        );
+      case 'adaptiveTest':
+        if (!user) {
+          return <LoginScreen navigateTo={navigateTo} />;
+        }
+        return (
+          <AdaptiveTestScreen 
+            navigateTo={navigateTo}
+            subjectId={screenParams.subjectId}
+            subjectName={screenParams.subjectName}
+          />
+        );
       case 'profile':
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
@@ -295,5 +373,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#e74c3c',
+  },
+  selectionHeader: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  selectionTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  selectionSubtitle: {
+    fontSize: 16,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  subjectList: {
+    flex: 1,
+    padding: 20,
+  },
+  subjectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 16,
+  },
+  subjectName: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    textAlign: 'right',
   },
 });

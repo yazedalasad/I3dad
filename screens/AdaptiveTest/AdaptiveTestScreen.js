@@ -9,22 +9,22 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import ProgressIndicator from '../../components/AdaptiveTest/ProgressIndicator';
 import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-    completeAbilityAssessment,
-    getAdaptiveQuestion,
-    startAbilityAssessment,
-    submitAbilityAnswer
+  completeAbilityAssessment,
+  getAdaptiveQuestion,
+  startAbilityAssessment,
+  submitAbilityAnswer
 } from '../../services/adaptiveTestService';
 
 export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName }) {
@@ -48,6 +48,9 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
   const initializeTest = async () => {
     try {
       setLoading(true);
+      console.log('AdaptiveTestScreen - initializeTest called with subjectId:', subjectId);
+      console.log('AdaptiveTestScreen - subjectName:', subjectName);
+      console.log('AdaptiveTestScreen - studentData.id:', studentData.id);
       
       const result = await startAbilityAssessment(
         studentData.id,
@@ -58,7 +61,7 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
       if (result.success) {
         setSessionId(result.sessionId);
         setTestState(result.testState);
-        await loadNextQuestion(result.testState);
+        await loadNextQuestion(result.testState, result.sessionId);
       } else {
         Alert.alert(t('error'), result.error);
       }
@@ -70,13 +73,20 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
     }
   };
 
-  const loadNextQuestion = async (state) => {
+  const loadNextQuestion = async (state, currentSessionId = null) => {
     try {
       setLoading(true);
       setSelectedAnswer(null);
       setShowFeedback(false);
 
-      const result = await getAdaptiveQuestion(sessionId, state);
+      const sid = currentSessionId || sessionId;
+      if (!sid) {
+        console.error('No session ID available');
+        return;
+      }
+
+      console.log('AdaptiveTestScreen - loadNextQuestion calling getAdaptiveQuestion with subjectId:', subjectId);
+      const result = await getAdaptiveQuestion(sid, state, subjectId);
 
       if (result.success) {
         setCurrentQuestion(result.question);

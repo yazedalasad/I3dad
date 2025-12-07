@@ -10,23 +10,23 @@
 
 import { supabase } from '../config/supabase';
 import {
-    getTestStatistics,
-    initializeTest,
-    processResponse,
-    selectInitialQuestion,
-    selectNextQuestion
+  getTestStatistics,
+  initializeTest,
+  processResponse,
+  selectInitialQuestion,
+  selectNextQuestion
 } from '../utils/irt/catAlgorithm';
 import {
-    discoverInterests,
-    updateInterestProfile
+  discoverInterests,
+  updateInterestProfile
 } from '../utils/irt/interestProfiling';
 import {
-    calculateConfidenceInterval,
-    thetaToPercentage
+  calculateConfidenceInterval,
+  thetaToPercentage
 } from '../utils/irt/irtCalculations';
 import {
-    calculateLearningPotential,
-    generateRecommendations
+  calculateLearningPotential,
+  generateRecommendations
 } from '../utils/irt/recommendationEngine';
 
 /**
@@ -349,25 +349,48 @@ export async function startAbilityAssessment(studentId, subjectId, language = 'a
  * 
  * @param {string} sessionId - Session ID
  * @param {Object} testState - Current test state
+ * @param {string} subjectId - Subject ID (optional, will query if not provided)
  * @returns {Object} Next question
  */
-export async function getAdaptiveQuestion(sessionId, testState) {
+export async function getAdaptiveQuestion(sessionId, testState, subjectId = null) {
   try {
-    // Get session
-    const { data: session } = await supabase
-      .from('test_sessions')
-      .select('subject_id')
-      .eq('id', sessionId)
-      .single();
+    console.log('getAdaptiveQuestion called with:', { sessionId, subjectId });
+    let actualSubjectId = subjectId;
+
+    // If subjectId not provided, query the session
+    if (!actualSubjectId) {
+      console.log('subjectId not provided, querying session...');
+      const { data: session, error: sessionError } = await supabase
+        .from('test_sessions')
+        .select('subject_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError) {
+        console.error('Error fetching session:', sessionError);
+        throw sessionError;
+      }
+
+      if (!session || !session.subject_id) {
+        throw new Error('Session not found or missing subject_id');
+      }
+
+      actualSubjectId = session.subject_id;
+    }
+
+    console.log('Fetching questions for subject:', actualSubjectId);
 
     // Get available questions for this subject
     const { data: questions, error: questionsError } = await supabase
       .from('questions')
       .select('*')
-      .eq('subject_id', session.subject_id)
+      .eq('subject_id', actualSubjectId)
       .eq('is_active', true);
 
-    if (questionsError) throw questionsError;
+    if (questionsError) {
+      console.error('Error fetching questions:', questionsError);
+      throw questionsError;
+    }
 
     // Select next question using CAT algorithm
     const nextQuestion = testState.questionsAnswered === 0

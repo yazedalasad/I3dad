@@ -386,6 +386,263 @@ CREATE TRIGGER update_recommendations_updated_at BEFORE UPDATE ON student_recomm
 --     FOR UPDATE USING (auth.uid()::text = (SELECT user_id::text FROM students WHERE id = student_id));
 
 -- ============================================
+-- 9. PERSONALITY DIMENSIONS TABLE
+-- ============================================
+-- Defines the Big Five personality dimensions
+CREATE TABLE IF NOT EXISTS personality_dimensions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name_en VARCHAR(100) NOT NULL,
+    name_ar VARCHAR(100) NOT NULL,
+    name_he VARCHAR(100) NOT NULL,
+    description_en TEXT,
+    description_ar TEXT,
+    description_he TEXT,
+    icon VARCHAR(50),
+    color VARCHAR(20),
+    display_order INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX idx_personality_dimensions_code ON personality_dimensions(code);
+
+-- Insert Big Five dimensions
+INSERT INTO personality_dimensions (code, name_en, name_ar, name_he, description_en, description_ar, description_he, icon, color, display_order) VALUES
+('openness', 'Openness to Experience', 'الانفتاح على التجربة', 'פתיחות לחוויה', 'Imagination, curiosity, and willingness to try new things', 'الخيال والفضول والاستعداد لتجربة أشياء جديدة', 'דמיון, סקרנות ונכונות לנסות דברים חדשים', 'lightbulb-o', '#9b59b6', 1),
+('conscientiousness', 'Conscientiousness', 'الضمير الحي', 'מצפוניות', 'Organization, responsibility, and self-discipline', 'التنظيم والمسؤولية والانضباط الذاتي', 'ארגון, אחריות ומשמעת עצמית', 'check-square-o', '#3498db', 2),
+('extraversion', 'Extraversion', 'الانبساط', 'אקסטרוברטיות', 'Sociability, assertiveness, and energy level', 'الاجتماعية والحزم ومستوى الطاقة', 'חברותיות, אסרטיביות ורמת אנרגיה', 'users', '#e74c3c', 3),
+('agreeableness', 'Agreeableness', 'الوداعة', 'נעימות', 'Cooperation, empathy, and kindness', 'التعاون والتعاطف واللطف', 'שיתוף פעולה, אמפתיה ואדיבות', 'heart', '#27ae60', 4),
+('emotional_stability', 'Emotional Stability', 'الاستقرار العاطفي', 'יציבות רגשית', 'Emotional resilience and stress management', 'المرونة العاطفية وإدارة الإجهاد', 'חוסן רגשי וניהול מתח', 'shield', '#f39c12', 5);
+
+-- ============================================
+-- 10. PERSONALITY QUESTIONS TABLE
+-- ============================================
+-- Personality assessment questions with multiple response types
+CREATE TABLE IF NOT EXISTS personality_questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    dimension_id UUID NOT NULL REFERENCES personality_dimensions(id) ON DELETE CASCADE,
+    
+    -- Question content (bilingual)
+    question_text_ar TEXT NOT NULL,
+    question_text_he TEXT NOT NULL,
+    
+    -- Question type: 'scale_10', 'multiple_choice', 'open_ended'
+    question_type VARCHAR(50) NOT NULL CHECK (question_type IN ('scale_10', 'multiple_choice', 'open_ended')),
+    
+    -- For multiple choice questions
+    options_ar TEXT[], -- Array of options in Arabic
+    options_he TEXT[], -- Array of options in Hebrew
+    
+    -- Scoring
+    is_reverse_scored BOOLEAN DEFAULT false, -- For negatively worded questions
+    weight DECIMAL(3,2) DEFAULT 1.0, -- Question weight in dimension calculation
+    
+    -- For scale questions: labels for endpoints
+    scale_min_label_ar VARCHAR(100),
+    scale_min_label_he VARCHAR(100),
+    scale_max_label_ar VARCHAR(100),
+    scale_max_label_he VARCHAR(100),
+    
+    -- Metadata
+    estimated_time_seconds INTEGER DEFAULT 30,
+    difficulty_level VARCHAR(20) CHECK (difficulty_level IN ('easy', 'medium', 'hard')),
+    
+    -- AI generation metadata
+    generated_by_ai BOOLEAN DEFAULT false,
+    ai_model VARCHAR(50),
+    generation_prompt TEXT,
+    
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_personality_questions_dimension ON personality_questions(dimension_id);
+CREATE INDEX idx_personality_questions_type ON personality_questions(question_type);
+CREATE INDEX idx_personality_questions_active ON personality_questions(is_active);
+
+-- ============================================
+-- 11. PERSONALITY TEST SESSIONS TABLE
+-- ============================================
+-- Tracks individual personality test sessions
+CREATE TABLE IF NOT EXISTS personality_test_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    
+    -- Session status
+    status VARCHAR(50) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'abandoned')),
+    
+    -- Language preference
+    language VARCHAR(10) NOT NULL CHECK (language IN ('ar', 'he')),
+    
+    -- Test parameters
+    total_questions INTEGER DEFAULT 50,
+    questions_answered INTEGER DEFAULT 0,
+    
+    -- Timing
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    total_time_seconds INTEGER,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_personality_sessions_student ON personality_test_sessions(student_id);
+CREATE INDEX idx_personality_sessions_status ON personality_test_sessions(status);
+
+-- ============================================
+-- 12. PERSONALITY RESPONSES TABLE
+-- ============================================
+-- Individual personality question responses
+CREATE TABLE IF NOT EXISTS personality_responses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES personality_test_sessions(id) ON DELETE CASCADE,
+    question_id UUID NOT NULL REFERENCES personality_questions(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    
+    -- Response data (varies by question type)
+    response_type VARCHAR(50) NOT NULL CHECK (response_type IN ('scale_10', 'multiple_choice', 'open_ended')),
+    
+    -- For scale questions (1-10)
+    scale_value INTEGER CHECK (scale_value BETWEEN 1 AND 10),
+    
+    -- For multiple choice
+    selected_option_index INTEGER,
+    selected_option_text_ar TEXT,
+    selected_option_text_he TEXT,
+    
+    -- For open-ended questions
+    text_response TEXT,
+    
+    -- Timing
+    time_taken_seconds INTEGER NOT NULL,
+    
+    -- Question order
+    question_order INTEGER NOT NULL,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_personality_responses_session ON personality_responses(session_id);
+CREATE INDEX idx_personality_responses_student ON personality_responses(student_id);
+CREATE INDEX idx_personality_responses_question ON personality_responses(question_id);
+
+-- ============================================
+-- 13. STUDENT PERSONALITY PROFILES TABLE
+-- ============================================
+-- Stores calculated personality scores per dimension
+CREATE TABLE IF NOT EXISTS student_personality_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    dimension_id UUID NOT NULL REFERENCES personality_dimensions(id) ON DELETE CASCADE,
+    
+    -- Dimension score (0-100%)
+    dimension_score DECIMAL(5,2) NOT NULL CHECK (dimension_score BETWEEN 0 AND 100),
+    
+    -- Raw score before normalization
+    raw_score DECIMAL(8,2),
+    
+    -- Percentile rank compared to other students
+    percentile_rank DECIMAL(5,2),
+    
+    -- Confidence in score
+    confidence_level DECIMAL(5,2) CHECK (confidence_level BETWEEN 0 AND 100),
+    
+    -- Assessment history
+    total_questions_answered INTEGER DEFAULT 0,
+    
+    -- Last assessment
+    last_assessed_at TIMESTAMP WITH TIME ZONE,
+    last_session_id UUID REFERENCES personality_test_sessions(id),
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure one record per student per dimension
+    UNIQUE(student_id, dimension_id)
+);
+
+-- Indexes
+CREATE INDEX idx_personality_profiles_student ON student_personality_profiles(student_id);
+CREATE INDEX idx_personality_profiles_dimension ON student_personality_profiles(dimension_id);
+CREATE INDEX idx_personality_profiles_score ON student_personality_profiles(dimension_score);
+
+-- ============================================
+-- 14. PERSONALITY INSIGHTS TABLE
+-- ============================================
+-- Stores AI-generated insights and recommendations based on personality
+CREATE TABLE IF NOT EXISTS personality_insights (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES personality_test_sessions(id) ON DELETE CASCADE,
+    
+    -- Overall personality type/category
+    personality_type VARCHAR(100),
+    personality_type_description_ar TEXT,
+    personality_type_description_he TEXT,
+    
+    -- Strengths
+    strengths_ar TEXT[],
+    strengths_he TEXT[],
+    
+    -- Development areas
+    development_areas_ar TEXT[],
+    development_areas_he TEXT[],
+    
+    -- Career recommendations
+    recommended_careers_ar TEXT[],
+    recommended_careers_he TEXT[],
+    
+    -- Study style recommendations
+    study_style_ar TEXT,
+    study_style_he TEXT,
+    
+    -- Communication style
+    communication_style_ar TEXT,
+    communication_style_he TEXT,
+    
+    -- AI generation metadata
+    generated_by_ai BOOLEAN DEFAULT false,
+    ai_model VARCHAR(50),
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- One insight record per session
+    UNIQUE(session_id)
+);
+
+-- Indexes
+CREATE INDEX idx_personality_insights_student ON personality_insights(student_id);
+CREATE INDEX idx_personality_insights_session ON personality_insights(session_id);
+
+-- ============================================
+-- TRIGGERS FOR PERSONALITY TABLES
+-- ============================================
+
+CREATE TRIGGER update_personality_dimensions_updated_at BEFORE UPDATE ON personality_dimensions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_personality_questions_updated_at BEFORE UPDATE ON personality_questions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_personality_sessions_updated_at BEFORE UPDATE ON personality_test_sessions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_personality_profiles_updated_at BEFORE UPDATE ON student_personality_profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_personality_insights_updated_at BEFORE UPDATE ON personality_insights
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
 -- COMMENTS FOR DOCUMENTATION
 -- ============================================
 
@@ -397,9 +654,17 @@ COMMENT ON TABLE student_abilities IS 'Student ability estimates per subject (0-
 COMMENT ON TABLE student_interests IS 'Student interest levels per subject (0-100%)';
 COMMENT ON TABLE student_learning_potential IS 'Learning potential combining ability, interest, and growth';
 COMMENT ON TABLE student_recommendations IS 'Personalized learning path recommendations';
+COMMENT ON TABLE personality_dimensions IS 'Big Five personality dimensions';
+COMMENT ON TABLE personality_questions IS 'Personality assessment questions with multiple response types';
+COMMENT ON TABLE personality_test_sessions IS 'Personality test sessions tracking';
+COMMENT ON TABLE personality_responses IS 'Individual personality question responses';
+COMMENT ON TABLE student_personality_profiles IS 'Student personality scores per dimension (0-100%)';
+COMMENT ON TABLE personality_insights IS 'AI-generated personality insights and recommendations';
 
 COMMENT ON COLUMN questions.difficulty IS 'IRT difficulty parameter (b): -3 (easy) to +3 (hard)';
 COMMENT ON COLUMN questions.discrimination IS 'IRT discrimination parameter (a): how well question differentiates ability levels';
 COMMENT ON COLUMN questions.guessing IS 'IRT guessing parameter (c): probability of correct answer by guessing';
 COMMENT ON COLUMN student_abilities.theta_estimate IS 'Raw IRT ability estimate: -3 (low) to +3 (high)';
 COMMENT ON COLUMN student_abilities.ability_score IS 'Normalized ability score: 0-100%';
+COMMENT ON COLUMN personality_questions.question_type IS 'Question type: scale_10 (1-10 rating), multiple_choice, or open_ended';
+COMMENT ON COLUMN personality_responses.scale_value IS 'For scale_10 questions: rating from 1 to 10';

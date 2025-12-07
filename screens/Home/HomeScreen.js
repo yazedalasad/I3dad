@@ -138,6 +138,14 @@ export default function HomeScreen({ navigateTo }) {
     }
   };
 
+  const handlePersonalityTest = () => {
+    if (user) {
+      navigateTo('personalityTest');
+    } else {
+      navigateTo('signup');
+    }
+  };
+
   return (
     <ScrollView ref={scrollViewRef} style={styles.container}>
       {/* Hero Section */}
@@ -205,6 +213,33 @@ export default function HomeScreen({ navigateTo }) {
             </View>
           </View>
         </View>
+      </View>
+
+      {/* Personality Test Highlight Section */}
+      <View style={styles.personalitySection}>
+        <LinearGradient
+          colors={['#9b59b6', '#8e44ad', '#6c3483']}
+          style={styles.personalityGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <FontAwesome name="user-circle" size={48} color="#fff" />
+          <Text style={styles.personalityTitle}>
+            {t('personalityTest.title')}
+          </Text>
+          <Text style={styles.personalityDescription}>
+            {t('personalityTest.description')}
+          </Text>
+          <TouchableOpacity
+            style={styles.personalityButton}
+            onPress={handlePersonalityTest}
+          >
+            <FontAwesome name="star" size={18} color="#9b59b6" />
+            <Text style={styles.personalityButtonText}>
+              {user ? t('personalityTest.startTest') : t('home.getStarted')}
+            </Text>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
 
       {/* Main Features Section */}
@@ -823,5 +858,54 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     opacity: 0.9,
+  },
+  personalitySection: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    backgroundColor: '#f8f9fa',
+  },
+  personalityGradient: {
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  personalityTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  personalityDescription: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    opacity: 0.95,
+    lineHeight: 24,
+  },
+  personalityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  personalityButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#9b59b6',
   },
 });
