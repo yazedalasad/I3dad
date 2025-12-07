@@ -25,6 +25,12 @@ export default function ManualNavigator() {
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
   // Load subjects from database
+  // Auto-redirect to home after successful login
+  useEffect(() => {
+   if (user && (currentScreen === 'login' || currentScreen === 'signup')) {
+      navigateTo('home');
+    }
+  }, [user, currentScreen]);
   useEffect(() => {
     if (currentScreen === 'accountant' && user) {
       loadSubjects();

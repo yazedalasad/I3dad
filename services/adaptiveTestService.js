@@ -726,6 +726,338 @@ export async function generateStudentRecommendations(studentId) {
   }
 }
 
+// Add to adaptiveTestService.js
+
+/**
+ * Start comprehensive multi-subject assessment
+ * 
+ * @param {string} studentId - Student ID
+ * @param {Array} subjectIds - Array of subject IDs to assess
+ * @param {string} language - Test language
+ * @returns {Object} Session data
+ */
+export async function startComprehensiveAssessment(studentId, subjectIds, language = 'ar') {
+  try {
+    // Create comprehensive test session
+    const { data: session, error: sessionError } = await supabase
+      .from('test_sessions')
+      .insert({
+        student_id: studentId,
+        session_type: 'comprehensive_assessment',
+        language,
+        target_questions: subjectIds.length * 10, // e.g., 10 questions per subject
+        status: 'in_progress',
+        metadata: { subjectIds } // Store subject IDs in metadata
+      })
+      .select()
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    // Initialize test state for each subject
+    const subjectStates = {};
+    subjectIds.forEach(subjectId => {
+      subjectStates[subjectId] = initializeTest({
+        targetQuestions: 10,
+        minQuestions: 5,
+        maxQuestions: 15,
+        targetPrecision: 0.3,
+        startingTheta: 0
+      });
+    });
+
+    return {
+      success: true,
+      sessionId: session.id,
+      session,
+      subjectStates
+    };
+  } catch (error) {
+    console.error('Error starting comprehensive assessment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get next adaptive question for comprehensive assessment
+ * 
+ * @param {string} sessionId - Session ID
+ * @param {Object} subjectStates - States for each subject
+ * @returns {Object} Next question
+ */
+export async function getComprehensiveQuestion(sessionId, subjectStates) {
+  try {
+    // Get session to know which subjects
+    const { data: session, error: sessionError } = await supabase
+      .from('test_sessions')
+      .select('metadata')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    const subjectIds = session.metadata?.subjectIds || [];
+    
+    // Determine which subject needs more questions
+    let targetSubjectId = null;
+    let minQuestionsAnswered = Infinity;
+    
+    for (const subjectId of subjectIds) {
+      const state = subjectStates[subjectId];
+      if (state && !state.isComplete) {
+        if (state.questionsAnswered < minQuestionsAnswered) {
+          minQuestionsAnswered = state.questionsAnswered;
+          targetSubjectId = subjectId;
+        }
+      }
+    }
+
+    if (!targetSubjectId) {
+      return {
+        success: false,
+        error: 'All subjects completed'
+      };
+    }
+
+    // Get available questions for this subject
+    const { data: questions, error: questionsError } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('subject_id', targetSubjectId)
+      .eq('is_active', true);
+
+    if (questionsError) throw questionsError;
+
+    const state = subjectStates[targetSubjectId];
+    
+    // Select next question using CAT algorithm
+    const nextQuestion = state.questionsAnswered === 0
+      ? selectInitialQuestion(questions)
+      : selectNextQuestion(
+          state.currentTheta,
+          questions,
+          state.usedQuestionIds
+        );
+
+    if (!nextQuestion) {
+      return {
+        success: false,
+        error: 'No suitable question found'
+      };
+    }
+
+    return {
+      success: true,
+      question: nextQuestion,
+      subjectId: targetSubjectId,
+      progress: {
+        subjectId: targetSubjectId,
+        answered: state.questionsAnswered,
+        total: state.targetQuestions,
+        currentAbility: thetaToPercentage(state.currentTheta),
+        standardError: state.standardError,
+        overallProgress: calculateOverallProgress(subjectIds, subjectStates)
+      }
+    };
+  } catch (error) {
+    console.error('Error getting comprehensive question:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Submit answer for comprehensive assessment
+ */
+export async function submitComprehensiveAnswer(sessionId, question, subjectId, answer, timeTaken, subjectStates) {
+  try {
+    const isCorrect = answer === question.correct_answer;
+    const state = subjectStates[subjectId];
+
+    // Get session
+    const { data: session } = await supabase
+      .from('test_sessions')
+      .select('student_id')
+      .eq('id', sessionId)
+      .single();
+
+    // Process response using CAT algorithm
+    const updatedState = processResponse(state, question, answer, timeTaken);
+    
+    // Update the specific subject's state
+    const updatedSubjectStates = {
+      ...subjectStates,
+      [subjectId]: updatedState
+    };
+
+    // Save response to database
+    const { error: responseError } = await supabase
+      .from('student_responses')
+      .insert({
+        session_id: sessionId,
+        question_id: question.id,
+        student_id: session.student_id,
+        selected_answer: answer,
+        is_correct: isCorrect,
+        time_taken_seconds: timeTaken,
+        ability_before: state.currentTheta,
+        ability_after: updatedState.currentTheta,
+        question_order: getTotalQuestionsAnswered(updatedSubjectStates),
+        metadata: { subjectId } // Track which subject this was for
+      });
+
+    if (responseError) throw responseError;
+
+    // Update session question count
+    const totalAnswered = getTotalQuestionsAnswered(updatedSubjectStates);
+    const { error: updateError } = await supabase
+      .from('test_sessions')
+      .update({
+        questions_answered: totalAnswered
+      })
+      .eq('id', sessionId);
+
+    if (updateError) throw updateError;
+
+    // Check if all subjects are complete
+    const allComplete = areAllSubjectsComplete(subjectIds, updatedSubjectStates);
+
+    return {
+      success: true,
+      isCorrect,
+      correctAnswer: question.correct_answer,
+      subjectStates: updatedSubjectStates,
+      isComplete: allComplete
+    };
+  } catch (error) {
+    console.error('Error submitting comprehensive answer:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Complete comprehensive assessment and save all results
+ */
+export async function completeComprehensiveAssessment(sessionId, subjectStates) {
+  try {
+    const { data: session } = await supabase
+      .from('test_sessions')
+      .select('student_id, metadata')
+      .eq('id', sessionId)
+      .single();
+
+    const subjectIds = session.metadata?.subjectIds || [];
+    const results = [];
+
+    // Process and save results for each subject
+    for (const subjectId of subjectIds) {
+      const state = subjectStates[subjectId];
+      if (state) {
+        const stats = getTestStatistics(state);
+        const abilityScore = thetaToPercentage(stats.finalTheta);
+        const confidenceLevel = Math.max(0, 100 - (stats.standardError / 0.5) * 100);
+
+        // Save ability score for this subject
+        await supabase
+          .from('student_abilities')
+          .upsert({
+            student_id: session.student_id,
+            subject_id: subjectId,
+            ability_score: abilityScore,
+            theta_estimate: stats.finalTheta,
+            standard_error: stats.standardError,
+            confidence_level: confidenceLevel,
+            total_questions_answered: stats.questionsAnswered,
+            correct_answers: stats.correctCount,
+            accuracy_rate: stats.accuracy,
+            last_assessed_at: new Date().toISOString(),
+            last_session_id: sessionId
+          }, {
+            onConflict: 'student_id,subject_id'
+          });
+
+        results.push({
+          subjectId,
+          abilityScore,
+          theta: stats.finalTheta,
+          standardError: stats.standardError,
+          accuracy: stats.accuracy,
+          questionsAnswered: stats.questionsAnswered
+        });
+      }
+    }
+
+    // Update session status
+    await supabase
+      .from('test_sessions')
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        final_ability_estimate: calculateOverallScore(results)
+      })
+      .eq('id', sessionId);
+
+    return {
+      success: true,
+      results
+    };
+  } catch (error) {
+    console.error('Error completing comprehensive assessment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// Helper functions
+function calculateOverallProgress(subjectIds, subjectStates) {
+  let totalQuestions = 0;
+  let answeredQuestions = 0;
+  
+  subjectIds.forEach(subjectId => {
+    const state = subjectStates[subjectId];
+    if (state) {
+      totalQuestions += state.targetQuestions;
+      answeredQuestions += state.questionsAnswered;
+    }
+  });
+  
+  return {
+    answered: answeredQuestions,
+    total: totalQuestions,
+    percentage: totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0
+  };
+}
+
+function getTotalQuestionsAnswered(subjectStates) {
+  return Object.values(subjectStates).reduce(
+    (total, state) => total + (state?.questionsAnswered || 0), 
+    0
+  );
+}
+
+function areAllSubjectsComplete(subjectIds, subjectStates) {
+  return subjectIds.every(subjectId => {
+    const state = subjectStates[subjectId];
+    return state && state.isComplete;
+  });
+}
+
+function calculateOverallScore(results) {
+  if (!results.length) return 0;
+  const sum = results.reduce((total, r) => total + r.abilityScore, 0);
+  return sum / results.length;
+}
+
 export default {
   startInterestDiscovery,
   getInterestDiscoveryQuestion,
@@ -735,5 +1067,9 @@ export default {
   getAdaptiveQuestion,
   submitAbilityAnswer,
   completeAbilityAssessment,
+  startComprehensiveAssessment,
+  getComprehensiveQuestion,
+  submitComprehensiveAnswer,
+  completeComprehensiveAssessment,
   generateStudentRecommendations
 };

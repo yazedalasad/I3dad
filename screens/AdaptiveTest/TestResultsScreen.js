@@ -2,31 +2,33 @@
  * TEST RESULTS SCREEN
  * 
  * Displays test results with radar chart visualization
+ * Supports both single-subject and comprehensive test results
  */
 
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import RadarChart from '../../components/AdaptiveTest/RadarChart';
 import { useAuth } from '../../contexts/AuthContext';
 import { getStudentAbilities } from '../../services/abilityService';
 import { generateStudentRecommendations } from '../../services/adaptiveTestService';
 
-export default function TestResultsScreen({ navigateTo, results, subjectName }) {
+export default function TestResultsScreen({ navigateTo, results, subjectName, subjectNames, isComprehensive = false }) {
   const { t } = useTranslation();
   const { studentData } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [allAbilities, setAllAbilities] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [comprehensiveResults, setComprehensiveResults] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -40,6 +42,12 @@ export default function TestResultsScreen({ navigateTo, results, subjectName }) 
       const abilitiesResult = await getStudentAbilities(studentData.id);
       if (abilitiesResult.success) {
         setAllAbilities(abilitiesResult.abilities);
+        
+        // If comprehensive test, extract just-tested subjects
+        if (isComprehensive && results && Array.isArray(results)) {
+          // results should be an array of objects with subjectId and abilityScore
+          setComprehensiveResults(results);
+        }
       }
 
       // Generate recommendations
@@ -61,68 +69,166 @@ export default function TestResultsScreen({ navigateTo, results, subjectName }) 
     return { text: 'يحتاج تحسين', color: '#e74c3c' };
   };
 
-  const level = getAbilityLevel(results.abilityScore);
+  // Calculate overall score for comprehensive test
+  const calculateOverallScore = () => {
+    if (!isComprehensive || !comprehensiveResults.length) return 0;
+    const sum = comprehensiveResults.reduce((total, r) => total + r.abilityScore, 0);
+    return sum / comprehensiveResults.length;
+  };
+
+  // Get subject name by ID
+  const getSubjectNameById = (subjectId, index) => {
+    if (subjectNames && subjectNames[index]) {
+      return subjectNames[index];
+    }
+    // Try to find in allAbilities
+    const ability = allAbilities.find(a => a.subject_id === subjectId);
+    return ability?.subjects?.name_ar || ability?.subjects?.name_en || `المادة ${index + 1}`;
+  };
+
+  const level = isComprehensive 
+    ? getAbilityLevel(calculateOverallScore())
+    : getAbilityLevel(results?.abilityScore || 0);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Header */}
+      {/* Header - Different for comprehensive vs single */}
       <View style={styles.header}>
-        <FontAwesome name="check-circle" size={64} color="#27ae60" />
-        <Text style={styles.headerTitle}>اكتمل الاختبار!</Text>
-        <Text style={styles.headerSubtitle}>{subjectName}</Text>
+        <FontAwesome 
+          name={isComprehensive ? "star" : "check-circle"} 
+          size={64} 
+          color="#27ae60" 
+        />
+        <Text style={styles.headerTitle}>
+          {isComprehensive ? "اكتمل الاختبار الشامل!" : "اكتمل الاختبار!"}
+        </Text>
+        <Text style={styles.headerSubtitle}>
+          {isComprehensive 
+            ? `${subjectNames?.length || comprehensiveResults.length || 0} مواد` 
+            : subjectName}
+        </Text>
       </View>
 
       {/* Main Score Card */}
       <View style={styles.scoreCard}>
-        <Text style={styles.scoreLabel}>نتيجتك</Text>
+        <Text style={styles.scoreLabel}>
+          {isComprehensive ? "نتيجتك الشاملة" : "نتيجتك"}
+        </Text>
         <Text style={[styles.scoreValue, { color: level.color }]}>
-          {Math.round(results.abilityScore)}%
+          {Math.round(isComprehensive ? calculateOverallScore() : results?.abilityScore || 0)}%
         </Text>
         <Text style={[styles.scoreLevel, { color: level.color }]}>
           {level.text}
         </Text>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <FontAwesome name="check" size={20} color="#27ae60" />
-            <Text style={styles.statValue}>{results.accuracy.toFixed(0)}%</Text>
-            <Text style={styles.statLabel}>دقة</Text>
+        {/* Stats Row - Different for comprehensive */}
+        {isComprehensive ? (
+          // Comprehensive test stats
+          <View style={styles.comprehensiveStats}>
+            <View style={styles.statItem}>
+              <FontAwesome name="book" size={20} color="#3498db" />
+              <Text style={styles.statValue}>{comprehensiveResults.length}</Text>
+              <Text style={styles.statLabel}>مواد</Text>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <FontAwesome name="clock-o" size={20} color="#f39c12" />
+              <Text style={styles.statValue}>
+                {Math.round((results?.totalTime || 0) / 60)}
+              </Text>
+              <Text style={styles.statLabel}>دقيقة</Text>
+            </View>
           </View>
+        ) : (
+          // Single subject stats
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <FontAwesome name="check" size={20} color="#27ae60" />
+              <Text style={styles.statValue}>{results?.accuracy?.toFixed(0) || 0}%</Text>
+              <Text style={styles.statLabel}>دقة</Text>
+            </View>
 
-          <View style={styles.statDivider} />
+            <View style={styles.statDivider} />
 
-          <View style={styles.statItem}>
-            <FontAwesome name="list" size={20} color="#3498db" />
-            <Text style={styles.statValue}>{results.questionsAnswered}</Text>
-            <Text style={styles.statLabel}>أسئلة</Text>
+            <View style={styles.statItem}>
+              <FontAwesome name="list" size={20} color="#3498db" />
+              <Text style={styles.statValue}>{results?.questionsAnswered || 0}</Text>
+              <Text style={styles.statLabel}>أسئلة</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <FontAwesome name="clock-o" size={20} color="#f39c12" />
+              <Text style={styles.statValue}>
+                {Math.round((results?.totalTime || 0) / 60)}
+              </Text>
+              <Text style={styles.statLabel}>دقيقة</Text>
+            </View>
           </View>
+        )}
 
-          <View style={styles.statDivider} />
-
-          <View style={styles.statItem}>
-            <FontAwesome name="clock-o" size={20} color="#f39c12" />
-            <Text style={styles.statValue}>
-              {Math.round(results.totalTime / 60)}
+        {/* Confidence Interval - Only for single subject */}
+        {!isComprehensive && results?.confidenceInterval && (
+          <View style={styles.confidenceSection}>
+            <Text style={styles.confidenceLabel}>نطاق الثقة (95%):</Text>
+            <Text style={styles.confidenceValue}>
+              {Math.round(results.confidenceInterval.lower * 100 / 6 + 50)}% - 
+              {Math.round(results.confidenceInterval.upper * 100 / 6 + 50)}%
             </Text>
-            <Text style={styles.statLabel}>دقيقة</Text>
           </View>
-        </View>
-
-        {/* Confidence Interval */}
-        <View style={styles.confidenceSection}>
-          <Text style={styles.confidenceLabel}>نطاق الثقة (95%):</Text>
-          <Text style={styles.confidenceValue}>
-            {Math.round(results.confidenceInterval.lower * 100 / 6 + 50)}% - 
-            {Math.round(results.confidenceInterval.upper * 100 / 6 + 50)}%
-          </Text>
-        </View>
+        )}
       </View>
 
-      {/* Radar Chart */}
+      {/* Comprehensive Results Breakdown */}
+      {isComprehensive && comprehensiveResults.length > 0 && (
+        <View style={styles.comprehensiveBreakdown}>
+          <Text style={styles.breakdownTitle}>نتائج المواد المفصلة</Text>
+          
+          {comprehensiveResults.map((result, index) => {
+            const subjectLevel = getAbilityLevel(result.abilityScore);
+            return (
+              <View key={result.subjectId || index} style={styles.subjectResultCard}>
+                <View style={styles.subjectResultHeader}>
+                  <Text style={styles.subjectResultName}>
+                    {getSubjectNameById(result.subjectId, index)}
+                  </Text>
+                  <Text style={[styles.subjectResultScore, { color: subjectLevel.color }]}>
+                    {Math.round(result.abilityScore)}%
+                  </Text>
+                </View>
+                
+                <View style={styles.subjectResultDetails}>
+                  <View style={styles.detailItem}>
+                    <FontAwesome name="check" size={14} color="#27ae60" />
+                    <Text style={styles.detailText}>
+                      {result.accuracy?.toFixed(0) || 0}% دقة
+                    </Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <FontAwesome name="list" size={14} color="#3498db" />
+                    <Text style={styles.detailText}>
+                      {result.questionsAnswered || 0} أسئلة
+                    </Text>
+                  </View>
+                  <Text style={styles.subjectResultLevel}>
+                    {subjectLevel.text}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Radar Chart - Show all abilities */}
       {!loading && allAbilities.length > 0 && (
         <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>ملفك الشامل</Text>
+          <Text style={styles.chartTitle}>
+            {isComprehensive ? "ملفك الشامل بعد الاختبار" : "ملفك الشامل"}
+          </Text>
           <Text style={styles.chartSubtitle}>
             مستوى قدراتك في جميع المواد
           </Text>
@@ -150,7 +256,7 @@ export default function TestResultsScreen({ navigateTo, results, subjectName }) 
                   {rec.subjectId}
                 </Text>
                 <Text style={styles.recommendationReason}>
-                  {rec.reasoning?.ar}
+                  {rec.reasoning?.ar || rec.reasoning?.en || 'مادة موصى بها'}
                 </Text>
               </View>
               <View style={styles.recommendationScore}>
@@ -181,6 +287,20 @@ export default function TestResultsScreen({ navigateTo, results, subjectName }) 
         >
           <Text style={styles.primaryButtonText}>العودة للرئيسية</Text>
         </TouchableOpacity>
+
+        {isComprehensive && comprehensiveResults.length > 0 && (
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => {
+              // Navigate to subject details or start new test
+              navigateTo('home');
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>
+              اختبار مواد أخرى
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={styles.secondaryButton}
@@ -252,6 +372,16 @@ const styles = StyleSheet.create({
     borderTopColor: '#334155',
     width: '100%',
   },
+  comprehensiveStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    width: '100%',
+  },
   statItem: {
     flex: 1,
     alignItems: 'center',
@@ -288,6 +418,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     fontWeight: '600',
+  },
+  comprehensiveBreakdown: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+  },
+  breakdownTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  subjectResultCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  subjectResultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  subjectResultName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+  },
+  subjectResultScore: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  subjectResultDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailText: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  subjectResultLevel: {
+    fontSize: 12,
+    color: '#64748b',
+    fontStyle: 'italic',
   },
   chartCard: {
     backgroundColor: '#1e293b',

@@ -15,11 +15,12 @@ import {
   validateEmail,
   validateGrade,
   validateName,
+  validateNamesLanguageMatch,
   validatePassword,
   validatePasswordMatch,
   validatePhone,
   validateSchool,
-  validateStudentId,
+  validateStudentId
 } from '../../utils/validation';
 
 export default function SignupScreen({ navigateTo }) {
@@ -52,31 +53,38 @@ export default function SignupScreen({ navigateTo }) {
   };
 
   const validateStep1 = () => {
-    const newErrors = {};
+  const newErrors = {};
 
-    const studentIdValidation = validateStudentId(formData.studentId);
-    if (!studentIdValidation.isValid) {
-      newErrors.studentId = studentIdValidation.error;
-    }
+  const studentIdValidation = validateStudentId(formData.studentId);
+  if (!studentIdValidation.isValid) {
+    newErrors.studentId = studentIdValidation.error;
+  }
 
-    const firstNameValidation = validateName(formData.firstName, t('auth.signup.firstName'));
-    if (!firstNameValidation.isValid) {
-      newErrors.firstName = firstNameValidation.error;
-    }
+  const firstNameValidation = validateName(formData.firstName, t('auth.signup.firstName'));
+  if (!firstNameValidation.isValid) {
+    newErrors.firstName = firstNameValidation.error;
+  }
 
-    const lastNameValidation = validateName(formData.lastName, t('auth.signup.lastName'));
-    if (!lastNameValidation.isValid) {
-      newErrors.lastName = lastNameValidation.error;
-    }
+  const lastNameValidation = validateName(formData.lastName, t('auth.signup.lastName'));
+  if (!lastNameValidation.isValid) {
+    newErrors.lastName = lastNameValidation.error;
+  }
 
-    const emailValidation = validateEmail(formData.email);
-    if (!emailValidation.isValid) {
-      newErrors.email = emailValidation.error;
-    }
+  // NEW: Check that both names use the same language
+  const namesLanguageMatch = validateNamesLanguageMatch(formData.firstName, formData.lastName);
+  if (!namesLanguageMatch.isValid) {
+    newErrors.firstName = namesLanguageMatch.error;
+    newErrors.lastName = namesLanguageMatch.error;
+  }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const emailValidation = validateEmail(formData.email);
+  if (!emailValidation.isValid) {
+    newErrors.email = emailValidation.error;
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const validateStep2 = () => {
     const newErrors = {};
@@ -141,48 +149,48 @@ export default function SignupScreen({ navigateTo }) {
   };
 
   const handleSignup = async () => {
-    if (!validateStep3()) {
-      return;
+  if (!validateStep3()) {
+    return;
+  }
+
+  setLoading(true);
+
+  const studentInfo = {
+    studentId: formData.studentId,
+    firstName: formData.firstName,
+    lastName: formData.lastName,
+    phone: formatPhone(formData.phone),
+    birthday: formData.birthday,
+    schoolName: formData.schoolName,
+    grade: parseInt(formData.grade),
+  };
+
+  const { data, error } = await signUp(formData.email, formData.password, studentInfo);
+  setLoading(false);
+
+  if (error) {
+    let errorMessage = t('auth.signup.errors.generic');
+
+    if (error.message.includes('already registered')) {
+      errorMessage = t('auth.signup.errors.emailExists');
+    } else if (error.message.includes('Password')) {
+      errorMessage = t('auth.signup.errors.weakPassword');
     }
 
-    setLoading(true);
-
-    const studentInfo = {
-      studentId: formData.studentId,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      phone: formatPhone(formData.phone),
-      birthday: formData.birthday,
-      schoolName: formData.schoolName,
-      grade: parseInt(formData.grade),
-    };
-
-    const { data, error } = await signUp(formData.email, formData.password, studentInfo);
-    setLoading(false);
-
-    if (error) {
-      let errorMessage = t('auth.signup.errors.generic');
-
-      if (error.message.includes('already registered')) {
-        errorMessage = t('auth.signup.errors.emailExists');
-      } else if (error.message.includes('Password')) {
-        errorMessage = t('auth.signup.errors.weakPassword');
-      }
-
-      Alert.alert(t('common.error'), errorMessage);
-    } else {
+    Alert.alert(t('common.error'), errorMessage);
+  } else {
+    
+    navigateTo('login');
+    
+    // Show success message after a brief delay
+    setTimeout(() => {
       Alert.alert(
         t('auth.signup.success.title'),
-        t('auth.signup.success.message'),
-        [
-          {
-            text: t('auth.signup.success.button'),
-            onPress: () => navigateTo('login'),
-          },
-        ]
+        t('auth.signup.success.message')
       );
-    }
-  };
+    }, 500);
+  }
+};
 
   const schoolItems = israeliSchools.map((school) => ({
     label: school.name,

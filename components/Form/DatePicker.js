@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomButton from './CustomButton';
 
@@ -10,9 +10,27 @@ export default function DatePicker({
   error,
   icon,
   placeholder = 'اختر التاريخ',
+  minAge = 14,  // Minimum age allowed
+  maxAge = 20,  // Maximum age allowed
 }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : new Date());
+  const [dateError, setDateError] = useState('');
+
+  // Calculate min and max dates based on age restrictions
+  const getMinDate = () => {
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setFullYear(today.getFullYear() - maxAge);
+    return minDate;
+  };
+
+  const getMaxDate = () => {
+    const today = new Date();
+    const maxDate = new Date(today);
+    maxDate.setFullYear(today.getFullYear() - minAge);
+    return maxDate;
+  };
 
   const formatDate = (date) => {
     if (!date) return placeholder;
@@ -23,28 +41,113 @@ export default function DatePicker({
     return `${day}/${month}/${year}`;
   };
 
+  // Function to calculate age from date
+  const calculateAge = (date) => {
+    const today = new Date();
+    const birthDate = new Date(date);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  // Validate date against age restrictions
+  const validateDate = (date) => {
+    const age = calculateAge(date);
+    if (age < minAge) {
+      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
+      return false;
+    } else if (age > maxAge) {
+      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
+      return false;
+    }
+    setDateError('');
+    return true;
+  };
+
   const handleConfirm = () => {
-    onValueChange(selectedDate.toISOString());
-    setModalVisible(false);
+    if (validateDate(selectedDate)) {
+      onValueChange(selectedDate.toISOString());
+      setModalVisible(false);
+    }
   };
 
   const changeYear = (increment) => {
     const newDate = new Date(selectedDate);
     newDate.setFullYear(newDate.getFullYear() + increment);
-    setSelectedDate(newDate);
+    
+    // Check if the new year is within allowed range
+    const minDate = getMinDate();
+    const maxDate = getMaxDate();
+    
+    if (newDate > maxDate) {
+      setSelectedDate(maxDate);
+      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
+    } else if (newDate < minDate) {
+      setSelectedDate(minDate);
+      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
+    } else {
+      setSelectedDate(newDate);
+      validateDate(newDate);
+    }
   };
 
   const changeMonth = (increment) => {
     const newDate = new Date(selectedDate);
     newDate.setMonth(newDate.getMonth() + increment);
-    setSelectedDate(newDate);
+    
+    // Check if the new date is within allowed range
+    const minDate = getMinDate();
+    const maxDate = getMaxDate();
+    
+    if (newDate > maxDate) {
+      setSelectedDate(maxDate);
+      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
+    } else if (newDate < minDate) {
+      setSelectedDate(minDate);
+      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
+    } else {
+      setSelectedDate(newDate);
+      validateDate(newDate);
+    }
   };
 
   const changeDay = (increment) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + increment);
-    setSelectedDate(newDate);
+    
+    // Check if the new date is within allowed range
+    const minDate = getMinDate();
+    const maxDate = getMaxDate();
+    
+    if (newDate > maxDate) {
+      setSelectedDate(maxDate);
+      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
+    } else if (newDate < minDate) {
+      setSelectedDate(minDate);
+      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
+    } else {
+      setSelectedDate(newDate);
+      validateDate(newDate);
+    }
   };
+
+  // Show age range in placeholder when no date is selected
+  const getPlaceholderText = () => {
+    if (value) return formatDate(value);
+    return `${placeholder} (${minAge}-${maxAge} سنة)`;
+  };
+
+  // Initialize validation when component mounts or value changes
+  useEffect(() => {
+    if (value) {
+      validateDate(new Date(value));
+    }
+  }, [value]);
 
   return (
     <View style={styles.container}>
@@ -53,15 +156,29 @@ export default function DatePicker({
       <TouchableOpacity
         style={[
           styles.dateButton,
-          error && styles.dateButtonError,
+          (error || dateError) && styles.dateButtonError,
         ]}
-        onPress={() => setModalVisible(true)}
+        onPress={() => {
+          // Reset to current value or valid default when opening modal
+          if (value) {
+            setSelectedDate(new Date(value));
+            validateDate(new Date(value));
+          } else {
+            // Set to middle of allowed range as default
+            const today = new Date();
+            const defaultDate = new Date(today);
+            defaultDate.setFullYear(today.getFullYear() - Math.floor((minAge + maxAge) / 2));
+            setSelectedDate(defaultDate);
+            validateDate(defaultDate);
+          }
+          setModalVisible(true);
+        }}
       >
         {icon && (
           <FontAwesome
             name={icon}
             size={20}
-            color={error ? '#e74c3c' : '#94A3B8'}
+            color={(error || dateError) ? '#e74c3c' : '#94A3B8'}
             style={styles.icon}
           />
         )}
@@ -69,7 +186,7 @@ export default function DatePicker({
           styles.dateText,
           !value && styles.placeholderText,
         ]}>
-          {value ? formatDate(value) : placeholder}
+          {getPlaceholderText()}
         </Text>
         <FontAwesome
           name="calendar"
@@ -79,10 +196,10 @@ export default function DatePicker({
         />
       </TouchableOpacity>
 
-      {error && (
+      {(error || dateError) && (
         <View style={styles.errorContainer}>
           <FontAwesome name="exclamation-circle" size={14} color="#e74c3c" />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{error || dateError}</Text>
         </View>
       )}
 
@@ -101,7 +218,16 @@ export default function DatePicker({
               >
                 <FontAwesome name="times" size={24} color="#2c3e50" />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>{label || 'اختر التاريخ'}</Text>
+              <Text style={styles.modalTitle}>
+                {label || 'اختر التاريخ'} ({minAge}-{maxAge} سنة)
+              </Text>
+            </View>
+
+            {/* Age Range Info */}
+            <View style={styles.ageRangeContainer}>
+              <Text style={styles.ageRangeText}>
+                يجب أن يكون العمر بين {minAge} و {maxAge} سنة
+              </Text>
             </View>
 
             <View style={styles.datePickerContainer}>
@@ -170,17 +296,39 @@ export default function DatePicker({
               </View>
             </View>
 
+            {/* Age Display */}
+            <View style={styles.ageContainer}>
+              <View style={styles.ageDisplay}>
+                <Text style={styles.ageLabel}>العمر الحالي:</Text>
+                <Text style={[
+                  styles.ageValue,
+                  dateError ? styles.ageError : styles.ageValid
+                ]}>
+                  {calculateAge(selectedDate)} سنة
+                </Text>
+              </View>
+            </View>
+
             <View style={styles.selectedDateDisplay}>
               <Text style={styles.selectedDateText}>
                 التاريخ المختار: {formatDate(selectedDate)}
               </Text>
             </View>
 
+            {/* Error Message in Modal */}
+            {dateError && (
+              <View style={styles.modalErrorContainer}>
+                <FontAwesome name="exclamation-triangle" size={16} color="#e74c3c" />
+                <Text style={styles.modalErrorText}>{dateError}</Text>
+              </View>
+            )}
+
             <View style={styles.modalButtons}>
               <CustomButton
                 title="تأكيد"
                 onPress={handleConfirm}
                 icon="check"
+                disabled={!!dateError}
               />
             </View>
           </View>
@@ -261,7 +409,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e2e8f0',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#2c3e50',
     flex: 1,
@@ -270,6 +418,21 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 4,
+  },
+  ageRangeContainer: {
+    backgroundColor: '#f0f9ff',
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0ea5e9',
+  },
+  ageRangeText: {
+    fontSize: 14,
+    color: '#0369a1',
+    textAlign: 'center',
+    fontWeight: '600',
   },
   datePickerContainer: {
     flexDirection: 'row',
@@ -305,6 +468,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#27ae60',
   },
+  ageContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  ageDisplay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+  },
+  ageLabel: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  ageValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  ageValid: {
+    color: '#27ae60',
+  },
+  ageError: {
+    color: '#e74c3c',
+  },
   selectedDateDisplay: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -317,6 +509,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2c3e50',
     textAlign: 'center',
+    fontWeight: '600',
+  },
+  modalErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  modalErrorText: {
+    fontSize: 14,
+    color: '#e74c3c',
     fontWeight: '600',
   },
   modalButtons: {

@@ -2,7 +2,7 @@
  * ADAPTIVE TEST SCREEN
  * 
  * Main screen for conducting adaptive assessments
- * Displays questions and handles responses
+ * Supports both single-subject and comprehensive (multi-subject) testing
  */
 
 import { FontAwesome } from '@expo/vector-icons';
@@ -22,23 +22,46 @@ import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   completeAbilityAssessment,
+  completeComprehensiveAssessment,
   getAdaptiveQuestion,
+  getComprehensiveQuestion,
   startAbilityAssessment,
-  submitAbilityAnswer
+  startComprehensiveAssessment,
+  submitAbilityAnswer,
+  submitComprehensiveAnswer
 } from '../../services/adaptiveTestService';
 
-export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName }) {
+export default function AdaptiveTestScreen({ 
+  navigateTo, 
+  subjectId, 
+  subjectIds = [], 
+  subjectName, 
+  subjectNames = [] 
+}) {
   const { t, i18n } = useTranslation();
   const { studentData } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState(null);
+  
+  // Single subject mode states
   const [testState, setTestState] = useState(null);
+  
+  // Comprehensive mode states
+  const [subjectStates, setSubjectStates] = useState({});
+  const [currentSubjectId, setCurrentSubjectId] = useState(null);
+  const [comprehensiveProgress, setComprehensiveProgress] = useState(null);
+  
+  // Common states
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [singleSubjectMode, setSingleSubjectMode] = useState(true);
+  
+  // Determine if we're in comprehensive mode
+  const isComprehensive = Array.isArray(subjectIds) && subjectIds.length > 1;
 
   // Initialize test
   useEffect(() => {
@@ -48,22 +71,44 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
   const initializeTest = async () => {
     try {
       setLoading(true);
-      console.log('AdaptiveTestScreen - initializeTest called with subjectId:', subjectId);
-      console.log('AdaptiveTestScreen - subjectName:', subjectName);
-      console.log('AdaptiveTestScreen - studentData.id:', studentData.id);
       
-      const result = await startAbilityAssessment(
-        studentData.id,
-        subjectId,
-        i18n.language
-      );
+      if (isComprehensive) {
+        // COMPREHENSIVE MODE: Multiple subjects
+        console.log('Starting comprehensive assessment with subjects:', subjectIds);
+        console.log('Subject names:', subjectNames);
+        
+        const result = await startComprehensiveAssessment(
+          studentData.id,
+          subjectIds,
+          i18n.language
+        );
 
-      if (result.success) {
-        setSessionId(result.sessionId);
-        setTestState(result.testState);
-        await loadNextQuestion(result.testState, result.sessionId);
+        if (result.success) {
+          setSessionId(result.sessionId);
+          setSubjectStates(result.subjectStates);
+          setSingleSubjectMode(false);
+          await loadNextComprehensiveQuestion(result.subjectStates, result.sessionId);
+        } else {
+          Alert.alert(t('error'), result.error);
+        }
       } else {
-        Alert.alert(t('error'), result.error);
+        // SINGLE SUBJECT MODE: Backward compatibility
+        console.log('Starting single subject assessment:', subjectId);
+        
+        const result = await startAbilityAssessment(
+          studentData.id,
+          subjectId || subjectIds[0],
+          i18n.language
+        );
+
+        if (result.success) {
+          setSessionId(result.sessionId);
+          setTestState(result.testState);
+          setSingleSubjectMode(true);
+          await loadNextQuestion(result.testState, result.sessionId);
+        } else {
+          Alert.alert(t('error'), result.error);
+        }
       }
     } catch (error) {
       console.error('Error initializing test:', error);
@@ -73,6 +118,7 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
     }
   };
 
+  // Single subject question loading
   const loadNextQuestion = async (state, currentSessionId = null) => {
     try {
       setLoading(true);
@@ -85,8 +131,8 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
         return;
       }
 
-      console.log('AdaptiveTestScreen - loadNextQuestion calling getAdaptiveQuestion with subjectId:', subjectId);
-      const result = await getAdaptiveQuestion(sid, state, subjectId);
+      const currentSubject = subjectId || subjectIds[0];
+      const result = await getAdaptiveQuestion(sid, state, currentSubject);
 
       if (result.success) {
         setCurrentQuestion(result.question);
@@ -96,6 +142,37 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
       }
     } catch (error) {
       console.error('Error loading question:', error);
+      Alert.alert(t('error'), t('test.loadQuestionError'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Comprehensive question loading
+  const loadNextComprehensiveQuestion = async (states, currentSessionId = null) => {
+    try {
+      setLoading(true);
+      setSelectedAnswer(null);
+      setShowFeedback(false);
+
+      const sid = currentSessionId || sessionId;
+      if (!sid) {
+        console.error('No session ID available');
+        return;
+      }
+
+      const result = await getComprehensiveQuestion(sid, states);
+
+      if (result.success) {
+        setCurrentQuestion(result.question);
+        setCurrentSubjectId(result.subjectId);
+        setComprehensiveProgress(result.progress);
+        setQuestionStartTime(Date.now());
+      } else {
+        Alert.alert(t('error'), result.error);
+      }
+    } catch (error) {
+      console.error('Error loading comprehensive question:', error);
       Alert.alert(t('error'), t('test.loadQuestionError'));
     } finally {
       setLoading(false);
@@ -120,32 +197,61 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
       // Calculate time taken
       const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
 
-      const result = await submitAbilityAnswer(
-        sessionId,
-        currentQuestion,
-        selectedAnswer,
-        timeTaken,
-        testState
-      );
+      if (singleSubjectMode) {
+        // SINGLE SUBJECT MODE
+        const result = await submitAbilityAnswer(
+          sessionId,
+          currentQuestion,
+          selectedAnswer,
+          timeTaken,
+          testState
+        );
 
-      if (result.success) {
-        setIsCorrect(result.isCorrect);
-        setShowFeedback(true);
-        setTestState(result.testState);
+        if (result.success) {
+          setIsCorrect(result.isCorrect);
+          setShowFeedback(true);
+          setTestState(result.testState);
 
-        // Check if test is complete
-        if (result.isComplete) {
-          setTimeout(() => {
-            completeTest(result.testState);
-          }, 2000);
+          if (result.isComplete) {
+            setTimeout(() => {
+              completeSingleTest(result.testState);
+            }, 2000);
+          } else {
+            setTimeout(() => {
+              loadNextQuestion(result.testState);
+            }, 2000);
+          }
         } else {
-          // Auto-advance after showing feedback
-          setTimeout(() => {
-            loadNextQuestion(result.testState);
-          }, 2000);
+          Alert.alert(t('error'), result.error);
         }
       } else {
-        Alert.alert(t('error'), result.error);
+        // COMPREHENSIVE MODE
+        const result = await submitComprehensiveAnswer(
+          sessionId,
+          currentQuestion,
+          currentSubjectId,
+          selectedAnswer,
+          timeTaken,
+          subjectStates
+        );
+
+        if (result.success) {
+          setIsCorrect(result.isCorrect);
+          setShowFeedback(true);
+          setSubjectStates(result.subjectStates);
+
+          if (result.isComplete) {
+            setTimeout(() => {
+              completeComprehensiveTest(result.subjectStates);
+            }, 2000);
+          } else {
+            setTimeout(() => {
+              loadNextComprehensiveQuestion(result.subjectStates);
+            }, 2000);
+          }
+        } else {
+          Alert.alert(t('error'), result.error);
+        }
       }
     } catch (error) {
       console.error('Error submitting answer:', error);
@@ -155,7 +261,7 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
     }
   };
 
-  const completeTest = async (finalState) => {
+  const completeSingleTest = async (finalState) => {
     try {
       setLoading(true);
 
@@ -165,13 +271,38 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
         // Navigate to results screen
         navigateTo('testResults', {
           results: result.results,
-          subjectName
+          subjectName: subjectName || subjectNames[0]
         });
       } else {
         Alert.alert(t('error'), result.error);
       }
     } catch (error) {
       console.error('Error completing test:', error);
+      Alert.alert(t('error'), t('test.completeError'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeComprehensiveTest = async (finalSubjectStates) => {
+    try {
+      setLoading(true);
+
+      const result = await completeComprehensiveAssessment(sessionId, finalSubjectStates);
+
+      if (result.success) {
+        // Navigate to results screen with comprehensive data
+        navigateTo('testResults', {
+          results: result.results,
+          isComprehensive: true,
+          subjectIds: subjectIds,
+          subjectNames: subjectNames
+        });
+      } else {
+        Alert.alert(t('error'), result.error);
+      }
+    } catch (error) {
+      console.error('Error completing comprehensive test:', error);
       Alert.alert(t('error'), t('test.completeError'));
     } finally {
       setLoading(false);
@@ -193,6 +324,49 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
     );
   };
 
+  // Get current subject name for display
+  const getCurrentSubjectName = () => {
+    if (singleSubjectMode) {
+      return subjectName || subjectNames[0] || 'الاختبار';
+    } else {
+      if (!currentSubjectId || !subjectNames || !subjectIds) return 'الاختبار الشامل';
+      
+      const index = subjectIds.indexOf(currentSubjectId);
+      if (index !== -1 && subjectNames[index]) {
+        return subjectNames[index];
+      }
+      return 'الاختبار الشامل';
+    }
+  };
+
+  // Get progress data for display
+  const getProgressData = () => {
+    if (singleSubjectMode) {
+      return {
+        current: testState?.questionsAnswered || 0,
+        total: testState?.targetQuestions || 20,
+        currentAbility: testState?.currentTheta || 0,
+        standardError: testState?.standardError || 1,
+        overallProgress: null
+      };
+    } else {
+      if (!comprehensiveProgress) return null;
+      
+      return {
+        current: comprehensiveProgress.overallProgress?.answered || 0,
+        total: comprehensiveProgress.overallProgress?.total || subjectIds.length * 10,
+        currentAbility: comprehensiveProgress.currentAbility || 0,
+        standardError: comprehensiveProgress.standardError || 1,
+        overallProgress: comprehensiveProgress.overallProgress,
+        subjectId: comprehensiveProgress.subjectId,
+        subjectProgress: {
+          answered: comprehensiveProgress.answered || 0,
+          total: comprehensiveProgress.total || 10
+        }
+      };
+    }
+  };
+
   if (loading && !currentQuestion) {
     return (
       <View style={styles.loadingContainer}>
@@ -202,6 +376,8 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
     );
   }
 
+  const progressData = getProgressData();
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -209,17 +385,29 @@ export default function AdaptiveTestScreen({ navigateTo, subjectId, subjectName 
         <TouchableOpacity onPress={handleExit} style={styles.exitButton}>
           <FontAwesome name="times" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{subjectName}</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>{getCurrentSubjectName()}</Text>
+          {!singleSubjectMode && (
+            <Text style={styles.headerSubtitle}>
+              {isComprehensive ? 'اختبار شامل' : 'اختبار'}
+            </Text>
+          )}
+        </View>
         <View style={styles.placeholder} />
       </View>
 
       {/* Progress Indicator */}
-      {testState && (
+      {progressData && (
         <ProgressIndicator
-          current={testState.questionsAnswered}
-          total={testState.targetQuestions}
-          currentAbility={testState.currentTheta}
-          standardError={testState.standardError}
+          current={progressData.current}
+          total={progressData.total}
+          currentAbility={progressData.currentAbility}
+          standardError={progressData.standardError}
+          isComprehensive={!singleSubjectMode}
+          overallProgress={progressData.overallProgress}
+          subjectProgress={progressData.subjectProgress}
+          subjectId={progressData.subjectId}
+          subjectCount={isComprehensive ? subjectIds.length : 1}
         />
       )}
 
@@ -312,10 +500,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerTitleContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
   },
   placeholder: {
     width: 40,

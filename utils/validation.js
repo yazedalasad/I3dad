@@ -65,7 +65,7 @@ export const validateStudentId = (id) => {
   return { isValid: true, error: null };
 };
 
-// التحقق من الاسم
+// التحقق من الاسم (يدعم العربية والعبرية والإنجليزية)
 export const validateName = (name, fieldName = 'الاسم') => {
   if (!name || name.trim().length === 0) {
     return { isValid: false, error: `${fieldName} مطلوب` };
@@ -75,26 +75,164 @@ export const validateName = (name, fieldName = 'الاسم') => {
     return { isValid: false, error: `${fieldName} يجب أن يحتوي على حرفين على الأقل` };
   }
   
-  // التحقق من أن الاسم يحتوي على أحرف عربية أو إنجليزية فقط
-  const nameRegex = /^[\u0600-\u06FFa-zA-Z\s]+$/;
+  // التحقق من أن الاسم يحتوي على أحرف عربية أو عبرية أو إنجليزية فقط
+  // \u0600-\u06FF = أحرف عربية
+  // \u0590-\u05FF = أحرف عبرية
+  // a-zA-Z = أحرف إنجليزية
+  const nameRegex = /^[\u0600-\u06FF\u0590-\u05FFa-zA-Z\s]+$/;
   if (!nameRegex.test(name)) {
-    return { isValid: false, error: `${fieldName} يجب أن يحتوي على أحرف عربية أو إنجليزية فقط` };
+    return { isValid: false, error: `${fieldName} يجب أن يحتوي على أحرف عربية أو عبرية أو إنجليزية فقط` };
   }
   
   return { isValid: true, error: null };
 };
 
-// التحقق من كلمة المرور
-export const validatePassword = (password) => {
-  if (!password) {
-    return { isValid: false, error: 'كلمة المرور مطلوبة' };
+// الحصول على لغة الاسم
+export const getNameLanguage = (name) => {
+  if (!name) return null;
+  
+  const hasArabic = /[\u0600-\u06FF]/.test(name);
+  const hasHebrew = /[\u0590-\u05FF]/.test(name);
+  const hasEnglish = /[a-zA-Z]/.test(name);
+  
+  if (hasArabic) return 'arabic';
+  if (hasHebrew) return 'hebrew';
+  if (hasEnglish) return 'english';
+  
+  return null;
+};
+
+// التحقق من تطابق لغة الاسم الأول والأخير
+export const validateNamesLanguageMatch = (firstName, lastName) => {
+  if (!firstName || !lastName) {
+    return { isValid: true, error: null }; // سيتم التحقق من الفراغات في validateName
   }
   
-  if (password.length < 6) {
-    return { isValid: false, error: 'كلمة المرور يجب أن تحتوي على 6 أحرف على الأقل' };
+  const firstNameLang = getNameLanguage(firstName);
+  const lastNameLang = getNameLanguage(lastName);
+  
+  if (!firstNameLang || !lastNameLang) {
+    return { isValid: true, error: null };
+  }
+  
+  if (firstNameLang !== lastNameLang) {
+    let message = '';
+    if (firstNameLang === 'arabic' && lastNameLang === 'hebrew') {
+      message = 'الاسم الأول بالعربية والاسم الأخير بالعبرية. يجب استخدام نفس اللغة للاسمين';
+    } else if (firstNameLang === 'hebrew' && lastNameLang === 'arabic') {
+      message = 'الاسم الأول بالعبرية والاسم الأخير بالعربية. يجب استخدام نفس اللغة للاسمين';
+    } else if (firstNameLang === 'english') {
+      message = 'الاسم الأول بالإنجليزية والاسم الأخير بلغة أخرى. يجب استخدام نفس اللغة للاسمين';
+    } else if (lastNameLang === 'english') {
+      message = 'الاسم الأخير بالإنجليزية والاسم الأول بلغة أخرى. يجب استخدام نفس اللغة للاسمين';
+    } else {
+      message = 'يجب أن يكون الاسم الأول والأخير بنفس اللغة (عربية، عبرية، أو إنجليزية)';
+    }
+    
+    return { isValid: false, error: message };
   }
   
   return { isValid: true, error: null };
+};
+
+// التحقق من كلمة المرور القوية
+export const validatePassword = (password) => {
+  if (!password || password.trim() === '') {
+    return {
+      isValid: false,
+      error: 'كلمة المرور مطلوبة',
+    };
+  }
+
+  // الحد الأدنى 8 أحرف
+  if (password.length < 8) {
+    return {
+      isValid: false,
+      error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+    };
+  }
+
+  // يجب أن تحتوي على حرف كبير واحد على الأقل
+  if (!/[A-Z]/.test(password)) {
+    return {
+      isValid: false,
+      error: 'كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل (A-Z)',
+    };
+  }
+
+  // يجب أن تحتوي على حرف صغير واحد على الأقل
+  if (!/[a-z]/.test(password)) {
+    return {
+      isValid: false,
+      error: 'كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل (a-z)',
+    };
+  }
+
+  // يجب أن تحتوي على رقم واحد على الأقل
+  if (!/[0-9]/.test(password)) {
+    return {
+      isValid: false,
+      error: 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل (0-9)',
+    };
+  }
+
+  // يجب أن تحتوي على رمز خاص واحد على الأقل
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password)) {
+    return {
+      isValid: false,
+      error: 'كلمة المرور يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%^&*)',
+    };
+  }
+
+  return {
+    isValid: true,
+    error: null,
+  };
+};
+
+// حساب قوة كلمة المرور (اختياري - للعرض البصري)
+export const getPasswordStrength = (password) => {
+  if (!password) return { strength: 0, label: '', color: '' };
+  
+  let strength = 0;
+  
+  // الطول
+  if (password.length >= 8) strength += 20;
+  if (password.length >= 12) strength += 10;
+  if (password.length >= 16) strength += 10;
+  
+  // أحرف كبيرة
+  if (/[A-Z]/.test(password)) strength += 15;
+  
+  // أحرف صغيرة
+  if (/[a-z]/.test(password)) strength += 15;
+  
+  // أرقام
+  if (/[0-9]/.test(password)) strength += 15;
+  
+  // رموز خاصة
+  if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password)) strength += 15;
+  
+  // مجموعات متنوعة
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password);
+  const varietyCount = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
+  
+  if (varietyCount === 4) strength += 20;
+  else if (varietyCount === 3) strength += 10;
+  
+  // تحديد التصنيف
+  if (strength < 40) {
+    return { strength, label: 'ضعيفة', color: '#e74c3c' };
+  } else if (strength < 70) {
+    return { strength, label: 'متوسطة', color: '#f39c12' };
+  } else if (strength < 90) {
+    return { strength, label: 'جيدة', color: '#3498db' };
+  } else {
+    return { strength, label: 'قوية جداً', color: '#27ae60' };
+  }
 };
 
 // التحقق من تاريخ الميلاد
