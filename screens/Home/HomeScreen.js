@@ -130,9 +130,10 @@ export default function HomeScreen({ navigateTo }) {
     scrollViewRef.current?.scrollTo({ y: 1200, animated: true });
   };
 
+  // FIXED: Changed 'accountant' to 'adaptiveTest' to match ManualNavigator.js
   const handleGetStarted = () => {
     if (user) {
-      navigateTo('accountant');
+      navigateTo('adaptiveTest'); // Changed from 'accountant'
     } else {
       navigateTo('signup');
     }
@@ -277,23 +278,6 @@ export default function HomeScreen({ navigateTo }) {
         </View>
       </View>
 
-      {/* University Image Section - Temporarily disabled for web compatibility */}
-      {/* <View style={styles.imageSection}>
-        <Image
-          source={require('../../assets/images/home/Jerusalem University College.jpeg')}
-          style={styles.universityImage}
-          resizeMode="cover"
-        />
-        <LinearGradient
-          colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']}
-          style={styles.imageOverlay}
-        >
-          <FontAwesome name="university" size={40} color="#fff" />
-          <Text style={styles.imageTitle}>{t('home.university.title')}</Text>
-          <Text style={styles.imageDescription}>{t('home.university.description')}</Text>
-        </LinearGradient>
-      </View> */}
-
       {/* Activities & Opportunities Section */}
       <View style={styles.opportunitiesSection}>
         <View style={styles.sectionHeader}>
@@ -347,23 +331,6 @@ export default function HomeScreen({ navigateTo }) {
           </View>
         </View>
       </View>
-
-      {/* Office Image Section - Temporarily disabled for web compatibility */}
-      {/* <View style={styles.imageSection}>
-        <Image
-          source={require('../../assets/images/home/Minute Media Offices - Tel Aviv _ Office Snapshots.jpeg')}
-          style={styles.universityImage}
-          resizeMode="cover"
-        />
-        <LinearGradient
-          colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.3)']}
-          style={styles.imageOverlay}
-        >
-          <FontAwesome name="building" size={40} color="#fff" />
-          <Text style={styles.imageTitle}>{t('home.career.title')}</Text>
-          <Text style={styles.imageDescription}>{t('home.career.description')}</Text>
-        </LinearGradient>
-      </View> */}
 
       {/* Success Stories Section */}
       <View style={styles.studentsSection}>

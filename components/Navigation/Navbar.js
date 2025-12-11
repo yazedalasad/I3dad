@@ -10,15 +10,22 @@ export default function Navbar({ activeTab, onTabPress }) {
   // Show different tabs based on login status
   const tabs = user
     ? [
-        { id: 'home', label: t('nav.home'), icon: 'home' },
-        { id: 'accountant', label: t('nav.assessment'), icon: 'edit' },
-        { id: 'profile', label: t('nav.profile'), icon: 'user' },
+        { id: 'home', label: 'الرئيسية', icon: 'home' },
+        { id: 'successStories', label: 'قصص النجاح', icon: 'star' }, // NEW
+        { id: 'activities', label: 'الأنشطة', icon: 'calendar-check-o' },
+        { id: 'accountant', label: 'الاختبار', icon: 'edit' },
+        { id: 'profile', label: 'حسابي', icon: 'user' },
       ]
     : [
-        { id: 'home', label: t('nav.home'), icon: 'home' },
-        { id: 'login', label: t('auth.login.loginButton'), icon: 'sign-in' },
-        { id: 'signup', label: t('auth.signup.signupButton'), icon: 'user-plus' },
+        { id: 'home', label: 'الرئيسية', icon: 'home' },
+        { id: 'successStories', label: 'قصص النجاح', icon: 'star' }, // NEW
+        { id: 'activities', label: 'الأنشطة', icon: 'calendar-check-o' },
+        { id: 'about', label: 'عن إعداد', icon: 'info-circle' },
+        { id: 'login', label: 'تسجيل الدخول', icon: 'sign-in' },
       ];
+
+  // ... rest of the code remains the same
+
 
   return (
     <View style={styles.container}>

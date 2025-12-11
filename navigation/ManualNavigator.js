@@ -1,12 +1,14 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FloatingLanguageSwitcher from '../components/FloatingLanguageSwitcher';
 import Navbar from '../components/Navigation/Navbar';
-import { supabase } from '../config/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import AboutScreen from '../screens/About/AboutScreen';
+import ActivitiesScreen from '../screens/Activities/ActivitiesScreen';
 import AdaptiveTestScreen from '../screens/AdaptiveTest/AdaptiveTestScreen';
 import TestResultsScreen from '../screens/AdaptiveTest/TestResultsScreen';
+import TotalExamScreen from '../screens/AdaptiveTest/TotalExamScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
@@ -15,45 +17,20 @@ import VerifyCodeScreen from '../screens/Auth/VerifyCodeScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import PersonalityResultsScreen from '../screens/PersonalityTest/PersonalityResultsScreen';
 import PersonalityTestScreen from '../screens/PersonalityTest/PersonalityTestScreen';
+import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen';
 
 export default function ManualNavigator() {
   const { user, loading, signOut, studentData } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
   const [screenParams, setScreenParams] = useState({});
-  const [subjects, setSubjects] = useState([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-
-  // Load subjects from database
+  
   // Auto-redirect to home after successful login
   useEffect(() => {
-   if (user && (currentScreen === 'login' || currentScreen === 'signup')) {
+    if (user && (currentScreen === 'login' || currentScreen === 'signup')) {
       navigateTo('home');
     }
   }, [user, currentScreen]);
-  useEffect(() => {
-    if (currentScreen === 'accountant' && user) {
-      loadSubjects();
-    }
-  }, [currentScreen, user]);
-
-  const loadSubjects = async () => {
-    try {
-      setLoadingSubjects(true);
-      const { data, error } = await supabase
-        .from('subjects')
-        .select('*')
-        .order('name_ar');
-
-      if (error) throw error;
-      console.log('Loaded subjects:', data);
-      setSubjects(data || []);
-    } catch (error) {
-      console.error('Error loading subjects:', error);
-    } finally {
-      setLoadingSubjects(false);
-    }
-  };
 
   const navigateTo = (screen, params = {}) => {
     console.log('Navigating to:', screen, 'with params:', params);
@@ -61,7 +38,7 @@ export default function ManualNavigator() {
     setScreenParams(params);
     
     // Update active tab only for main navigation tabs
-    if (['home', 'accountant', 'profile'].includes(screen)) {
+    if (['home', 'adaptiveTest', 'profile', 'about'].includes(screen)) {
       setActiveTab(screen);
     }
   };
@@ -70,7 +47,7 @@ export default function ManualNavigator() {
     console.log('Tab pressed:', tabId);
     
     // Check if user needs to be logged in for certain screens
-    if ((tabId === 'accountant' || tabId === 'profile') && !user) {
+    if ((tabId === 'adaptiveTest' || tabId === 'profile') && !user) {
       navigateTo('login');
       return;
     }
@@ -105,70 +82,30 @@ export default function ManualNavigator() {
       return <ResetPasswordScreen navigateTo={navigateTo} email={screenParams.email} />;
     }
 
-    // Adaptive Test screens
-    if (currentScreen === 'testResults') {
-      if (!user) {
-        return <LoginScreen navigateTo={navigateTo} />;
-      }
-      return <TestResultsScreen navigateTo={navigateTo} results={screenParams.results} subjectName={screenParams.subjectName} />;
-    }
-
-    // Personality Test screens
-    if (currentScreen === 'personalityTest') {
-      if (!user) {
-        return <LoginScreen navigateTo={navigateTo} />;
-      }
-      return <PersonalityTestScreen navigateTo={navigateTo} />;
-    }
-
-    if (currentScreen === 'personalityResults') {
-      if (!user) {
-        return <LoginScreen navigateTo={navigateTo} />;
-      }
-      return <PersonalityResultsScreen navigateTo={navigateTo} profiles={screenParams.profiles} />;
-    }
-
-    // Main screens
+    // Main screens with navigation
     switch (currentScreen) {
       case 'home':
         return <HomeScreen navigateTo={navigateTo} />;
-      case 'accountant':
+      
+      case 'about':
+        return <AboutScreen navigateTo={navigateTo} />;
+      
+      case 'activities':
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
         }
-        // Show subject selection
-        return (
-          <View style={styles.screenContainer}>
-            <View style={styles.selectionHeader}>
-              <Text style={styles.selectionTitle}>اختر موضوع الاختبار</Text>
-              <Text style={styles.selectionSubtitle}>اختر المادة التي تريد تقييم قدراتك فيها</Text>
-            </View>
-            {loadingSubjects ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#27ae60" />
-                <Text style={styles.loadingText}>جاري تحميل المواد...</Text>
-              </View>
-            ) : (
-              <ScrollView style={styles.subjectList}>
-                {subjects.map((subject) => (
-                  <TouchableOpacity
-                    key={subject.id}
-                    style={styles.subjectCard}
-                    onPress={() => navigateTo('adaptiveTest', { 
-                      subjectId: subject.id, 
-                      subjectName: subject.name_ar 
-                    })}
-                  >
-                    <FontAwesome name="book" size={32} color="#27ae60" />
-                    <Text style={styles.subjectName}>{subject.name_ar}</Text>
-                    <FontAwesome name="arrow-left" size={20} color="#94A3B8" />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        );
+        return <ActivitiesScreen navigateTo={navigateTo} />;
+      
+      case 'successStories':
+        return <SuccessStoriesScreen navigateTo={navigateTo} />;
+      
       case 'adaptiveTest':
+        if (!user) {
+          return <LoginScreen navigateTo={navigateTo} />;
+        }
+        return <TotalExamScreen navigateTo={navigateTo} />;
+      
+      case 'startAdaptiveTest':
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
         }
@@ -176,9 +113,38 @@ export default function ManualNavigator() {
           <AdaptiveTestScreen 
             navigateTo={navigateTo}
             subjectId={screenParams.subjectId}
+            subjectIds={screenParams.subjectIds}
             subjectName={screenParams.subjectName}
+            subjectNames={screenParams.subjectNames}
+            isComprehensive={screenParams.isComprehensive}
           />
         );
+      
+      case 'testResults':
+        if (!user) {
+          return <LoginScreen navigateTo={navigateTo} />;
+        }
+        return <TestResultsScreen 
+          navigateTo={navigateTo} 
+          results={screenParams.results} 
+          subjectName={screenParams.subjectName}
+          subjectNames={screenParams.subjectNames}
+          isComprehensive={screenParams.isComprehensive}
+          subjectIds={screenParams.subjectIds}
+        />;
+      
+      case 'personalityTest':
+        if (!user) {
+          return <LoginScreen navigateTo={navigateTo} />;
+        }
+        return <PersonalityTestScreen navigateTo={navigateTo} />;
+      
+      case 'personalityResults':
+        if (!user) {
+          return <LoginScreen navigateTo={navigateTo} />;
+        }
+        return <PersonalityResultsScreen navigateTo={navigateTo} profiles={screenParams.profiles} />;
+      
       case 'profile':
         if (!user) {
           return <LoginScreen navigateTo={navigateTo} />;
@@ -199,41 +165,41 @@ export default function ManualNavigator() {
               <View style={styles.infoCard}>
                 <FontAwesome name="id-card" size={24} color="#27ae60" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>رقم الهوية</Text>
-                  <Text style={styles.infoValue}>{studentData?.student_id}</Text>
+                  <Text style={styles.infoLabel}>Student ID</Text>
+                  <Text style={styles.infoValue}>{studentData?.student_id || 'N/A'}</Text>
                 </View>
               </View>
 
               <View style={styles.infoCard}>
                 <FontAwesome name="phone" size={24} color="#27ae60" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>رقم الهاتف</Text>
-                  <Text style={styles.infoValue}>{studentData?.phone}</Text>
+                  <Text style={styles.infoLabel}>Phone Number</Text>
+                  <Text style={styles.infoValue}>{studentData?.phone || 'N/A'}</Text>
                 </View>
               </View>
 
               <View style={styles.infoCard}>
                 <FontAwesome name="university" size={24} color="#27ae60" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>المدرسة</Text>
-                  <Text style={styles.infoValue}>{studentData?.school_name}</Text>
+                  <Text style={styles.infoLabel}>School</Text>
+                  <Text style={styles.infoValue}>{studentData?.school_name || 'N/A'}</Text>
                 </View>
               </View>
 
               <View style={styles.infoCard}>
                 <FontAwesome name="graduation-cap" size={24} color="#27ae60" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>الصف الدراسي</Text>
-                  <Text style={styles.infoValue}>الصف {studentData?.grade}</Text>
+                  <Text style={styles.infoLabel}>Grade Level</Text>
+                  <Text style={styles.infoValue}>{studentData?.grade ? `Grade ${studentData.grade}` : 'N/A'}</Text>
                 </View>
               </View>
 
               <View style={styles.infoCard}>
                 <FontAwesome name="calendar" size={24} color="#27ae60" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>تاريخ الميلاد</Text>
+                  <Text style={styles.infoLabel}>Birth Date</Text>
                   <Text style={styles.infoValue}>
-                    {studentData?.birthday ? new Date(studentData.birthday).toLocaleDateString('ar-EG') : '-'}
+                    {studentData?.birthday ? new Date(studentData.birthday).toLocaleDateString('en-US') : 'N/A'}
                   </Text>
                 </View>
               </View>
@@ -241,10 +207,11 @@ export default function ManualNavigator() {
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <FontAwesome name="sign-out" size={20} color="#e74c3c" />
-              <Text style={styles.logoutText}>تسجيل الخروج</Text>
+              <Text style={styles.logoutText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
         );
+      
       default:
         return <HomeScreen navigateTo={navigateTo} />;
     }
@@ -254,7 +221,7 @@ export default function ManualNavigator() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#27ae60" />
-        <Text style={styles.loadingText}>جاري التحميل...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -265,7 +232,8 @@ export default function ManualNavigator() {
       <View style={{ flex: 1 }}>
         {renderScreen()}
       </View>
-      {!['login', 'signup', 'forgotPassword', 'verifyCode', 'resetPassword'].includes(currentScreen) && (
+      {/* Hide navbar on auth and about screens */}
+      {!['login', 'signup', 'forgotPassword', 'verifyCode', 'resetPassword', 'about'].includes(currentScreen) && (
         <Navbar activeTab={activeTab} onTabPress={handleTabPress} />
       )}
     </View>
@@ -379,41 +347,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#e74c3c',
-  },
-  selectionHeader: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  selectionTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  selectionSubtitle: {
-    fontSize: 16,
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  subjectList: {
-    flex: 1,
-    padding: 20,
-  },
-  subjectCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e293b',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-    gap: 16,
-  },
-  subjectName: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'right',
   },
 });

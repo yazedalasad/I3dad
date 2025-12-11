@@ -1,7 +1,10 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function Footer() {
+  const navigation = useNavigation();
+
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>
@@ -25,7 +28,9 @@ export default function Footer() {
       </View>
 
       <View style={styles.footerLinks}>
-        <Text style={styles.link}>من نحن</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('About')}>
+          <Text style={styles.link}>من نحن</Text>
+        </TouchableOpacity>
         <Text style={styles.separator}>|</Text>
         <Text style={styles.link}>سياسة الخصوصية</Text>
         <Text style={styles.separator}>|</Text>
@@ -42,49 +47,3 @@ export default function Footer() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#2c3e50',
-    padding: 32,
-    alignItems: 'center',
-  },
-  logo: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  tagline: {
-    color: '#fff',
-    marginBottom: 20,
-    fontSize: 14,
-  },
-  socialLinks: {
-    flexDirection: 'row',
-    gap: 20,
-    marginBottom: 20,
-  },
-  footerLinks: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  link: {
-    color: '#fff',
-    fontSize: 12,
-  },
-  separator: {
-    color: '#fff',
-    opacity: 0.5,
-  },
-  copyright: {
-    color: '#fff',
-    fontSize: 12,
-    textAlign: 'center',
-    opacity: 0.7,
-    marginTop: 10,
-  },
-});
