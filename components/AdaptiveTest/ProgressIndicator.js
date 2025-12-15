@@ -1,214 +1,236 @@
 /**
- * PROGRESS INDICATOR COMPONENT
- * 
- * Shows test progress, time remaining, and current ability estimate
- * Optimized for comprehensive exam under 40 minutes
+ * PROGRESS INDICATOR COMPONENT (Improved)
+ *
+ * - Smooth animated progress bar
+ * - Works with per-question timer (timeLeft) OR full exam timer (remainingTime)
+ * - Clear stats cards (Ability / Time / Accuracy / Skipped)
+ * - Time urgency colors + warning
  */
 
 import { FontAwesome } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { thetaToPercentage } from '../../utils/irt/irtCalculations';
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function formatSeconds(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function getTimeColor(secondsLeft, totalSeconds) {
+  if (!secondsLeft && secondsLeft !== 0) return '#94A3B8';
+
+  // If totalSeconds not available, use absolute thresholds
+  if (!totalSeconds) {
+    if (secondsLeft <= 10) return '#e74c3c';
+    if (secondsLeft <= 20) return '#f39c12';
+    return '#27ae60';
+  }
+
+  const ratio = secondsLeft / Math.max(1, totalSeconds);
+  if (ratio <= 0.2) return '#e74c3c';
+  if (ratio <= 0.4) return '#f39c12';
+  return '#27ae60';
+}
+
+function abilityLabelFromPercent(p) {
+  if (p >= 80) return 'Excellent';
+  if (p >= 60) return 'Good';
+  if (p >= 40) return 'Average';
+  return 'Needs Work';
+}
+
 export default function ProgressIndicator({
-  current,
-  total,
-  currentAbility,
-  standardError,
-  isComprehensive = true,
-  overallProgress,
-  subjectProgress,
-  subjectId,
-  subjectCount,
-  timeSpent,
-  skippedCount,
-  totalExamTime,
+  current = 0,
+  total = 0,
+
+  // Ability (IRT theta)
+  currentAbility = 0,
+  standardError = null,
+
+  // Timers:
+  // - timeLeft: per-question countdown (seconds)
+  // - remainingTime: full exam remaining time (seconds)
+  timeLeft,
   remainingTime,
-  subjectName
+  totalExamTime,
+
+  // Stats (optional)
+  correctCount = 0,
+  incorrectCount = 0,
+  skippedCount = 0,
+
+  // Optional label
+  subjectName,
 }) {
-  const progress = (current / total) * 100;
-  const abilityPercentage = thetaToPercentage(currentAbility);
-  
-  // Determine ability level
-  let abilityLevel = '';
-  let abilityColor = '#94A3B8';
-  
-  if (abilityPercentage >= 80) {
-    abilityLevel = 'ممتاز'; // Excellent
-    abilityColor = '#27ae60';
-  } else if (abilityPercentage >= 60) {
-    abilityLevel = 'جيد جداً'; // Very Good
-    abilityColor = '#3498db';
-  } else if (abilityPercentage >= 40) {
-    abilityLevel = 'جيد'; // Good
-    abilityColor = '#f39c12';
-  } else {
-    abilityLevel = 'يحتاج تحسين'; // Needs Improvement
-    abilityColor = '#e74c3c';
-  }
+  const progress = useMemo(() => {
+    if (!total) return 0;
+    return clamp(current / total, 0, 1);
+  }, [current, total]);
 
-  // Calculate time statistics
-  const minutesSpent = Math.floor(totalExamTime / 60);
-  const secondsSpent = totalExamTime % 60;
-  const minutesRemaining = Math.floor(remainingTime / 60);
-  const secondsRemaining = remainingTime % 60;
+  const animatedProgress = useRef(new Animated.Value(0)).current;
 
-  // Calculate question progress within subject (for comprehensive exam)
-  let subjectProgressPercentage = 0;
-  if (subjectProgress && subjectProgress.total > 0) {
-    subjectProgressPercentage = (subjectProgress.answered / subjectProgress.total) * 100;
-  }
+  useEffect(() => {
+    Animated.timing(animatedProgress, {
+      toValue: progress,
+      duration: 260,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
+  const progressWidth = animatedProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  // Ability %
+  const abilityPercentage = useMemo(() => {
+    // thetaToPercentage expected to return 0..100 (based on your utils)
+    const p = thetaToPercentage(currentAbility);
+    return clamp(Number(p || 0), 0, 100);
+  }, [currentAbility]);
+
+  const abilityColor = useMemo(() => {
+    if (abilityPercentage >= 70) return '#27ae60';
+    if (abilityPercentage >= 45) return '#f39c12';
+    return '#e74c3c';
+  }, [abilityPercentage]);
+
+  const abilityLevel = useMemo(
+    () => abilityLabelFromPercent(abilityPercentage),
+    [abilityPercentage]
+  );
+
+  // Choose which time to show (prefer full exam remainingTime if provided)
+  const shownTime = remainingTime ?? timeLeft;
+  const shownTotal = remainingTime != null ? totalExamTime : null;
+
+  const timeColor = useMemo(
+    () => getTimeColor(shownTime, shownTotal),
+    [shownTime, shownTotal]
+  );
+
+  const attempted = correctCount + incorrectCount + skippedCount;
+  const accuracy = attempted > 0 ? Math.round((correctCount / attempted) * 100) : 0;
+
+  const showUrgentWarning = useMemo(() => {
+    // If full exam timer exists: warn under 10 minutes
+    if (remainingTime != null) return remainingTime > 0 && remainingTime <= 600;
+    // If per-question timer: warn under 15 seconds
+    if (timeLeft != null) return timeLeft > 0 && timeLeft <= 15;
+    return false;
+  }, [remainingTime, timeLeft]);
 
   return (
     <View style={styles.container}>
-      {/* Header Row: Exam Info */}
-      <View style={styles.headerRow}>
-        <View style={styles.examInfo}>
-          <Text style={styles.examTitle}>الامتحان الشامل</Text>
-          {subjectName && (
-            <Text style={styles.subjectTitle}>
+      {/* Top line: subject + count */}
+      <View style={styles.topRow}>
+        <View style={styles.leftTop}>
+          <Text style={styles.headerTitle}>Progress</Text>
+          {!!subjectName && (
+            <Text style={styles.subjectName} numberOfLines={1}>
               {subjectName}
             </Text>
           )}
         </View>
-        
-        <View style={styles.timeSection}>
-          <View style={styles.timeBadge}>
-            <FontAwesome name="clock-o" size={14} color="#fff" />
-            <Text style={styles.timeText}>
-              {minutesRemaining}:{secondsRemaining.toString().padStart(2, '0')}
-            </Text>
-          </View>
-          <Text style={styles.timeLabel}>متبقي</Text>
+
+        <View style={styles.rightTop}>
+          <Text style={styles.countText}>
+            {current}/{total}
+          </Text>
         </View>
       </View>
 
-      {/* Main Progress Bar */}
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <View style={styles.progressTextContainer}>
-            <Text style={styles.progressText}>
-              السؤال {current} من {total}
-            </Text>
-            {isComprehensive && subjectProgress && (
-              <Text style={styles.subjectProgressText}>
-                {subjectProgress.answered} من {subjectProgress.total} في المادة الحالية
-              </Text>
-            )}
-          </View>
-          <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
-        </View>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${progress}%` }]} />
-        </View>
-        
-        {/* Subject Progress (for comprehensive) */}
-        {isComprehensive && subjectProgress && subjectProgress.total > 0 && (
-          <View style={styles.subjectProgressBarContainer}>
-            <View style={[styles.subjectProgressBar, { width: `${subjectProgressPercentage}%` }]} />
-          </View>
-        )}
+      {/* Progress bar */}
+      <View style={styles.progressTrack}>
+        <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
       </View>
 
-      {/* Stats Grid */}
-      <View style={styles.statsGrid}>
-        {/* Ability Estimate */}
+      {/* Stats cards */}
+      <View style={styles.statsRow}>
+        {/* Ability */}
         <View style={styles.statCard}>
           <View style={styles.statHeader}>
-            <FontAwesome name="chart-line" size={16} color="#3498db" />
-            <Text style={styles.statTitle}>المستوى الحالي</Text>
+            <FontAwesome name="line-chart" size={16} color={abilityColor} />
+            <Text style={styles.statTitle}>Ability</Text>
           </View>
           <View style={styles.statContent}>
             <Text style={[styles.statValue, { color: abilityColor }]}>
               {Math.round(abilityPercentage)}%
             </Text>
-            <Text style={[styles.statLabel, { color: abilityColor }]}>
-              {abilityLevel}
-            </Text>
+            <Text style={[styles.statLabel, { color: abilityColor }]}>{abilityLevel}</Text>
+
+            {standardError != null && (
+              <Text style={styles.subText}>
+                SE: {Number(standardError).toFixed(2)}
+              </Text>
+            )}
           </View>
         </View>
 
-        {/* Time Spent */}
+        {/* Time */}
         <View style={styles.statCard}>
           <View style={styles.statHeader}>
-            <FontAwesome name="hourglass-half" size={16} color="#f39c12" />
-            <Text style={styles.statTitle}>الوقت</Text>
+            <FontAwesome name="clock-o" size={16} color={timeColor} />
+            <Text style={styles.statTitle}>Time</Text>
           </View>
           <View style={styles.statContent}>
-            <Text style={styles.statValue}>
-              {minutesSpent}:{secondsSpent.toString().padStart(2, '0')}
+            <Text style={[styles.statValue, { color: timeColor }]}>
+              {shownTime == null ? '—' : formatSeconds(shownTime)}
             </Text>
-            <Text style={styles.statLabel}>
-              دقيقة
+            <Text style={[styles.statLabel, { color: timeColor }]}>
+              {remainingTime != null ? 'Remaining' : 'This question'}
             </Text>
-          </View>
-        </View>
 
-        {/* Skipped Questions */}
-        <View style={styles.statCard}>
-          <View style={styles.statHeader}>
-            <FontAwesome name="forward" size={16} color="#f39c12" />
-            <Text style={styles.statTitle}>تخطي</Text>
-          </View>
-          <View style={styles.statContent}>
-            <Text style={[styles.statValue, { color: skippedCount > 0 ? '#f39c12' : '#27ae60' }]}>
-              {skippedCount}
-            </Text>
-            <Text style={[styles.statLabel, { color: skippedCount > 0 ? '#f39c12' : '#27ae60' }]}>
-              {skippedCount === 0 ? 'لا يوجد' : 'سؤال'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Questions per Minute */}
-        <View style={styles.statCard}>
-          <View style={styles.statHeader}>
-            <FontAwesome name="bolt" size={16} color="#27ae60" />
-            <Text style={styles.statTitle}>السرعة</Text>
-          </View>
-          <View style={styles.statContent}>
-            <Text style={styles.statValue}>
-              {totalExamTime > 0 ? (current / (totalExamTime / 60)).toFixed(1) : '0.0'}
-            </Text>
-            <Text style={styles.statLabel}>
-              سؤال/دقيقة
-            </Text>
+            {remainingTime != null && totalExamTime != null && (
+              <Text style={styles.subText}>
+                Total: {formatSeconds(totalExamTime)}
+              </Text>
+            )}
           </View>
         </View>
       </View>
 
-      {/* Confidence Indicator */}
-      {standardError && (
-        <View style={styles.confidenceSection}>
-          <View style={styles.confidenceHeader}>
-            <Text style={styles.confidenceLabel}>دقة التقييم:</Text>
-            <Text style={styles.confidenceValue}>
-              {Math.max(0, 100 - (standardError / 0.5) * 100).toFixed(0)}%
-            </Text>
+      <View style={styles.statsRow}>
+        {/* Accuracy */}
+        <View style={styles.statCard}>
+          <View style={styles.statHeader}>
+            <FontAwesome name="bullseye" size={16} color="#38bdf8" />
+            <Text style={styles.statTitle}>Accuracy</Text>
           </View>
-          <View style={styles.confidenceBar}>
-            {[1, 2, 3, 4, 5].map((level) => (
-              <View
-                key={level}
-                style={[
-                  styles.confidenceSegment,
-                  standardError < 0.6 && level <= 5 && styles.confidenceSegmentActive,
-                  standardError < 0.4 && level <= 4 && styles.confidenceSegmentActive,
-                  standardError < 0.3 && level <= 3 && styles.confidenceSegmentActive,
-                  standardError < 0.2 && level <= 2 && styles.confidenceSegmentActive,
-                  standardError < 0.1 && level <= 1 && styles.confidenceSegmentActive,
-                ]}
-              />
-            ))}
+          <View style={styles.statContent}>
+            <Text style={[styles.statValue, { color: '#38bdf8' }]}>{accuracy}%</Text>
+            <Text style={styles.statLabel}>Correct: {correctCount}</Text>
+            <Text style={styles.subText}>Wrong: {incorrectCount}</Text>
           </View>
         </View>
-      )}
 
-      {/* Time Warning (if less than 10 minutes remaining) */}
-      {remainingTime > 0 && remainingTime <= 600 && (
+        {/* Skipped */}
+        <View style={styles.statCard}>
+          <View style={styles.statHeader}>
+            <FontAwesome name="forward" size={16} color="#a78bfa" />
+            <Text style={styles.statTitle}>Skipped</Text>
+          </View>
+          <View style={styles.statContent}>
+            <Text style={[styles.statValue, { color: '#a78bfa' }]}>{skippedCount}</Text>
+            <Text style={styles.statLabel}>Attempts: {attempted}</Text>
+            <Text style={styles.subText}>Keep going 💪</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Warning */}
+      {showUrgentWarning && (
         <View style={styles.timeWarning}>
-          <FontAwesome name="exclamation-circle" size={14} color="#e74c3c" />
+          <FontAwesome name="exclamation-triangle" size={14} color="#e74c3c" />
           <Text style={styles.timeWarningText}>
-            أقل من 10 دقائق متبقية
+            {remainingTime != null ? 'Less than 10 minutes left!' : 'Hurry up — time is almost over!'}
           </Text>
         </View>
       )}
@@ -218,186 +240,122 @@ export default function ProgressIndicator({
 
 const styles = StyleSheet.create({
   container: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 14,
+    borderRadius: 18,
     backgroundColor: '#1e293b',
-    padding: 16,
-    gap: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
-  headerRow: {
+
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 10,
   },
-  examInfo: {
-    flex: 1,
-  },
-  examTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  leftTop: { flex: 1, paddingRight: 10 },
+  headerTitle: {
     color: '#fff',
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '900',
   },
-  subjectTitle: {
-    fontSize: 14,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  timeSection: {
-    alignItems: 'center',
-  },
-  timeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e74c3c',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-  },
-  timeText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  timeLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
+  subjectName: {
     marginTop: 4,
-  },
-  progressSection: {
-    gap: 8,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressTextContainer: {
-    flex: 1,
-  },
-  progressText: {
-    fontSize: 14,
     color: '#94A3B8',
-    fontWeight: '600',
-  },
-  subjectProgressText: {
     fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  progressPercentage: {
-    fontSize: 16,
-    color: '#27ae60',
     fontWeight: '700',
   },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: '#334155',
-    borderRadius: 3,
-    overflow: 'hidden',
+  rightTop: {
+    backgroundColor: '#0b1223',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  progressBar: {
+  countText: {
+    color: '#E2E8F0',
+    fontWeight: '900',
+  },
+
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#0b1223',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  progressFill: {
     height: '100%',
+    borderRadius: 999,
     backgroundColor: '#27ae60',
-    borderRadius: 3,
   },
-  subjectProgressBarContainer: {
-    height: 3,
-    backgroundColor: '#0F172A',
-    borderRadius: 1.5,
-    overflow: 'hidden',
-    marginTop: 2,
-  },
-  subjectProgressBar: {
-    height: '100%',
-    backgroundColor: '#3498db',
-    borderRadius: 1.5,
-  },
-  statsGrid: {
+
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
+    marginTop: 12,
   },
+
   statCard: {
     flex: 1,
-    minWidth: '48%',
-    backgroundColor: '#0F172A',
-    borderRadius: 8,
     padding: 12,
-    gap: 8,
+    borderRadius: 16,
+    backgroundColor: '#0b1223',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
+
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    marginBottom: 8,
   },
   statTitle: {
-    fontSize: 12,
     color: '#94A3B8',
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '900',
   },
   statContent: {
-    alignItems: 'center',
     gap: 2,
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '900',
     color: '#fff',
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  confidenceSection: {
-    marginTop: 4,
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  confidenceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  confidenceLabel: {
+    color: '#E2E8F0',
     fontSize: 12,
-    color: '#64748b',
+    fontWeight: '800',
   },
-  confidenceValue: {
-    fontSize: 14,
-    color: '#27ae60',
-    fontWeight: '600',
+  subText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
-  confidenceBar: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  confidenceSegment: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#334155',
-    borderRadius: 2,
-  },
-  confidenceSegmentActive: {
-    backgroundColor: '#27ae60',
-  },
+
   timeWarning: {
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    padding: 8,
-    backgroundColor: 'rgba(231, 76, 60, 0.1)',
-    borderRadius: 8,
+    gap: 8,
+    padding: 10,
+    backgroundColor: 'rgba(231, 76, 60, 0.10)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(231, 76, 60, 0.3)',
+    borderColor: 'rgba(231, 76, 60, 0.25)',
   },
   timeWarningText: {
-    fontSize: 12,
     color: '#e74c3c',
-    fontWeight: '600',
+    fontWeight: '900',
+    fontSize: 12,
   },
 });
