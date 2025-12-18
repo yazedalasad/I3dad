@@ -2,7 +2,16 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import CustomButton from '../../components/Form/CustomButton';
 import CustomTextInput from '../../components/Form/CustomTextInput';
 import { supabase } from '../../config/supabase';
@@ -23,67 +32,84 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
       newErrors.password = passwordValidation.error;
     }
 
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = t('validation.passwordsNotMatch');
-    }
-
     if (!confirmPassword) {
-      newErrors.confirmPassword = t('validation.required');
+      newErrors.confirmPassword = t('validation.required') || 'حقل مطلوب';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = t('validation.passwordsNotMatch') || 'كلمتا المرور غير متطابقتين';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const showSupabaseError = (err) => {
+    const status = err?.status ?? err?.statusCode ?? 'N/A';
+    const code = err?.code ?? 'N/A';
+    const message = err?.message ?? 'Unknown error';
+
+    console.log('RESET PASSWORD ERROR:', err);
+    Alert.alert('حدث خطأ', `Status: ${status}\nCode: ${code}\n\n${message}`);
+  };
+
   const handleResetPassword = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (loading) return;
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
+      // ✅ 1) لازم يكون فيه Session بعد VerifyCode (type: 'recovery')
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      if (!sessionData?.session) {
+        setLoading(false);
+        Alert.alert(
+          'لا يمكن تغيير كلمة المرور',
+          'لا توجد جلسة (Session) صالحة.\nارجع لصفحة الرمز وتأكد أنك تحققت من الرمز باستخدام نوع recovery.'
+        );
+        return;
+      }
+
+      // ✅ 2) تغيير كلمة المرور
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+
+      // ✅ 3) اختياري: تسجيل خروج ليجبره يسجل دخول بكلمة المرور الجديدة
+      await supabase.auth.signOut();
 
       setLoading(false);
 
-      if (error) {
-        throw error;
-      }
-
       Alert.alert(
-        t('auth.resetPassword.success.title'),
-        t('auth.resetPassword.success.message'),
+        t('auth.resetPassword.success.title') || 'تم بنجاح ✅',
+        t('auth.resetPassword.success.message') || 'تم تغيير كلمة المرور بنجاح.',
         [
           {
-            text: t('auth.resetPassword.success.loginButton'),
+            text: t('auth.resetPassword.success.loginButton') || 'تسجيل الدخول',
             onPress: () => navigateTo('login'),
           },
         ]
       );
-    } catch (error) {
+    } catch (err) {
       setLoading(false);
-      let errorMessage = t('auth.resetPassword.errors.generic');
-      
-      if (error.message.includes('Same password')) {
-        errorMessage = t('auth.resetPassword.errors.samePassword');
+
+      const msg = String(err?.message || '').toLowerCase();
+      if (msg.includes('same password')) {
+        Alert.alert(
+          t('common.error') || 'خطأ',
+          t('auth.resetPassword.errors.samePassword') || 'لا يمكن استخدام نفس كلمة المرور القديمة.'
+        );
+        return;
       }
 
-      Alert.alert(t('common.error'), errorMessage);
+      // ✅ اعرض الخطأ الحقيقي بسرعة
+      showSupabaseError(err);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <LinearGradient
           colors={['#27ae60', '#2ecc71']}
           style={styles.header}
@@ -93,9 +119,9 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
           <View style={styles.logoContainer}>
             <FontAwesome name="key" size={60} color="#fff" />
           </View>
-          <Text style={styles.title}>{t('auth.resetPassword.title')}</Text>
+          <Text style={styles.title}>{t('auth.resetPassword.title') || 'تغيير كلمة المرور'}</Text>
           <Text style={styles.subtitle}>
-            {t('auth.resetPassword.subtitle')}
+            {t('auth.resetPassword.subtitle') || 'قم بإدخال كلمة مرور جديدة'}
           </Text>
         </LinearGradient>
 
@@ -103,53 +129,53 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
           <View style={styles.infoBox}>
             <FontAwesome name="info-circle" size={20} color="#27ae60" />
             <Text style={styles.infoText}>
-              {t('auth.resetPassword.info')}
+              {t('auth.resetPassword.info') || 'اختر كلمة مرور قوية ثم أكدها.'}
             </Text>
           </View>
 
           <CustomTextInput
-            label={t('auth.resetPassword.newPassword')}
+            label={t('auth.resetPassword.newPassword') || 'كلمة مرور جديدة'}
             value={password}
             onChangeText={(text) => {
               setPassword(text);
-              if (errors.password) {
-                setErrors({ ...errors, password: null });
-              }
+              if (errors.password) setErrors({ ...errors, password: null });
             }}
-            placeholder={t('auth.resetPassword.newPassword')}
+            placeholder={t('auth.resetPassword.newPassword') || 'كلمة مرور جديدة'}
             icon="lock"
             secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
             error={errors.password}
           />
 
           <CustomTextInput
-            label={t('auth.resetPassword.confirmPassword')}
+            label={t('auth.resetPassword.confirmPassword') || 'تأكيد كلمة المرور'}
             value={confirmPassword}
             onChangeText={(text) => {
               setConfirmPassword(text);
-              if (errors.confirmPassword) {
-                setErrors({ ...errors, confirmPassword: null });
-              }
+              if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: null });
             }}
-            placeholder={t('auth.resetPassword.confirmPassword')}
+            placeholder={t('auth.resetPassword.confirmPassword') || 'تأكيد كلمة المرور'}
             icon="lock"
             secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
             error={errors.confirmPassword}
           />
 
           <CustomButton
-            title={t('auth.resetPassword.changePassword')}
+            title={t('auth.resetPassword.changePassword') || 'حفظ كلمة المرور'}
             onPress={handleResetPassword}
             icon="check"
             loading={loading}
+            disabled={loading}
           />
 
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigateTo('login')}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigateTo('login')}>
             <FontAwesome name="arrow-right" size={16} color="#64748b" />
-            <Text style={styles.backButtonText}>{t('auth.resetPassword.backToLogin')}</Text>
+            <Text style={styles.backButtonText}>
+              {t('auth.resetPassword.backToLogin') || 'رجوع لتسجيل الدخول'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -158,13 +184,8 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  scrollContent: { flexGrow: 1 },
   header: {
     paddingTop: 60,
     paddingBottom: 40,
@@ -219,6 +240,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'right',
+    fontWeight: '700',
   },
   backButton: {
     flexDirection: 'row',
@@ -228,8 +250,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 16,
   },
-  backButtonText: {
-    color: '#64748b',
-    fontSize: 14,
-  },
+  backButtonText: { color: '#64748b', fontSize: 14, fontWeight: '700' },
 });

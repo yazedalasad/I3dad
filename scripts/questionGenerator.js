@@ -18,15 +18,12 @@ import { fileURLToPath } from 'url';
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 
-// load env (from project root)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-// supabase - adjust relative path if needed
 import { supabase } from '../config/supabase.js';
 
-// CONFIG
 const CONFIG = {
   DEEPSEEK_API_URL: 'https://api.deepseek.com/v1/chat/completions',
   DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,

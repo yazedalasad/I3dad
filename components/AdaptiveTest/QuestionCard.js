@@ -1,14 +1,13 @@
 /**
- * QUESTION CARD COMPONENT (Improved UI + Smooth Animations)
- *
- * - Cleaner layout + better spacing
- * - Small entrance animation for question/options
- * - Option press animation (pop)
- * - Safer fallbacks if some option text is missing
- * - Supports Arabic/Hebrew text alignment automatically
+ * QUESTION CARD COMPONENT (TotalExam-style UI)
+ * - Light theme (same vibe as TotalExamScreen)
+ * - Smooth entrance animation
+ * - Option press pop animation
+ * - RTL/LTR alignment support
  */
 
-import { FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -31,11 +30,9 @@ export default function QuestionCard({
   language,
   disabled,
   timeRemaining,
-  maxTime = 120, // ✅ allow parent to control
+  maxTime = 120,
 }) {
   const isRTL = useMemo(() => {
-    // Arabic is RTL. Hebrew is RTL too.
-    // If you already use I18nManager.forceRTL, keep it consistent.
     return language === 'ar' || language === 'he' || I18nManager.isRTL;
   }, [language]);
 
@@ -56,16 +53,16 @@ export default function QuestionCard({
       { letter: 'B', text: pick(question?.option_b_ar, question?.option_b_he) },
       { letter: 'C', text: pick(question?.option_c_ar, question?.option_c_he) },
       { letter: 'D', text: pick(question?.option_d_ar, question?.option_d_he) },
-    ].filter((o) => String(o.text || '').trim().length > 0); // ✅ hide empty options safely
+    ].filter((o) => String(o.text || '').trim().length > 0);
   }, [question, language]);
 
   // ---------- Entrance animations ----------
-  const mountAnim = useRef(new Animated.Value(0)).current; // 0 -> 1
+  const mountAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     mountAnim.setValue(0);
     Animated.timing(mountAnim, {
       toValue: 1,
-      duration: 280,
+      duration: 260,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -79,7 +76,7 @@ export default function QuestionCard({
 
   // ---------- Timer bar ----------
   const progressAnim = useRef(new Animated.Value(1)).current;
-  const [timerColor, setTimerColor] = useState('#27ae60');
+  const [timerColor, setTimerColor] = useState('#1B3A8A');
 
   useEffect(() => {
     if (typeof timeRemaining !== 'number') return;
@@ -89,14 +86,15 @@ export default function QuestionCard({
 
     Animated.timing(progressAnim, {
       toValue: progress,
-      duration: 300,
+      duration: 250,
       easing: Easing.linear,
       useNativeDriver: false,
     }).start();
 
-    if (timeRemaining <= Math.floor(safeMax * 0.25)) setTimerColor('#e74c3c');
-    else if (timeRemaining <= Math.floor(safeMax * 0.5)) setTimerColor('#f39c12');
-    else setTimerColor('#27ae60');
+    // blue -> yellow -> red
+    if (timeRemaining <= Math.floor(safeMax * 0.25)) setTimerColor('#E74C3C');
+    else if (timeRemaining <= Math.floor(safeMax * 0.5)) setTimerColor('#F5B301');
+    else setTimerColor('#1B3A8A');
   }, [timeRemaining, maxTime, progressAnim]);
 
   const formatTime = (seconds) => {
@@ -107,7 +105,6 @@ export default function QuestionCard({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Difficulty badge (kept, but slightly refined)
   const getDifficultyText = () => {
     const diff = Number(question?.difficulty ?? 0);
     if (diff < -1) return 'سهل جداً';
@@ -116,43 +113,31 @@ export default function QuestionCard({
     if (diff < 2) return 'صعب';
     return 'صعب جداً';
   };
+
   const getDifficultyColor = () => {
     const diff = Number(question?.difficulty ?? 0);
-    if (diff < -1) return '#27ae60';
-    if (diff < 0) return '#2ecc71';
-    if (diff < 1) return '#f39c12';
-    if (diff < 2) return '#e67e22';
-    return '#e74c3c';
+    if (diff < -1) return '#2ECC71';
+    if (diff < 0) return '#27AE60';
+    if (diff < 1) return '#F5B301';
+    if (diff < 2) return '#E67E22';
+    return '#E74C3C';
   };
 
-  const getOptionStyle = (letter) => {
+  const getOptionState = (letter) => {
     if (!showFeedback) {
-      return selectedAnswer === letter ? styles.optionSelected : styles.option;
+      if (selectedAnswer === letter) return 'selected';
+      return 'normal';
     }
-    if (letter === question?.correct_answer) return styles.optionCorrect;
-    if (letter === selectedAnswer && !isCorrect) return styles.optionIncorrect;
-    return styles.option;
-  };
-
-  const getOptionIcon = (letter) => {
-    if (!showFeedback) return selectedAnswer === letter ? 'check-circle' : 'circle-o';
-    if (letter === question?.correct_answer) return 'check-circle';
-    if (letter === selectedAnswer && !isCorrect) return 'times-circle';
-    return 'circle-o';
-  };
-
-  const getOptionIconColor = (letter) => {
-    if (!showFeedback) return selectedAnswer === letter ? '#27ae60' : '#94A3B8';
-    if (letter === question?.correct_answer) return '#27ae60';
-    if (letter === selectedAnswer && !isCorrect) return '#e74c3c';
-    return '#94A3B8';
+    if (letter === question?.correct_answer) return 'correct';
+    if (letter === selectedAnswer && !isCorrect) return 'incorrect';
+    return 'normal';
   };
 
   const handleSkip = () => {
     if (onSkipQuestion && !disabled && !showFeedback) onSkipQuestion();
   };
 
-  // Option press pop animation (per option)
+  // Option pop animation
   const pressScales = useRef(
     new Map(['A', 'B', 'C', 'D'].map((k) => [k, new Animated.Value(1)]))
   ).current;
@@ -162,71 +147,74 @@ export default function QuestionCard({
     if (!v) return;
     v.setValue(1);
     Animated.sequence([
-      Animated.timing(v, { toValue: 0.98, duration: 70, useNativeDriver: true }),
+      Animated.timing(v, { toValue: 0.985, duration: 70, useNativeDriver: true }),
       Animated.timing(v, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <Animated.View
-        style={[
-          styles.questionHeader,
-          {
-            opacity: cardOpacity,
-            transform: [{ translateY: cardTranslateY }],
-          },
-        ]}
-      >
-        <View style={styles.questionInfo}>
-          <View style={styles.difficultyBadge}>
-            <FontAwesome name="signal" size={12} color={getDifficultyColor()} />
-            <Text style={[styles.difficultyText, { color: getDifficultyColor() }]}>
-              {getDifficultyText()}
-            </Text>
-          </View>
+    <View style={styles.page}>
+      {/* Top banner (TotalExam vibe) */}
+      <Animated.View style={{ opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] }}>
+        <LinearGradient
+          colors={['#1B3A8A', '#1E4FBF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
+          <View style={styles.heroRow}>
+            <View style={styles.heroLeft}>
+              <View style={styles.badge}>
+                <Ionicons name="speedometer-outline" size={14} color={getDifficultyColor()} />
+                <Text style={[styles.badgeText, { color: getDifficultyColor() }]}>
+                  {getDifficultyText()}
+                </Text>
+              </View>
 
-          <Text style={styles.questionNumber}>
-            السؤال {question?.question_order || '?'}
-          </Text>
-        </View>
-
-        {typeof timeRemaining === 'number' && (
-          <View style={styles.timerContainer}>
-            <View style={styles.timerContent}>
-              <FontAwesome name="clock-o" size={14} color={timerColor} />
-              <Text style={[styles.timerText, { color: timerColor }]}>
-                {formatTime(timeRemaining)}
+              <Text style={styles.questionNumber}>
+                {language === 'ar' ? 'السؤال' : 'שאלה'} {question?.question_order || '?'}
               </Text>
             </View>
 
-            <View style={styles.timerBar}>
-              <Animated.View
-                style={[
-                  styles.timerProgress,
-                  {
-                    backgroundColor: timerColor,
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%'],
-                    }),
-                  },
-                ]}
-              />
-            </View>
+            {typeof timeRemaining === 'number' && (
+              <View style={styles.timerBox}>
+                <View style={styles.timerTop}>
+                  <Ionicons name="time-outline" size={16} color={timerColor} />
+                  <Text style={[styles.timerText, { color: timerColor }]}>
+                    {formatTime(timeRemaining)}
+                  </Text>
+                </View>
+                <View style={styles.timerBar}>
+                  <Animated.View
+                    style={[
+                      styles.timerProgress,
+                      {
+                        backgroundColor: timerColor,
+                        width: progressAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
           </View>
-        )}
+
+          <Text style={styles.heroHint}>
+            {language === 'ar'
+              ? 'اختر الإجابة الصحيحة من الخيارات التالية'
+              : 'בחר/י תשובה נכונה מהאפשרויות'}
+          </Text>
+        </LinearGradient>
       </Animated.View>
 
-      {/* Question Card */}
+      {/* Question card */}
       <Animated.View
         style={[
-          styles.questionContainer,
-          {
-            opacity: cardOpacity,
-            transform: [{ translateY: cardTranslateY }],
-          },
+          styles.questionCard,
+          { opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] },
         ]}
       >
         <Text style={[styles.questionText, { textAlign: isRTL ? 'right' : 'left' }]}>
@@ -235,29 +223,25 @@ export default function QuestionCard({
 
         {!showFeedback && !disabled && onSkipQuestion && (
           <TouchableOpacity
-            style={styles.skipButtonInternal}
+            style={styles.skipButton}
             onPress={handleSkip}
-            activeOpacity={0.85}
+            activeOpacity={0.88}
           >
-            <View style={styles.skipButtonContent}>
-              <FontAwesome name="forward" size={16} color="#f39c12" />
-              <Text style={styles.skipButtonText}>تخطي هذا السؤال</Text>
-            </View>
-            {typeof timeRemaining === 'number' && (
-              <Text style={styles.skipTimeText}>
-                {timeRemaining}s متبقي
-              </Text>
-            )}
+            <Ionicons name="play-forward-outline" size={18} color="#F5B301" />
+            <Text style={styles.skipText}>
+              {language === 'ar' ? 'تخطي هذا السؤال' : 'דלג/י על השאלה'}
+            </Text>
           </TouchableOpacity>
         )}
       </Animated.View>
 
       {/* Options */}
-      <View style={styles.optionsContainer}>
+      <View style={styles.options}>
         {options.map((option, idx) => {
+          const state = getOptionState(option.letter);
           const scale = pressScales.get(option.letter) || new Animated.Value(1);
 
-          const delay = 70 + idx * 55;
+          const delay = 60 + idx * 55;
           const optionOpacity = mountAnim.interpolate({
             inputRange: [0, 1],
             outputRange: [0, 1],
@@ -283,35 +267,28 @@ export default function QuestionCard({
                 }}
                 disabled={disabled}
                 style={[
-                  getOptionStyle(option.letter),
+                  styles.optionCard,
+                  state === 'selected' && styles.optionSelected,
+                  state === 'correct' && styles.optionCorrect,
+                  state === 'incorrect' && styles.optionIncorrect,
                   disabled && styles.optionDisabled,
                 ]}
               >
-                <View style={styles.optionContent}>
+                <View style={styles.optionRow}>
                   <View
                     style={[
-                      styles.optionLetter,
-                      selectedAnswer === option.letter && styles.optionLetterSelected,
-                      showFeedback &&
-                        option.letter === question?.correct_answer &&
-                        styles.optionLetterCorrect,
-                      showFeedback &&
-                        option.letter === selectedAnswer &&
-                        !isCorrect &&
-                        styles.optionLetterIncorrect,
+                      styles.letterBox,
+                      state === 'selected' && styles.letterSelected,
+                      state === 'correct' && styles.letterCorrect,
+                      state === 'incorrect' && styles.letterIncorrect,
                     ]}
                   >
                     <Text
                       style={[
-                        styles.optionLetterText,
-                        selectedAnswer === option.letter && styles.optionLetterTextSelected,
-                        showFeedback &&
-                          option.letter === question?.correct_answer &&
-                          styles.optionLetterTextCorrect,
-                        showFeedback &&
-                          option.letter === selectedAnswer &&
-                          !isCorrect &&
-                          styles.optionLetterTextIncorrect,
+                        styles.letterText,
+                        state === 'selected' && styles.letterTextSelected,
+                        state === 'correct' && styles.letterTextCorrect,
+                        state === 'incorrect' && styles.letterTextIncorrect,
                       ]}
                     >
                       {option.letter}
@@ -319,27 +296,25 @@ export default function QuestionCard({
                   </View>
 
                   <Text
-                    style={[
-                      styles.optionText,
-                      { textAlign: isRTL ? 'right' : 'left' },
-                      showFeedback &&
-                        option.letter === question?.correct_answer &&
-                        styles.optionTextCorrect,
-                      showFeedback &&
-                        option.letter === selectedAnswer &&
-                        !isCorrect &&
-                        styles.optionTextIncorrect,
-                    ]}
-                    numberOfLines={5}
+                    style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}
+                    numberOfLines={6}
                   >
                     {option.text}
                   </Text>
 
-                  <FontAwesome
-                    name={getOptionIcon(option.letter)}
-                    size={22}
-                    color={getOptionIconColor(option.letter)}
-                  />
+                  {showFeedback ? (
+                    state === 'correct' ? (
+                      <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
+                    ) : state === 'incorrect' ? (
+                      <Ionicons name="close-circle" size={22} color="#E74C3C" />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
+                    )
+                  ) : selectedAnswer === option.letter ? (
+                    <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
+                  )}
                 </View>
               </Pressable>
             </Animated.View>
@@ -351,213 +326,184 @@ export default function QuestionCard({
       {showFeedback && (question?.explanation_ar || question?.explanation_he) && (
         <Animated.View
           style={[
-            styles.explanationContainer,
-            isCorrect ? styles.explanationCorrect : styles.explanationIncorrect,
+            styles.explainCard,
+            isCorrect ? styles.explainCorrect : styles.explainIncorrect,
             { opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] },
           ]}
         >
-          <View style={styles.explanationHeader}>
-            <FontAwesome
-              name="lightbulb-o"
-              size={16}
-              color={isCorrect ? '#27ae60' : '#e74c3c'}
+          <View style={styles.explainHeader}>
+            <Ionicons
+              name="bulb-outline"
+              size={18}
+              color={isCorrect ? '#27AE60' : '#E74C3C'}
             />
-            <Text style={styles.explanationTitle}>
-              {isCorrect ? 'شرح الإجابة الصحيحة' : 'تصحيح الإجابة'}
+            <Text style={styles.explainTitle}>
+              {isCorrect ? 'توضيح' : 'تصحيح'}
             </Text>
           </View>
 
-          <Text style={[styles.explanationText, { textAlign: isRTL ? 'right' : 'left' }]}>
+          <Text style={[styles.explainText, { textAlign: isRTL ? 'right' : 'left' }]}>
             {language === 'ar'
               ? question?.explanation_ar || question?.explanation_he || ''
               : question?.explanation_he || question?.explanation_ar || ''}
           </Text>
         </Animated.View>
       )}
-
-      {/* DEV debug */}
-      {__DEV__ && (
-        <View style={styles.debugInfo}>
-          <Text style={styles.debugText}>
-            الصعوبة: {Number(question?.difficulty ?? 0).toFixed(2)} | التمييز:{' '}
-            {Number(question?.discrimination ?? 0).toFixed(2)}
-          </Text>
-          <Text style={styles.debugText}>
-            المستخدم: {question?.times_used || 0} | الصحيحة: {question?.times_correct || 0}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+  page: {
+    flex: 1,
+    backgroundColor: '#F6F8FF',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
 
-  questionHeader: {
-    flexDirection: 'row',
+  hero: {
+    borderRadius: 20,
+    padding: 14,
+  },
+  heroRow: {
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-    paddingHorizontal: 8,
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  questionInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  difficultyBadge: {
-    flexDirection: 'row',
+  heroLeft: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  badge: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
     gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
   },
-  difficultyText: { fontSize: 12, fontWeight: '700' },
-  questionNumber: { fontSize: 14, color: '#94A3B8', fontWeight: '700' },
+  badgeText: { fontWeight: '900', fontSize: 12 },
+  questionNumber: { color: '#EAF1FF', fontWeight: '900', fontSize: 13 },
 
-  timerContainer: { alignItems: 'flex-end', minWidth: 92 },
-  timerContent: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  timerText: { fontSize: 14, fontWeight: '900' },
+  timerBox: { alignItems: 'flex-end', minWidth: 110 },
+  timerTop: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 },
+  timerText: { fontWeight: '900' },
   timerBar: {
-    width: 92,
-    height: 6,
-    backgroundColor: '#334155',
+    width: 110,
+    height: 7,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 999,
     overflow: 'hidden',
   },
   timerProgress: { height: '100%', borderRadius: 999 },
 
-  questionContainer: {
-    backgroundColor: '#1e293b',
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+  heroHint: {
+    marginTop: 10,
+    color: '#DCE7FF',
+    fontWeight: '700',
+    textAlign: 'right',
+    fontSize: 12,
+  },
 
-    // subtle shadow (RN will ignore on Android unless elevation is set)
+  questionCard: {
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E6ECFF',
     shadowColor: '#000',
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    elevation: 2,
   },
   questionText: {
-    fontSize: 20,
-    lineHeight: 32,
-    color: '#fff',
-    fontWeight: '700',
+    color: '#142B63',
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: '900',
   },
 
-  skipButtonInternal: {
-    marginTop: 14,
-    backgroundColor: 'rgba(243, 156, 18, 0.10)',
+  skipButton: {
+    marginTop: 12,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(245, 179, 1, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(243, 156, 18, 0.28)',
-    borderRadius: 14,
-    padding: 12,
-  },
-  skipButtonContent: {
-    flexDirection: 'row',
+    borderColor: 'rgba(245, 179, 1, 0.28)',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 4,
   },
-  skipButtonText: { fontSize: 14, fontWeight: '800', color: '#f39c12' },
-  skipTimeText: { fontSize: 12, color: 'rgba(243, 156, 18, 0.8)', textAlign: 'center' },
+  skipText: { color: '#B37A00', fontWeight: '900' },
 
-  optionsContainer: { gap: 12, marginBottom: 16 },
+  options: { marginTop: 12, gap: 12 },
 
-  option: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
+  optionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E6ECFF',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  optionSelected: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(39, 174, 96, 0.9)',
-  },
-  optionCorrect: {
-    backgroundColor: 'rgba(39, 174, 96, 0.10)',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#27ae60',
-  },
-  optionIncorrect: {
-    backgroundColor: 'rgba(231, 76, 60, 0.10)',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e74c3c',
-  },
-  optionDisabled: { opacity: 0.55 },
-
-  optionContent: {
-    flexDirection: 'row',
+  optionRow: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     padding: 14,
   },
-  optionLetter: {
+
+  optionSelected: { borderColor: '#F5B301', borderWidth: 2 },
+  optionCorrect: { borderColor: '#27AE60', borderWidth: 2, backgroundColor: 'rgba(39,174,96,0.06)' },
+  optionIncorrect: { borderColor: '#E74C3C', borderWidth: 2, backgroundColor: 'rgba(231,76,60,0.06)' },
+  optionDisabled: { opacity: 0.55 },
+
+  letterBox: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#0b1223',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF3FF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: '#E6ECFF',
   },
-  optionLetterSelected: { borderColor: 'rgba(39,174,96,0.6)' },
-  optionLetterCorrect: { borderColor: 'rgba(39,174,96,0.9)', backgroundColor: 'rgba(39,174,96,0.14)' },
-  optionLetterIncorrect: { borderColor: 'rgba(231,76,60,0.9)', backgroundColor: 'rgba(231,76,60,0.12)' },
+  letterSelected: { backgroundColor: 'rgba(245,179,1,0.18)', borderColor: '#F5B301' },
+  letterCorrect: { backgroundColor: 'rgba(39,174,96,0.14)', borderColor: '#27AE60' },
+  letterIncorrect: { backgroundColor: 'rgba(231,76,60,0.12)', borderColor: '#E74C3C' },
 
-  optionLetterText: { color: '#E2E8F0', fontWeight: '900', fontSize: 15 },
-  optionLetterTextSelected: { color: '#27ae60' },
-  optionLetterTextCorrect: { color: '#27ae60' },
-  optionLetterTextIncorrect: { color: '#e74c3c' },
+  letterText: { fontWeight: '900', color: '#142B63' },
+  letterTextSelected: { color: '#B37A00' },
+  letterTextCorrect: { color: '#1D8E4A' },
+  letterTextIncorrect: { color: '#B03A2E' },
 
   optionText: {
     flex: 1,
-    color: '#fff',
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
+    color: '#142B63',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
   },
-  optionTextCorrect: { color: '#CFF5DD' },
-  optionTextIncorrect: { color: '#FFD1CD' },
 
-  explanationContainer: {
-    backgroundColor: '#1e293b',
+  explainCard: {
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    marginBottom: 10,
-
-    shadowColor: '#000',
-    shadowOpacity: 0.20,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
+    borderColor: '#E6ECFF',
   },
-  explanationCorrect: { borderColor: 'rgba(39, 174, 96, 0.35)' },
-  explanationIncorrect: { borderColor: 'rgba(231, 76, 60, 0.35)' },
-
-  explanationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  explanationTitle: { color: '#fff', fontWeight: '900' },
-  explanationText: { color: '#E2E8F0', lineHeight: 22, fontWeight: '600' },
-
-  debugInfo: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(148, 163, 184, 0.08)',
-  },
-  debugText: { fontSize: 12, color: '#94A3B8', marginVertical: 2, fontWeight: '700' },
+  explainCorrect: { borderColor: 'rgba(39,174,96,0.35)' },
+  explainIncorrect: { borderColor: 'rgba(231,76,60,0.35)' },
+  explainHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, marginBottom: 8 },
+  explainTitle: { color: '#142B63', fontWeight: '900' },
+  explainText: { color: '#2B3E70', fontWeight: '700', lineHeight: 20 },
 });

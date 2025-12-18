@@ -1,395 +1,488 @@
-/**
- * ADAPTIVE TEST SERVICE - Simplified Working Version
- */
-
 import { supabase } from '../config/supabase';
 
+const HEARTBEAT_ACTIVE_GAP_SECONDS = 30;
+
+// Adaptive limits (defaults)
+const DEFAULT_MIN_Q = 2;
+const DEFAULT_MAX_Q = 7;
+
+// Stop rule thresholds (tweak if you want)
+const CONFIDENCE_STOP_AT = 75; // 0..100
+const SE_STOP_AT = 0.20; // lower => stricter (0.20 is reasonable for 2..7 range)
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
 /**
- * Start comprehensive multi-subject assessment
+ * Simple confidence model from accuracy standard error:
+ * p = correct/n
+ * se = sqrt(p(1-p)/n)
+ * confidence = 100 * (1 - 2*se)
+ * (works well enough for stopping 2..7 questions without full IRT)
  */
-export async function startComprehensiveAssessment(studentId, subjectIds, language = 'ar', questionsPerSubject = 2) {
-  console.log('🚀 STARTING COMPREHENSIVE ASSESSMENT');
-  console.log('Student ID:', studentId);
-  console.log('Subject IDs:', subjectIds);
-  console.log('Questions per subject:', questionsPerSubject);
+function computeSubjectStats(correct, answered) {
+  const n = Math.max(0, Number(answered || 0));
+  const c = Math.max(0, Number(correct || 0));
+  if (n <= 0) {
+    return { accuracy: 0, standardError: 1, confidence: 0 };
+  }
 
+  const p = clamp(c / n, 0, 1);
+  const se = Math.sqrt((p * (1 - p)) / Math.max(1, n));
+  const confidence = clamp(Math.round((1 - 2 * se) * 100), 0, 100);
+
+  return {
+    accuracy: Math.round(p * 100),
+    standardError: Number(se.toFixed(4)),
+    confidence
+  };
+}
+
+function resolveMinMax({ minQuestionsPerSubject, maxQuestionsPerSubject, questionsPerSubject }) {
+  // Backward compatible:
+  // - if caller still sends questionsPerSubject (old behavior),
+  //   treat it as BOTH min and max.
+  const legacy = Number(questionsPerSubject);
+  const minQ =
+    Number.isFinite(Number(minQuestionsPerSubject))
+      ? Number(minQuestionsPerSubject)
+      : Number.isFinite(legacy)
+        ? legacy
+        : DEFAULT_MIN_Q;
+
+  const maxQ =
+    Number.isFinite(Number(maxQuestionsPerSubject))
+      ? Number(maxQuestionsPerSubject)
+      : Number.isFinite(legacy)
+        ? legacy
+        : DEFAULT_MAX_Q;
+
+  return {
+    minQ: clamp(Math.floor(minQ), 1, 50),
+    maxQ: clamp(Math.floor(Math.max(maxQ, minQ)), 1, 50)
+  };
+}
+
+/* -------------------------------------------------- */
+/* HEARTBEAT                                          */
+/* -------------------------------------------------- */
+export async function recordHeartbeat({
+  sessionId,
+  studentId,
+  eventType = 'heartbeat',
+  metadata = {}
+}) {
   try {
-    // 1. Validate student exists
-    console.log('🔍 Checking student...');
-    const { data: student, error: studentError } = await supabase
-      .from('students')
-      .select('id, first_name, last_name')
-      .eq('id', studentId)
-      .single();
-
-    if (studentError) {
-      console.error('❌ Student not found:', studentError);
-      return {
-        success: false,
-        error: 'STUDENT_NOT_FOUND: ' + studentError.message
-      };
-    }
-
-    console.log('✅ Student found:', student.first_name, student.last_name);
-
-    // 2. Validate subjects exist
-    console.log('🔍 Checking subjects...');
-    const { data: subjects, error: subjectsError } = await supabase
-      .from('subjects')
-      .select('id, name_ar, is_active')
-      .in('id', subjectIds)
-      .eq('is_active', true);
-
-    if (subjectsError) {
-      console.error('❌ Subjects error:', subjectsError);
-      return {
-        success: false,
-        error: 'SUBJECTS_ERROR: ' + subjectsError.message
-      };
-    }
-
-    if (subjects.length !== subjectIds.length) {
-      console.error('❌ Missing subjects:', {
-        requested: subjectIds.length,
-        found: subjects.length
-      });
-      return {
-        success: false,
-        error: 'MISSING_SUBJECTS: Some subjects not found or inactive'
-      };
-    }
-
-    console.log('✅ Subjects found:', subjects.map(s => s.name_ar));
-
-    // 3. Create test session
-    console.log('🔍 Creating test session...');
-    const totalQuestions = subjectIds.length * questionsPerSubject;
-    
-    const sessionData = {
+    await supabase.from('test_session_heartbeats').insert({
+      session_id: sessionId,
       student_id: studentId,
-      session_type: 'full_assessment',
-      language,
-      target_questions: totalQuestions,
-      status: 'in_progress',
-      metadata: {
-        subjectIds,
-        questionsPerSubject,
-        startedAt: new Date().toISOString(),
-        studentName: `${student.first_name} ${student.last_name}`
-      }
-    };
+      event_type: eventType,
+      metadata,
+      created_at: new Date().toISOString()
+    });
+    return { success: true };
+  } catch (e) {
+    // heartbeat failure must NOT break the exam
+    return { success: false, error: e?.message || String(e) };
+  }
+}
 
-    console.log('Session data:', sessionData);
+/* -------------------------------------------------- */
+/* START TOTAL EXAM                                   */
+/* -------------------------------------------------- */
+export async function startComprehensiveAssessment({
+  studentId,
+  subjectIds,
+  language = 'ar',
 
-    const { data: session, error: sessionError } = await supabase
+  // NEW (preferred)
+  minQuestionsPerSubject,
+  maxQuestionsPerSubject,
+
+  // OLD (still supported)
+  questionsPerSubject = 2,
+
+  subjectNames = null
+}) {
+  try {
+    if (!studentId) return { success: false, error: 'MISSING_STUDENT_ID' };
+    if (!Array.isArray(subjectIds) || subjectIds.length === 0) {
+      return { success: false, error: 'NO_SUBJECT_IDS' };
+    }
+
+    const { minQ, maxQ } = resolveMinMax({
+      minQuestionsPerSubject,
+      maxQuestionsPerSubject,
+      questionsPerSubject
+    });
+
+    // Validate subjects
+    const { data: subjects, error: subjErr } = await supabase
+      .from('subjects')
+      .select('id, is_active')
+      .in('id', subjectIds);
+
+    if (subjErr) {
+      return { success: false, error: 'SUBJECTS_QUERY_ERROR: ' + subjErr.message };
+    }
+
+    const activeSubjectIds = (subjects || [])
+      .filter((s) => s.is_active)
+      .map((s) => s.id);
+
+    if (activeSubjectIds.length === 0) {
+      return { success: false, error: 'NO_ACTIVE_SUBJECTS' };
+    }
+
+    // Use maxQ for target_questions so progress bars can still work
+    const totalQuestions = activeSubjectIds.length * Number(maxQ);
+
+    // Create session
+    const { data: session, error: sessionErr } = await supabase
       .from('test_sessions')
-      .insert(sessionData)
+      .insert({
+        student_id: studentId,
+        session_type: 'full_assessment',
+        language,
+        target_questions: totalQuestions,
+        status: 'in_progress',
+        metadata: {
+          examType: 'total_exam',
+          subjectIds: activeSubjectIds,
+          subjectNames,
+
+          // store both (new)
+          minQuestionsPerSubject: minQ,
+          maxQuestionsPerSubject: maxQ,
+
+          // keep old for compatibility
+          questionsPerSubject: Number(questionsPerSubject || 2),
+
+          startedAt: new Date().toISOString()
+        }
+      })
       .select()
       .single();
 
-    if (sessionError) {
-      console.error('❌ Session creation failed:', sessionError);
+    if (sessionErr) {
+      return { success: false, error: 'SESSION_CREATION_FAILED: ' + sessionErr.message };
+    }
+
+    // Create per-subject states in DB
+    // Keep using target_questions column, but set it to maxQ (the cap)
+    const subjectRows = activeSubjectIds.map((sid) => ({
+      session_id: session.id,
+      student_id: studentId,
+      subject_id: sid,
+      target_questions: Number(maxQ),
+      questions_answered: 0,
+      correct_answers: 0,
+      is_complete: false,
+      metadata: {
+        usedQuestionIds: [],
+        minQuestions: Number(minQ),
+        maxQuestions: Number(maxQ),
+        confidence: 0,
+        standardError: 1,
+        accuracy: 0
+      }
+    }));
+
+    const { error: insertErr } = await supabase
+      .from('test_session_subjects')
+      .insert(subjectRows);
+
+    if (insertErr) {
+      await supabase.from('test_sessions').update({ status: 'abandoned' }).eq('id', session.id);
       return {
         success: false,
-        error: 'SESSION_CREATION_FAILED: ' + sessionError.message
+        error: 'SUBJECT_STATE_CREATE_FAILED: ' + insertErr.message
       };
     }
 
-    console.log('✅ Session created:', session.id);
-
-    // 4. Initialize subject states (simplified)
+    // Build UI subjectStates
     const subjectStates = {};
-    subjectIds.forEach(subjectId => {
-      subjectStates[subjectId] = {
-        targetQuestions: questionsPerSubject,
+    activeSubjectIds.forEach((sid) => {
+      subjectStates[sid] = {
+        // Keep old field name used by your UI progress calc
+        targetQuestions: Number(maxQ),
+
+        // NEW fields
+        minQuestions: Number(minQ),
+        maxQuestions: Number(maxQ),
+
         questionsAnswered: 0,
-        currentTheta: 0,
-        standardError: 1,
+        correctAnswers: 0,
         isComplete: false,
+
+        confidence: 0,
+        standardError: 1,
+        accuracy: 0,
+
         usedQuestionIds: []
       };
     });
 
-    // 5. Return success
-    console.log('🎉 EXAM STARTED SUCCESSFULLY!');
     return {
       success: true,
       sessionId: session.id,
-      session: session,
-      subjectStates: subjectStates,
-      diagnostics: {
-        totalQuestions: totalQuestions,
-        estimatedMinutes: Math.ceil((totalQuestions * 60) / 60)
-      }
+      studentId,
+      subjectIds: activeSubjectIds,
+      subjectStates
     };
-
-  } catch (error) {
-    console.error('💥 UNEXPECTED ERROR:', error);
-    return {
-      success: false,
-      error: 'UNEXPECTED_ERROR: ' + error.message
-    };
+  } catch (e) {
+    return { success: false, error: 'UNEXPECTED_ERROR: ' + (e?.message || String(e)) };
   }
 }
 
-/**
- * Get next question (simplified)
- */
+/* -------------------------------------------------- */
+/* GET NEXT QUESTION                                  */
+/* -------------------------------------------------- */
 export async function getComprehensiveQuestion(sessionId, subjectStates) {
-  console.log('🔍 GETTING NEXT QUESTION');
-  console.log('Session ID:', sessionId);
-
   try {
-    // Get session
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sErr } = await supabase
       .from('test_sessions')
-      .select('metadata')
+      .select('metadata, status, updated_at')
       .eq('id', sessionId)
       .single();
 
-    if (sessionError) {
-      console.error('❌ Session not found:', sessionError);
-      return { success: false, error: 'SESSION_NOT_FOUND' };
+    if (sErr || !session) {
+      return { success: false, error: 'SESSION_NOT_FOUND: ' + (sErr?.message || 'missing') };
+    }
+    if (session.status !== 'in_progress') {
+      return { success: false, error: 'SESSION_NOT_IN_PROGRESS' };
     }
 
     const subjectIds = session.metadata?.subjectIds || [];
-    
-    // Find first incomplete subject
-    let targetSubjectId = null;
-    for (const subjectId of subjectIds) {
-      const state = subjectStates[subjectId];
-      if (state && !state.isComplete && state.questionsAnswered < state.targetQuestions) {
-        targetSubjectId = subjectId;
-        break;
+    if (!subjectIds.length) {
+      return { success: false, error: 'NO_SUBJECTS_IN_SESSION' };
+    }
+
+    for (const sid of subjectIds) {
+      const state = subjectStates?.[sid];
+      if (!state) continue;
+
+      const maxQ = Number(state.maxQuestions ?? state.targetQuestions ?? session.metadata?.maxQuestionsPerSubject ?? DEFAULT_MAX_Q);
+      const answered = Number(state.questionsAnswered || 0);
+
+      if (state.isComplete || answered >= maxQ) continue;
+
+      const usedIds = new Set(state.usedQuestionIds || []);
+
+      const { data: candidates, error: qErr } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('subject_id', sid)
+        .eq('is_active', true)
+        .limit(200);
+
+      if (qErr) {
+        return { success: false, error: 'QUESTIONS_QUERY_ERROR: ' + qErr.message };
       }
-    }
 
-    if (!targetSubjectId) {
-      console.log('✅ All subjects complete');
-      return { success: false, error: 'ALL_SUBJECTS_COMPLETE' };
-    }
+      const available = (candidates || []).filter((q) => !usedIds.has(q.id));
 
-    console.log('Target subject:', targetSubjectId);
+      if (available.length === 0) {
+        // No more questions => subject complete
+        const nextState = { ...state, isComplete: true };
+        subjectStates[sid] = nextState;
 
-    // Get random question for this subject
-    const { data: questions, error: questionsError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('subject_id', targetSubjectId)
-      .eq('is_active', true)
-      .limit(10);
+        await supabase
+          .from('test_session_subjects')
+          .update({ is_complete: true, completed_at: new Date().toISOString() })
+          .eq('session_id', sessionId)
+          .eq('subject_id', sid);
 
-    if (questionsError || !questions || questions.length === 0) {
-      console.error('❌ No questions found:', questionsError);
-      return { success: false, error: 'NO_QUESTIONS_FOUND' };
-    }
-
-    // Get a random question
-    const randomIndex = Math.floor(Math.random() * questions.length);
-    const question = questions[randomIndex];
-
-    console.log('✅ Question found:', question.id);
-
-    // Update subject state
-    if (subjectStates[targetSubjectId]) {
-      subjectStates[targetSubjectId].questionsAnswered += 1;
-      subjectStates[targetSubjectId].usedQuestionIds.push(question.id);
-      
-      // Check if subject is complete
-      if (subjectStates[targetSubjectId].questionsAnswered >= subjectStates[targetSubjectId].targetQuestions) {
-        subjectStates[targetSubjectId].isComplete = true;
+        continue;
       }
+
+      // Random question (you can later upgrade to difficulty-based selection)
+      const question = available[Math.floor(Math.random() * available.length)];
+
+      const nextUsed = [...usedIds, question.id];
+
+      // IMPORTANT: update BOTH local state + DB metadata,
+      // so next call really moves forward and doesn't repeat
+      state.usedQuestionIds = nextUsed;
+
+      await supabase
+        .from('test_session_subjects')
+        .update({
+          metadata: {
+            ...(state.metadata || {}),
+            usedQuestionIds: nextUsed
+          }
+        })
+        .eq('session_id', sessionId)
+        .eq('subject_id', sid);
+
+      return { success: true, question, subjectId: sid };
     }
 
-    return {
-      success: true,
-      question: question,
-      subjectId: targetSubjectId,
-      progress: {
-        subjectId: targetSubjectId,
-        answered: subjectStates[targetSubjectId]?.questionsAnswered || 0,
-        total: subjectStates[targetSubjectId]?.targetQuestions || questionsPerSubject,
-        currentAbility: 50,
-        standardError: 1
-      }
-    };
-
-  } catch (error) {
-    console.error('❌ Error getting question:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: 'ALL_SUBJECTS_COMPLETE' };
+  } catch (e) {
+    return { success: false, error: 'UNEXPECTED_ERROR: ' + (e?.message || String(e)) };
   }
 }
 
-/**
- * Submit answer (simplified)
- */
-export async function submitComprehensiveAnswer(sessionId, question, subjectId, answer, timeTaken, subjectStates) {
-  console.log('📝 SUBMITTING ANSWER');
-  
+export async function getNextQuestion({ sessionId, subjectStates }) {
+  return getComprehensiveQuestion(sessionId, subjectStates);
+}
+
+/* -------------------------------------------------- */
+/* SUBMIT ANSWER                                      */
+/* -------------------------------------------------- */
+export async function submitComprehensiveAnswer({
+  sessionId,
+  studentId,
+  question,
+  selectedAnswer,
+  timeTakenSeconds,
+  subjectStates,
+  questionOrder
+}) {
   try {
-    const isCorrect = answer === question.correct_answer;
-    
-    console.log('Result:', {
-      questionId: question.id,
-      isCorrect: isCorrect,
-      correctAnswer: question.correct_answer,
-      userAnswer: answer
-    });
+    const isCorrect = selectedAnswer === question.correct_answer;
+    const subjectId = question.subject_id;
+
+    const state = subjectStates?.[subjectId];
+    if (!state) return { success: false, error: 'SUBJECT_STATE_MISSING' };
+
+    const nextAnswered = Number(state.questionsAnswered || 0) + 1;
+    const nextCorrect = Number(state.correctAnswers || 0) + (isCorrect ? 1 : 0);
+
+    const minQ = Number(state.minQuestions ?? DEFAULT_MIN_Q);
+    const maxQ = Number(state.maxQuestions ?? state.targetQuestions ?? DEFAULT_MAX_Q);
+
+    const stats = computeSubjectStats(nextCorrect, nextAnswered);
+
+    // Adaptive completion rule:
+    // - always do at least minQ
+    // - stop early if confident enough (confidence OR standardError)
+    // - hard stop at maxQ
+    const reachedMin = nextAnswered >= minQ;
+    const reachedMax = nextAnswered >= maxQ;
+
+    const confidentEnough =
+      reachedMin && (stats.confidence >= CONFIDENCE_STOP_AT || stats.standardError <= SE_STOP_AT);
+
+    const isComplete = reachedMax || confidentEnough;
+
+    const updatedStates = {
+      ...subjectStates,
+      [subjectId]: {
+        ...state,
+        questionsAnswered: nextAnswered,
+        correctAnswers: nextCorrect,
+        isComplete,
+
+        accuracy: stats.accuracy,
+        standardError: stats.standardError,
+        confidence: stats.confidence
+      }
+    };
 
     // Save response
-    const { error: responseError } = await supabase
-      .from('student_responses')
-      .insert({
-        session_id: sessionId,
-        question_id: question.id,
-        selected_answer: answer,
-        is_correct: isCorrect,
-        time_taken_seconds: timeTaken
-      });
+    const { error: respErr } = await supabase.from('test_session_responses').insert({
+      session_id: sessionId,
+      student_id: studentId,
+      subject_id: subjectId,
+      question_id: question.id,
+      selected_answer: selectedAnswer,
+      is_correct: isCorrect,
+      time_taken_seconds: timeTakenSeconds,
+      question_order: questionOrder,
+      created_at: new Date().toISOString()
+    });
 
-    if (responseError) {
-      console.error('❌ Save response error:', responseError);
+    if (respErr) {
+      return { success: false, error: 'RESPONSE_INSERT_FAILED: ' + respErr.message };
     }
 
-    // Check if all subjects are complete
-    const allComplete = Object.values(subjectStates).every(state => state.isComplete);
+    // Persist per-subject progress + metadata
+    await supabase
+      .from('test_session_subjects')
+      .update({
+        questions_answered: nextAnswered,
+        correct_answers: nextCorrect,
+        is_complete: isComplete,
+        completed_at: isComplete ? new Date().toISOString() : null,
+        metadata: {
+          usedQuestionIds: updatedStates[subjectId]?.usedQuestionIds || state.usedQuestionIds || [],
+          minQuestions: minQ,
+          maxQuestions: maxQ,
+          accuracy: stats.accuracy,
+          standardError: stats.standardError,
+          confidence: stats.confidence
+        }
+      })
+      .eq('session_id', sessionId)
+      .eq('subject_id', subjectId);
 
-    return {
-      success: true,
-      isCorrect: isCorrect,
-      correctAnswer: question.correct_answer,
-      subjectStates: subjectStates,
-      isComplete: allComplete
-    };
-
-  } catch (error) {
-    console.error('❌ Submit error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: true, isCorrect, subjectStates: updatedStates };
+  } catch (e) {
+    return { success: false, error: 'UNEXPECTED_ERROR: ' + (e?.message || String(e)) };
   }
 }
 
-/**
- * Complete assessment (simplified)
- */
-export async function completeComprehensiveAssessment(sessionId, subjectStates, timeExpired = false, totalTimeSpent = 0, skippedCount = 0) {
-  console.log('🏁 COMPLETING ASSESSMENT');
-  
+/* -------------------------------------------------- */
+/* COMPLETE SESSION                                   */
+/* -------------------------------------------------- */
+export async function completeComprehensiveAssessment({
+  sessionId,
+  studentId,
+  subjectStates,
+  totalTimeSpentSeconds,
+  skippedCount,
+  language
+}) {
   try {
-    // Update session status
-    const { error: updateError } = await supabase
+    await supabase
       .from('test_sessions')
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
-        total_time_seconds: totalTimeSpent
+        metadata: {
+          finalSubjectStates: subjectStates,
+          totalTimeSpentSeconds,
+          skippedCount,
+          language
+        }
       })
       .eq('id', sessionId);
 
-    if (updateError) {
-      console.error('❌ Update session error:', updateError);
-    }
+    await recordHeartbeat({
+      sessionId,
+      studentId,
+      eventType: 'complete',
+      metadata: { totalTimeSpentSeconds, skippedCount }
+    });
 
-    // Calculate simple results
-    const results = [];
-    let totalAnswered = 0;
-    
-    for (const [subjectId, state] of Object.entries(subjectStates)) {
-      const abilityScore = 50 + (Math.random() * 50); // Placeholder
-      results.push({
-        subjectId,
-        abilityScore,
-        questionsAnswered: state.questionsAnswered
-      });
-      totalAnswered += state.questionsAnswered;
-    }
-
-    console.log('✅ Assessment completed');
-    return {
-      success: true,
-      results: results,
-      overallScore: 65, // Placeholder
-      totalTime: totalTimeSpent,
-      skippedCount: skippedCount
-    };
-
-  } catch (error) {
-    console.error('❌ Complete error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e?.message || String(e) };
   }
 }
 
-/**
- * Test database connection
- */
-export async function testDatabaseConnection() {
-  try {
-    console.log('🔍 Testing database connection...');
-    
-    const { data: subjects, error } = await supabase
-      .from('subjects')
-      .select('id, name_ar')
-      .limit(3);
-
-    if (error) {
-      console.error('❌ Database test failed:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-
-    console.log('✅ Database connected, found subjects:', subjects.length);
-    return {
-      success: true,
-      subjects: { count: subjects.length }
-    };
-    
-  } catch (error) {
-    console.error('❌ Database test error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// Export other required functions (simplified)
-export async function submitSkippedQuestion(sessionId, questionId, subjectId, timeTaken, reason) {
-  console.log('⏭️ Skipping question:', questionId);
-  return { success: true };
-}
-
+/* -------------------------------------------------- */
+/* RECOMMENDATIONS (FIX FOR WEB ERROR)                 */
+/* -------------------------------------------------- */
 export async function generateStudentRecommendations(studentId) {
-  console.log('💡 Generating recommendations for:', studentId);
+  // Stub implementation so TestResultsScreen compiles
+  // You can replace this later with real logic
   return { success: true, recommendations: [] };
 }
 
-export function getRecentErrors() {
-  return [];
-}
-
-export function clearErrorTracker() {
-  console.log('✅ Error tracker cleared');
-}
-
-// Export default
+/* -------------------------------------------------- */
+/* DEFAULT EXPORT                                     */
+/* -------------------------------------------------- */
 export default {
   startComprehensiveAssessment,
   getComprehensiveQuestion,
+  getNextQuestion,
   submitComprehensiveAnswer,
-  submitSkippedQuestion,
   completeComprehensiveAssessment,
-  generateStudentRecommendations,
-  testDatabaseConnection,
-  getRecentErrors,
-  clearErrorTracker
+  recordHeartbeat,
+  generateStudentRecommendations
 };

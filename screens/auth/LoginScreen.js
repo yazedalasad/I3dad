@@ -2,7 +2,16 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import CustomButton from '../../components/Form/CustomButton';
 import CustomTextInput from '../../components/Form/CustomTextInput';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,9 +43,7 @@ export default function LoginScreen({ navigateTo }) {
   };
 
   const handleLogin = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     const { data, error } = await signIn(email, password);
@@ -44,7 +51,7 @@ export default function LoginScreen({ navigateTo }) {
 
     if (error) {
       let errorMessage = t('auth.login.errors.generic');
-      
+
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = t('auth.login.errors.invalidCredentials');
       } else if (error.message.includes('Email not confirmed')) {
@@ -53,20 +60,13 @@ export default function LoginScreen({ navigateTo }) {
 
       Alert.alert(t('common.error'), errorMessage);
     } else {
-      // Navigate to home page after successful login
-      navigateTo('home');
+      navigateTo('roleRouter');
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <LinearGradient
           colors={['#27ae60', '#2ecc71']}
           style={styles.header}
@@ -86,13 +86,13 @@ export default function LoginScreen({ navigateTo }) {
             value={email}
             onChangeText={(text) => {
               setEmail(text);
-              if (errors.email) {
-                setErrors({ ...errors, email: null });
-              }
+              if (errors.email) setErrors({ ...errors, email: null });
             }}
             placeholder="example@gmail.com"
             icon="envelope"
             keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
             error={errors.email}
           />
 
@@ -101,20 +101,17 @@ export default function LoginScreen({ navigateTo }) {
             value={password}
             onChangeText={(text) => {
               setPassword(text);
-              if (errors.password) {
-                setErrors({ ...errors, password: null });
-              }
+              if (errors.password) setErrors({ ...errors, password: null });
             }}
             placeholder={t('auth.login.password')}
             icon="lock"
             secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
             error={errors.password}
           />
 
-          <TouchableOpacity
-            style={styles.forgotPassword}
-            onPress={() => navigateTo('forgotPassword')}
-          >
+          <TouchableOpacity style={styles.forgotPassword} onPress={() => navigateTo('forgotPassword')}>
             <Text style={styles.forgotPasswordText}>{t('auth.login.forgotPassword')}</Text>
           </TouchableOpacity>
 
@@ -138,12 +135,14 @@ export default function LoginScreen({ navigateTo }) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigateTo('home')}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigateTo('home')}>
             <FontAwesome name="arrow-right" size={16} color="#64748b" />
             <Text style={styles.backButtonText}>{t('auth.login.backToHome')}</Text>
+          </TouchableOpacity>
+
+          {/* ✅ First time login (Principal onboarding) */}
+          <TouchableOpacity style={styles.principalFirstTime} onPress={() => navigateTo('principalSetPassword')}>
+            <Text style={styles.principalFirstTimeText}>تسجيل دخول لأول مرة</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -152,13 +151,9 @@ export default function LoginScreen({ navigateTo }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  scrollContent: { flexGrow: 1 },
+
   header: {
     paddingTop: 60,
     paddingBottom: 40,
@@ -187,6 +182,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     textAlign: 'center',
   },
+
   formContainer: {
     flex: 1,
     padding: 24,
@@ -195,45 +191,23 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     marginTop: -20,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: '#27ae60',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#64748b',
-    fontSize: 14,
-  },
+
+  forgotPassword: { alignSelf: 'flex-end', marginBottom: 24 },
+  forgotPasswordText: { color: '#27ae60', fontSize: 14, fontWeight: '600' },
+
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e2e8f0' },
+  dividerText: { marginHorizontal: 16, color: '#64748b', fontSize: 14 },
+
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
-  signupText: {
-    color: '#64748b',
-    fontSize: 16,
-  },
-  signupLink: {
-    color: '#27ae60',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  signupText: { color: '#64748b', fontSize: 16 },
+  signupLink: { color: '#27ae60', fontSize: 16, fontWeight: '600' },
+
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -241,8 +215,18 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
   },
-  backButtonText: {
+  backButtonText: { color: '#64748b', fontSize: 14 },
+
+  // ✅ First-time login link at the very bottom
+  principalFirstTime: {
+    marginTop: 8,
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  principalFirstTimeText: {
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

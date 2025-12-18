@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+
 import FloatingLanguageSwitcher from '../components/FloatingLanguageSwitcher';
 import Navbar from '../components/Navigation/Navbar';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,16 +11,15 @@ import AdaptiveTestScreen from '../screens/AdaptiveTest/AdaptiveTestScreen';
 import TestResultsScreen from '../screens/AdaptiveTest/TestResultsScreen';
 import TotalExamScreen from '../screens/AdaptiveTest/TotalExamScreen';
 
+import ChangePasswordScreen from '../screens/Auth/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
+import PrincipalSetPasswordScreen from '../screens/Auth/PrincipalSetPasswordScreen';
 import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
+import RoleRouterScreen from '../screens/Auth/RoleRouterScreen';
 import SignupScreen from '../screens/Auth/SignupScreen';
 import VerifyCodeScreen from '../screens/Auth/VerifyCodeScreen';
 
-// ✅ Role router
-import RoleRouterScreen from '../screens/Auth/RoleRouterScreen';
-
-// ✅ Dashboards
 import AdminDashboardScreen from '../screens/Dashboard/AdminDashboardScreen';
 import PrincipalDashboardScreen from '../screens/Dashboard/PrincipalDashboardScreen';
 
@@ -28,44 +28,37 @@ import PersonalityResultsScreen from '../screens/PersonalityTest/PersonalityResu
 import PersonalityTestScreen from '../screens/PersonalityTest/PersonalityTestScreen';
 import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen';
 
-// ✅ New Profile screens
 import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScreen';
 import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
 
 export default function ManualNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, studentData } = useAuth();
 
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
   const [screenParams, setScreenParams] = useState({});
 
-  // ✅ After successful login/signup -> roleRouter (automatic)
   useEffect(() => {
     if (user && (currentScreen === 'login' || currentScreen === 'signup')) {
       navigateTo('roleRouter');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, currentScreen]);
 
   const navigateTo = (screen, params = {}) => {
-    console.log('Navigating to:', screen, 'with params:', params);
     setCurrentScreen(screen);
     setScreenParams(params);
 
-    // Update active tab only for main navigation tabs
     if (['home', 'adaptiveTest', 'profile', 'about'].includes(screen)) {
       setActiveTab(screen);
     }
   };
 
   const handleTabPress = (tabId) => {
-    console.log('Tab pressed:', tabId);
-
-    // Check if user needs to be logged in for certain screens
     if ((tabId === 'adaptiveTest' || tabId === 'profile') && !user) {
       navigateTo('login');
       return;
     }
-
     navigateTo(tabId);
   };
 
@@ -83,23 +76,20 @@ export default function ManualNavigator() {
       return <ResetPasswordScreen navigateTo={navigateTo} email={screenParams.email} />;
     }
 
-    // ✅ Role router (auto redirect)
+    if (currentScreen === 'changePassword') {
+      if (!user) return <LoginScreen navigateTo={navigateTo} />;
+      return <ChangePasswordScreen navigateTo={navigateTo} />;
+    }
+
+    if (currentScreen === 'principalSetPassword') {
+      return <PrincipalSetPasswordScreen navigateTo={navigateTo} />;
+    }
+
     if (currentScreen === 'roleRouter') {
       return <RoleRouterScreen navigateTo={navigateTo} />;
     }
 
-    // ✅ Dashboards
-    if (currentScreen === 'adminDashboard') {
-      if (!user) return <LoginScreen navigateTo={navigateTo} />;
-      return <AdminDashboardScreen navigateTo={navigateTo} />;
-    }
-
-    if (currentScreen === 'principalDashboard') {
-      if (!user) return <LoginScreen navigateTo={navigateTo} />;
-      return <PrincipalDashboardScreen navigateTo={navigateTo} />;
-    }
-
-    // Main screens with navigation
+    // App screens
     switch (currentScreen) {
       case 'home':
         return <HomeScreen navigateTo={navigateTo} />;
@@ -114,20 +104,35 @@ export default function ManualNavigator() {
       case 'successStories':
         return <SuccessStoriesScreen navigateTo={navigateTo} />;
 
+      // ✅ Total Exam entry screen
       case 'adaptiveTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
-        return <TotalExamScreen navigateTo={navigateTo} />;
+        return (
+          <TotalExamScreen
+            navigateTo={navigateTo}
+            // ✅ MUST be students.id (PK) not auth user id
+            studentId={studentData?.id}
+            studentName={
+              studentData
+                ? `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()
+                : 'طالب'
+            }
+          />
+        );
 
+      // ✅ Actual exam screen (this was missing params before)
       case 'startAdaptiveTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
           <AdaptiveTestScreen
             navigateTo={navigateTo}
-            subjectId={screenParams.subjectId}
+            sessionId={screenParams.sessionId}
+            studentId={screenParams.studentId}
+            subjectStates={screenParams.subjectStates}
             subjectIds={screenParams.subjectIds}
-            subjectName={screenParams.subjectName}
-            subjectNames={screenParams.subjectNames}
+            language={screenParams.language}
             isComprehensive={screenParams.isComprehensive}
+            subjectNames={screenParams.subjectNames}
           />
         );
 
@@ -136,11 +141,8 @@ export default function ManualNavigator() {
         return (
           <TestResultsScreen
             navigateTo={navigateTo}
-            results={screenParams.results}
-            subjectName={screenParams.subjectName}
-            subjectNames={screenParams.subjectNames}
-            isComprehensive={screenParams.isComprehensive}
-            subjectIds={screenParams.subjectIds}
+            sessionId={screenParams.sessionId}
+            subjectId={screenParams.subjectId}
           />
         );
 
@@ -152,7 +154,14 @@ export default function ManualNavigator() {
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <PersonalityResultsScreen navigateTo={navigateTo} profiles={screenParams.profiles} />;
 
-      // ✅ New profile screens
+      case 'adminDashboard':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminDashboardScreen navigateTo={navigateTo} />;
+
+      case 'principalDashboard':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <PrincipalDashboardScreen navigateTo={navigateTo} />;
+
       case 'profile':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <StudentProfileScreen navigateTo={navigateTo} />;
@@ -175,46 +184,41 @@ export default function ManualNavigator() {
     );
   }
 
-  // ✅ Hide navbar on auth/about/router/dashboards/edit profile
   const hideNavbarOn = [
     'login',
     'signup',
     'forgotPassword',
     'verifyCode',
     'resetPassword',
+    'changePassword',
+    'principalSetPassword',
     'about',
     'roleRouter',
     'adminDashboard',
     'principalDashboard',
-    'editProfile',
+    'editProfile'
   ];
 
   return (
     <View style={styles.container}>
       <FloatingLanguageSwitcher />
-      <View style={{ flex: 1 }}>{renderScreen()}</View>
 
       {!hideNavbarOn.includes(currentScreen) && (
         <Navbar activeTab={activeTab} onTabPress={handleTabPress} />
       )}
+
+      {renderScreen()}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#64748b',
-  },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#64748b' }
 });

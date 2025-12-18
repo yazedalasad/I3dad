@@ -1,22 +1,60 @@
 /**
- * QUESTION SERVICE - Question Management
- * 
- * Handles fetching, caching, and managing questions from the database
+ * QUESTION SERVICE - Total Exam Ready
+ *
+ * Adds:
+ *  - getNextQuestionForSubject() with exclusions (no repeats)
+ *  - consistent language filtering (ar/he/both)
+ *  - better cache behavior for sessions
  */
 
 import { supabase } from '../config/supabase';
 
-// In-memory cache for questions
+// In-memory cache for questions (per app runtime)
 let questionCache = {
-  bySubject: {},
+  bySubject: {}, // { [subjectId]: { items: Question[], lastUpdated: number } }
   byId: {},
-  lastUpdated: null
 };
+
+/** Cache TTL */
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function nowMs() {
+  return Date.now();
+}
+
+function isCacheValid(lastUpdated) {
+  return lastUpdated && (nowMs() - lastUpdated) < CACHE_TTL_MS;
+}
+
+/** Normalize language input */
+function normalizeLanguage(language) {
+  const lang = (language || 'both').toLowerCase();
+  if (lang === 'ar' || lang === 'he') return lang;
+  return 'both';
+}
+
+/** Filter by language and difficulty */
+function filterQuestions(questions, { language, minDifficulty, maxDifficulty }) {
+  const lang = normalizeLanguage(language);
+
+  return questions.filter((q) => {
+    // Language filter
+    // DB: target_language in ('ar','he','both')
+    if (lang !== 'both' && q.target_language !== 'both' && q.target_language !== lang) {
+      return false;
+    }
+
+    // Difficulty filter
+    const d = Number(q.difficulty);
+    if (Number.isFinite(minDifficulty) && d < minDifficulty) return false;
+    if (Number.isFinite(maxDifficulty) && d > maxDifficulty) return false;
+
+    return true;
+  });
+}
 
 /**
  * Get all subjects
- * 
- * @returns {Array} List of subjects
  */
 export async function getAllSubjects() {
   try {
@@ -29,24 +67,15 @@ export async function getAllSubjects() {
 
     if (error) throw error;
 
-    return {
-      success: true,
-      subjects: data
-    };
+    return { success: true, subjects: data };
   } catch (error) {
     console.error('Error fetching subjects:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 }
 
 /**
  * Get subject by ID
- * 
- * @param {string} subjectId - Subject ID
- * @returns {Object} Subject data
  */
 export async function getSubjectById(subjectId) {
   try {
@@ -58,25 +87,21 @@ export async function getSubjectById(subjectId) {
 
     if (error) throw error;
 
-    return {
-      success: true,
-      subject: data
-    };
+    return { success: true, subject: data };
   } catch (error) {
     console.error('Error fetching subject:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 }
 
 /**
- * Get questions for a subject
- * 
- * @param {string} subjectId - Subject ID
- * @param {Object} options - Query options
- * @returns {Array} Questions
+ * Get questions for a subject (cached)
+ *
+ * options:
+ *  - language: 'ar'|'he'|'both'
+ *  - minDifficulty, maxDifficulty
+ *  - limit
+ *  - useCache
  */
 export async function getQuestionsBySubject(subjectId, options = {}) {
   try {
@@ -85,86 +110,67 @@ export async function getQuestionsBySubject(subjectId, options = {}) {
       minDifficulty = -3,
       maxDifficulty = 3,
       limit = null,
-      useCache = true
+      useCache = true,
+      poolLimit = 80, // pull at most 80 into cache per subject to stay light
     } = options;
 
-    // Check cache
-    if (useCache && questionCache.bySubject[subjectId]) {
-      const cached = questionCache.bySubject[subjectId];
-      const cacheAge = Date.now() - (questionCache.lastUpdated || 0);
-      
-      // Cache valid for 5 minutes
-      if (cacheAge < 5 * 60 * 1000) {
-        return {
-          success: true,
-          questions: filterQuestions(cached, { language, minDifficulty, maxDifficulty, limit }),
-          fromCache: true
-        };
-      }
+    // Cache check
+    const cachedEntry = questionCache.bySubject[subjectId];
+    if (useCache && cachedEntry?.items && isCacheValid(cachedEntry.lastUpdated)) {
+      const filtered = filterQuestions(cachedEntry.items, { language, minDifficulty, maxDifficulty });
+      return {
+        success: true,
+        questions: limit ? filtered.slice(0, limit) : filtered,
+        fromCache: true,
+      };
     }
 
-    // Fetch from database
+    // Fetch fresh pool from DB
     let query = supabase
       .from('questions')
       .select('*')
       .eq('subject_id', subjectId)
       .eq('is_active', true)
-      .gte('difficulty', minDifficulty)
-      .lte('difficulty', maxDifficulty);
+      .limit(poolLimit);
 
-    if (language !== 'both') {
-      query = query.or(`target_language.eq.${language},target_language.eq.both`);
+    // Apply language at DB level (helps reduce payload)
+    const lang = normalizeLanguage(language);
+    if (lang !== 'both') {
+      query = query.or(`target_language.eq.${lang},target_language.eq.both`);
     }
 
-    if (limit) {
-      query = query.limit(limit);
-    }
+    // Apply difficulty bounds at DB level too
+    query = query.gte('difficulty', minDifficulty).lte('difficulty', maxDifficulty);
 
     const { data, error } = await query;
-
     if (error) throw error;
 
-    // Update cache
-    questionCache.bySubject[subjectId] = data;
-    questionCache.lastUpdated = Date.now();
-
-    // Cache by ID as well
-    data.forEach(q => {
+    // Update caches
+    questionCache.bySubject[subjectId] = { items: data || [], lastUpdated: nowMs() };
+    (data || []).forEach((q) => {
       questionCache.byId[q.id] = q;
     });
 
     return {
       success: true,
-      questions: data,
-      fromCache: false
+      questions: limit ? (data || []).slice(0, limit) : (data || []),
+      fromCache: false,
     };
   } catch (error) {
     console.error('Error fetching questions:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 }
 
 /**
- * Get question by ID
- * 
- * @param {string} questionId - Question ID
- * @returns {Object} Question data
+ * Get question by ID (cached)
  */
 export async function getQuestionById(questionId) {
   try {
-    // Check cache
     if (questionCache.byId[questionId]) {
-      return {
-        success: true,
-        question: questionCache.byId[questionId],
-        fromCache: true
-      };
+      return { success: true, question: questionCache.byId[questionId], fromCache: true };
     }
 
-    // Fetch from database
     const { data, error } = await supabase
       .from('questions')
       .select('*')
@@ -173,85 +179,100 @@ export async function getQuestionById(questionId) {
 
     if (error) throw error;
 
-    // Update cache
     questionCache.byId[questionId] = data;
-
-    return {
-      success: true,
-      question: data,
-      fromCache: false
-    };
+    return { success: true, question: data, fromCache: false };
   } catch (error) {
     console.error('Error fetching question:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 }
 
 /**
- * Get diverse questions for interest discovery
- * 2 questions from each subject
- * 
- * @param {string} language - Language preference
- * @returns {Array} Diverse questions
+ * TOTAL EXAM helper:
+ * Get next question for a subject with exclusion list.
+ *
+ * @param {Object} args
+ *  - subjectId: string
+ *  - language: 'ar'|'he'
+ *  - excludeQuestionIds: string[]
+ *  - minDifficulty, maxDifficulty
+ *  - strategy: 'random' | 'closest_to_target'
+ *  - targetDifficulty: number (for closest_to_target)
  */
-export async function getDiverseQuestions(language = 'ar') {
-  try {
-    // Get all subjects
-    const { data: subjects, error: subjectsError } = await supabase
-      .from('subjects')
-      .select('id')
-      .eq('is_active', true);
+export async function getNextQuestionForSubject(args) {
+  const {
+    subjectId,
+    language = 'ar',
+    excludeQuestionIds = [],
+    minDifficulty = -3,
+    maxDifficulty = 3,
+    strategy = 'random',
+    targetDifficulty = 0,
+  } = args || {};
 
-    if (subjectsError) throw subjectsError;
+  if (!subjectId) return { success: false, error: 'MISSING_SUBJECT_ID' };
 
-    const allQuestions = [];
+  // Fetch a pool (cached), then select locally. This avoids expensive NOT IN queries.
+  const poolRes = await getQuestionsBySubject(subjectId, {
+    language,
+    minDifficulty,
+    maxDifficulty,
+    limit: null,
+    useCache: true,
+    poolLimit: 80,
+  });
 
-    // Get 2 questions from each subject
-    for (const subject of subjects) {
-      const { data: questions, error: questionsError } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('subject_id', subject.id)
-        .eq('is_active', true)
-        .or(`target_language.eq.${language},target_language.eq.both`)
-        .gte('difficulty', -1)
-        .lte('difficulty', 1)
-        .limit(2);
+  if (!poolRes.success) return poolRes;
 
-      if (questionsError) throw questionsError;
+  const excluded = new Set(excludeQuestionIds || []);
+  const available = (poolRes.questions || []).filter((q) => !excluded.has(q.id));
 
-      allQuestions.push(...questions);
-    }
+  if (available.length === 0) {
+    // Try bypass cache once (fresh pull) in case cache was too small/old
+    const freshRes = await getQuestionsBySubject(subjectId, {
+      language,
+      minDifficulty,
+      maxDifficulty,
+      limit: null,
+      useCache: false,
+      poolLimit: 150,
+    });
+    if (!freshRes.success) return freshRes;
 
-    // Shuffle questions
-    const shuffled = allQuestions.sort(() => Math.random() - 0.5);
+    const availableFresh = (freshRes.questions || []).filter((q) => !excluded.has(q.id));
+    if (availableFresh.length === 0) return { success: false, error: 'NO_UNUSED_QUESTIONS_FOUND' };
 
-    return {
-      success: true,
-      questions: shuffled
-    };
-  } catch (error) {
-    console.error('Error fetching diverse questions:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: true, question: pickQuestion(availableFresh, strategy, targetDifficulty) };
   }
+
+  return { success: true, question: pickQuestion(available, strategy, targetDifficulty) };
+}
+
+function pickQuestion(list, strategy, targetDifficulty) {
+  if (!list.length) return null;
+
+  if (strategy === 'closest_to_target') {
+    let best = list[0];
+    let bestDist = Math.abs(Number(best.difficulty) - targetDifficulty);
+    for (let i = 1; i < list.length; i++) {
+      const d = Math.abs(Number(list[i].difficulty) - targetDifficulty);
+      if (d < bestDist) {
+        best = list[i];
+        bestDist = d;
+      }
+    }
+    return best;
+  }
+
+  // default random
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 /**
  * Update question usage statistics
- * 
- * @param {string} questionId - Question ID
- * @param {boolean} wasCorrect - Whether answer was correct
- * @returns {Object} Result
  */
 export async function updateQuestionStats(questionId, wasCorrect) {
   try {
-    // Get current stats
     const { data: question } = await supabase
       .from('questions')
       .select('times_used, times_correct')
@@ -260,18 +281,17 @@ export async function updateQuestionStats(questionId, wasCorrect) {
 
     if (!question) return { success: false };
 
-    // Update stats
     const { error } = await supabase
       .from('questions')
       .update({
         times_used: (question.times_used || 0) + 1,
-        times_correct: (question.times_correct || 0) + (wasCorrect ? 1 : 0)
+        times_correct: (question.times_correct || 0) + (wasCorrect ? 1 : 0),
       })
       .eq('id', questionId);
 
     if (error) throw error;
 
-    // Invalidate cache for this question
+    // Invalidate this question only
     delete questionCache.byId[questionId];
 
     return { success: true };
@@ -282,118 +302,59 @@ export async function updateQuestionStats(questionId, wasCorrect) {
 }
 
 /**
- * Filter questions based on criteria
- * 
- * @param {Array} questions - Questions to filter
- * @param {Object} criteria - Filter criteria
- * @returns {Array} Filtered questions
+ * Diverse questions (2 per subject) - keep existing behavior
  */
-function filterQuestions(questions, criteria) {
-  const { language, minDifficulty, maxDifficulty, limit } = criteria;
+export async function getDiverseQuestions(language = 'ar') {
+  try {
+    const lang = normalizeLanguage(language);
 
-  let filtered = questions.filter(q => {
-    // Language filter
-    if (language !== 'both' && q.target_language !== 'both' && q.target_language !== language) {
-      return false;
+    const { data: subjects, error: subjectsError } = await supabase
+      .from('subjects')
+      .select('id')
+      .eq('is_active', true);
+
+    if (subjectsError) throw subjectsError;
+
+    const allQuestions = [];
+
+    for (const subject of subjects) {
+      let query = supabase
+        .from('questions')
+        .select('*')
+        .eq('subject_id', subject.id)
+        .eq('is_active', true)
+        .gte('difficulty', -1)
+        .lte('difficulty', 1)
+        .limit(2);
+
+      if (lang !== 'both') {
+        query = query.or(`target_language.eq.${lang},target_language.eq.both`);
+      }
+
+      const { data: questions, error: questionsError } = await query;
+      if (questionsError) throw questionsError;
+
+      allQuestions.push(...(questions || []));
     }
 
-    // Difficulty filter
-    if (q.difficulty < minDifficulty || q.difficulty > maxDifficulty) {
-      return false;
-    }
-
-    return true;
-  });
-
-  // Apply limit
-  if (limit && filtered.length > limit) {
-    filtered = filtered.slice(0, limit);
+    const shuffled = allQuestions.sort(() => Math.random() - 0.5);
+    return { success: true, questions: shuffled };
+  } catch (error) {
+    console.error('Error fetching diverse questions:', error);
+    return { success: false, error: error.message };
   }
-
-  return filtered;
 }
 
 /**
- * Clear question cache
+ * Clear all caches
  */
 export function clearQuestionCache() {
-  questionCache = {
-    bySubject: {},
-    byId: {},
-    lastUpdated: null
-  };
+  questionCache = { bySubject: {}, byId: {} };
 }
 
 /**
- * Preload questions for a subject (for better performance)
- * 
- * @param {string} subjectId - Subject ID
- * @returns {Object} Result
+ * Preload (force refresh)
  */
 export async function preloadQuestions(subjectId) {
   return await getQuestionsBySubject(subjectId, { useCache: false });
 }
-
-/**
- * Get question statistics
- * 
- * @param {string} subjectId - Subject ID (optional)
- * @returns {Object} Statistics
- */
-export async function getQuestionStatistics(subjectId = null) {
-  try {
-    let query = supabase
-      .from('questions')
-      .select('difficulty, discrimination, times_used, times_correct, subject_id');
-
-    if (subjectId) {
-      query = query.eq('subject_id', subjectId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    // Calculate statistics
-    const stats = {
-      totalQuestions: data.length,
-      avgDifficulty: data.reduce((sum, q) => sum + q.difficulty, 0) / data.length,
-      avgDiscrimination: data.reduce((sum, q) => sum + q.discrimination, 0) / data.length,
-      totalUsage: data.reduce((sum, q) => sum + (q.times_used || 0), 0),
-      avgAccuracy: data.reduce((sum, q) => {
-        const accuracy = q.times_used > 0 ? (q.times_correct / q.times_used) * 100 : 0;
-        return sum + accuracy;
-      }, 0) / data.length,
-      difficultyDistribution: {
-        veryEasy: data.filter(q => q.difficulty < -1.5).length,
-        easy: data.filter(q => q.difficulty >= -1.5 && q.difficulty < -0.5).length,
-        medium: data.filter(q => q.difficulty >= -0.5 && q.difficulty < 0.5).length,
-        hard: data.filter(q => q.difficulty >= 0.5 && q.difficulty < 1.5).length,
-        veryHard: data.filter(q => q.difficulty >= 1.5).length
-      }
-    };
-
-    return {
-      success: true,
-      stats
-    };
-  } catch (error) {
-    console.error('Error fetching question statistics:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-export default {
-  getAllSubjects,
-  getSubjectById,
-  getQuestionsBySubject,
-  getQuestionById,
-  getDiverseQuestions,
-  updateQuestionStats,
-  clearQuestionCache,
-  preloadQuestions,
-  getQuestionStatistics
-};
