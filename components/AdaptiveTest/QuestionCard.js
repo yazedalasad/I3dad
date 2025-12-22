@@ -4,6 +4,7 @@
  * - Smooth entrance animation
  * - Option press pop animation
  * - RTL/LTR alignment support
+ * - ✅ Stable random option order per question (shuffle once per question.id)
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,32 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+/* -------------------------------------------------- */
+/* Stable deterministic shuffle (same seed => same order) */
+/* -------------------------------------------------- */
+function seededShuffle(list, seedStr) {
+  const arr = [...list];
+
+  // Build numeric seed
+  let seed = 0;
+  const s = String(seedStr || 'seed');
+  for (let i = 0; i < s.length; i++) seed = (seed * 31 + s.charCodeAt(i)) >>> 0;
+
+  // Deterministic PRNG
+  function rand() {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }
+
+  // Fisher–Yates
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  return arr;
+}
 
 export default function QuestionCard({
   question,
@@ -43,18 +70,42 @@ export default function QuestionCard({
     return he || ar || '';
   }, [question, language]);
 
+  // ✅ Options randomized ONCE per question id, but still submit original letter (A/B/C/D)
   const options = useMemo(() => {
     const pick = (ar, he) => {
       if (language === 'ar') return ar ?? he ?? '';
       return he ?? ar ?? '';
     };
-    return [
+
+    const base = [
       { letter: 'A', text: pick(question?.option_a_ar, question?.option_a_he) },
       { letter: 'B', text: pick(question?.option_b_ar, question?.option_b_he) },
       { letter: 'C', text: pick(question?.option_c_ar, question?.option_c_he) },
       { letter: 'D', text: pick(question?.option_d_ar, question?.option_d_he) },
     ].filter((o) => String(o.text || '').trim().length > 0);
-  }, [question, language]);
+
+    // Stable per question (won't reshuffle on re-render)
+    const seed =
+      question?.id ||
+      question?.question_text_ar ||
+      question?.question_text_he ||
+      'fallback-seed';
+
+    return seededShuffle(base, seed);
+  }, [
+    question?.id,
+    question?.option_a_ar,
+    question?.option_a_he,
+    question?.option_b_ar,
+    question?.option_b_he,
+    question?.option_c_ar,
+    question?.option_c_he,
+    question?.option_d_ar,
+    question?.option_d_he,
+    question?.question_text_ar,
+    question?.question_text_he,
+    language,
+  ]);
 
   // ---------- Entrance animations ----------
   const mountAnim = useRef(new Animated.Value(0)).current;
@@ -241,7 +292,6 @@ export default function QuestionCard({
           const state = getOptionState(option.letter);
           const scale = pressScales.get(option.letter) || new Animated.Value(1);
 
-          const delay = 60 + idx * 55;
           const optionOpacity = mountAnim.interpolate({
             inputRange: [0, 1],
             outputRange: [0, 1],
@@ -263,6 +313,7 @@ export default function QuestionCard({
                 onPress={() => {
                   if (disabled) return;
                   pop(option.letter);
+                  // ✅ sends original letter (A/B/C/D) even though UI order is shuffled
                   onAnswerSelect?.(option.letter);
                 }}
                 disabled={disabled}

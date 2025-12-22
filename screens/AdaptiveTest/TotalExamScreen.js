@@ -3,8 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View
@@ -20,6 +20,30 @@ function StatChip({ icon, label }) {
     <View style={styles.statChip}>
       <Ionicons name={icon} size={16} color="#EAF0FF" />
       <Text style={styles.statChipText}>{label}</Text>
+    </View>
+  );
+}
+
+function SubjectTile({ subject }) {
+  const nameAr = subject?.name_ar || subject?.name_en || 'مادة';
+  return (
+    <View style={styles.tile}>
+      <View style={styles.tileTopRow}>
+        <View style={styles.tileBadge}>
+          <Ionicons name="checkmark" size={14} color="#fff" />
+          <Text style={styles.tileBadgeText}>مُضمن</Text>
+        </View>
+        <Text style={styles.tileTitle} numberOfLines={1}>
+          {nameAr}
+        </Text>
+      </View>
+
+      <View style={styles.tileMetaRow}>
+        <Ionicons name="albums-outline" size={14} color="#546A99" />
+        <Text style={styles.tileMetaText} numberOfLines={1}>
+          ضمن الاختبار الشامل
+        </Text>
+      </View>
     </View>
   );
 }
@@ -54,7 +78,7 @@ export default function TotalExamScreen({
           const list = res.subjects || [];
           setSubjects(list);
 
-          // ✅ Auto-select ALL subjects (user cannot change)
+          // Auto-select ALL subjects
           const allSelected = {};
           list.forEach((s) => {
             allSelected[String(s.id)] = true;
@@ -96,12 +120,17 @@ export default function TotalExamScreen({
     setStarting(true);
 
     try {
-      // ✅ IMPORTANT: call with an OBJECT (matches your fixed adaptiveTestService.js)
       const res = await adaptiveTestService.startComprehensiveAssessment({
         studentId,
         subjectIds: subjectIdsToUse,
         language: AR,
-        questionsPerSubject: 2
+
+        // ✅ NEW: stronger exam length
+        minQuestionsPerSubject: 5,
+        maxQuestionsPerSubject: 7,
+
+        // (legacy field kept for compatibility; can be removed if you no longer use it)
+        questionsPerSubject: 5
       });
 
       if (!res?.success) {
@@ -123,107 +152,99 @@ export default function TotalExamScreen({
   };
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <LinearGradient
-        colors={['#1B3A8A', '#1E4FBF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <View style={styles.heroTopRow}>
-          <View style={styles.heroTextBlock}>
-            <Text style={styles.heroTitle}>اختبار شامل</Text>
-            <Text style={styles.heroSubtitle}>أهلاً {studentName} 👋</Text>
-            <Text style={styles.heroDesc}>
-              سيشمل الاختبار جميع المواد المتاحة. ستحصل في النهاية على تقرير واضح يوضح نقاط القوة وما يحتاج لتحسين.
-            </Text>
+    <View style={styles.page}>
+      <FlatList
+        ListHeaderComponent={
+          <>
+            <LinearGradient
+              colors={['#1B3A8A', '#1E4FBF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hero}
+            >
+              <View style={styles.heroTopRow}>
+                <View style={styles.heroTextBlock}>
+                  <Text style={styles.heroTitle}>اختبار شامل</Text>
+                  <Text style={styles.heroSubtitle}>أهلاً {studentName} 👋</Text>
+                  <Text style={styles.heroDesc}>
+                    الاختبار يشمل جميع المواد. عدد الأسئلة لكل مادة من 5 إلى 7 لقياس أدق للقدرات.
+                  </Text>
+                </View>
+
+                <View style={styles.abstractBox}>
+                  <View style={styles.abstractInner} />
+                  <View style={styles.abstractCircle} />
+                </View>
+              </View>
+
+              <View style={styles.heroStatsRow}>
+                <StatChip icon="time-outline" label="نبض كل 15 ثانية" />
+                <StatChip icon="language-outline" label="اللغة: العربية" />
+                <StatChip icon="help-circle-outline" label="5–7 أسئلة لكل مادة" />
+                <StatChip icon="albums-outline" label={`المواد: ${subjects.length}`} />
+              </View>
+            </LinearGradient>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>المواد المتاحة</Text>
+              <Text style={styles.sectionHint}>جميع المواد مُدرجة تلقائياً في الاختبار.</Text>
+
+              {loading ? (
+                <View style={styles.centerBox}>
+                  <ActivityIndicator />
+                  <Text style={styles.loadingText}>جاري تحميل المواد...</Text>
+                </View>
+              ) : subjects.length === 0 ? (
+                <View style={styles.centerBox}>
+                  <Ionicons name="alert-circle-outline" size={22} color="#B42318" />
+                  <Text style={styles.warnText}>لا توجد مواد متاحة حالياً.</Text>
+                </View>
+              ) : null}
+            </View>
+          </>
+        }
+        data={loading ? [] : subjects}
+        keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={styles.listContent}
+        renderItem={({ item }) => <SubjectTile subject={item} />}
+        ListFooterComponent={
+          <View style={styles.footer}>
+            <Pressable
+              onPress={startTotalExam}
+              disabled={starting || loading || subjects.length === 0 || !studentId}
+              style={({ pressed }) => [
+                styles.startBtn,
+                (starting || loading || subjects.length === 0 || !studentId) && styles.startBtnDisabled,
+                pressed && !starting && !loading && studentId ? styles.startBtnPressed : null
+              ]}
+            >
+              {starting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="play" size={18} color="#fff" />
+                  <Text style={styles.startBtnText}>ابدأ الاختبار</Text>
+                </>
+              )}
+            </Pressable>
+
+            {!studentId && (
+              <Text style={styles.warnText}>
+                ⚠️ لا يمكن البدء بدون studentId (تأكد من ManualNavigator + AuthContext)
+              </Text>
+            )}
           </View>
-
-          <View style={styles.abstractBox}>
-            <View style={styles.abstractInner} />
-            <View style={styles.abstractCircle} />
-          </View>
-        </View>
-
-        <View style={styles.heroStatsRow}>
-          <StatChip icon="time-outline" label="نبض كل 15 ثانية" />
-          <StatChip icon="language-outline" label="اللغة: العربية" />
-          <StatChip icon="albums-outline" label={`المواد: ${subjects.length}`} />
-        </View>
-      </LinearGradient>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>المواد المتاحة</Text>
-        <Text style={styles.sectionHint}>جميع المواد مُدرجة تلقائياً في الاختبار.</Text>
-
-        {loading ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator />
-            <Text style={styles.loadingText}>جاري تحميل المواد...</Text>
-          </View>
-        ) : subjects.length === 0 ? (
-          <View style={styles.centerBox}>
-            <Ionicons name="alert-circle-outline" size={22} color="#B42318" />
-            <Text style={styles.warnText}>لا توجد مواد متاحة حالياً.</Text>
-          </View>
-        ) : (
-          <View style={styles.cardsGrid}>
-            {subjects.map((s) => {
-              const nameAr = s?.name_ar || s?.name_en || 'مادة';
-              return (
-                <Pressable
-                  key={String(s.id)}
-                  disabled
-                  style={[styles.subjectCard, styles.subjectCardSelected]}
-                >
-                  <View style={styles.cardTopRow}>
-                    <View style={[styles.checkBox, styles.checkBoxOn]}>
-                      <Ionicons name="checkmark" size={18} color="#fff" />
-                    </View>
-                    <Text style={styles.subjectName}>{nameAr}</Text>
-                  </View>
-
-                  <Text style={styles.subjectMeta}>مُضمن في الاختبار</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.footer}>
-        <Pressable
-          onPress={startTotalExam}
-          disabled={starting || loading || subjects.length === 0 || !studentId}
-          style={({ pressed }) => [
-            styles.startBtn,
-            (starting || loading || subjects.length === 0 || !studentId) && styles.startBtnDisabled,
-            pressed && !starting && !loading && studentId ? styles.startBtnPressed : null
-          ]}
-        >
-          {starting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="play" size={18} color="#fff" />
-              <Text style={styles.startBtnText}>ابدأ الاختبار</Text>
-            </>
-          )}
-        </Pressable>
-
-        {!studentId && (
-          <Text style={styles.warnText}>
-            ⚠️ لا يمكن البدء بدون studentId (تأكد من ManualNavigator + AuthContext)
-          </Text>
-        )}
-      </View>
-    </ScrollView>
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F6F8FF' },
-  content: { paddingBottom: 22 },
+  listContent: { paddingBottom: 22 },
 
   hero: { padding: 18, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -275,29 +296,37 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#102A68', fontWeight: '900', fontSize: 16 },
   sectionHint: { color: '#546A99', marginTop: 6, fontWeight: '700' },
 
-  centerBox: { paddingVertical: 20, alignItems: 'center', gap: 8 },
+  centerBox: { paddingVertical: 16, alignItems: 'center', gap: 8 },
   loadingText: { color: '#546A99', fontWeight: '800' },
 
-  cardsGrid: { marginTop: 14, gap: 10 },
-  subjectCard: {
+  // ✅ tighter grid
+  gridRow: { paddingHorizontal: 16, gap: 10 },
+  tile: {
+    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 18,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#E5ECFF'
+    borderColor: '#E5ECFF',
+    minHeight: 88
   },
-  subjectCardSelected: { borderColor: '#1E4FBF' },
-  cardTopRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
-  checkBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 9,
+  tileTopRow: { flexDirection: 'column', gap: 8 },
+  tileTitle: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 14 },
+
+  tileBadge: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    gap: 6,
     alignItems: 'center',
-    justifyContent: 'center'
+    backgroundColor: '#1E4FBF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999
   },
-  checkBoxOn: { backgroundColor: '#1E4FBF' },
-  subjectName: { flex: 1, color: '#102A68', fontWeight: '900', textAlign: 'right' },
-  subjectMeta: { marginTop: 8, color: '#546A99', fontWeight: '700', textAlign: 'right' },
+  tileBadgeText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+
+  tileMetaRow: { marginTop: 8, flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
+  tileMetaText: { color: '#546A99', fontWeight: '700', textAlign: 'right', fontSize: 12 },
 
   footer: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
   startBtn: {

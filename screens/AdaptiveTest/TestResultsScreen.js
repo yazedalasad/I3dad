@@ -7,26 +7,20 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
+import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
-// ✅ FIX: use default import (works regardless of named exports)
-import adaptiveTestService from '../../services/adaptiveTestService';
+// ✅ use your existing radar component
+import RadarChart from '../../components/AdaptiveTest/RadarChart';
 
-export default function TestResultsScreen({ navigateTo }) {
+export default function TestResultsScreen({ navigateTo, sessionId }) {
   const { studentData } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [allAbilities, setAllAbilities] = useState([]);
-  const [comprehensiveResults, setComprehensiveResults] = useState([]);
-  const [recommendations, setRecommendations] = useState([]);
-
-  const subjectNames = useMemo(() => {
-    if (!comprehensiveResults?.length) return null;
-    return comprehensiveResults.map((r) => r.subjectName).filter(Boolean);
-  }, [comprehensiveResults]);
+  const [rows, setRows] = useState([]); // test_session_subjects rows with subject info
 
   useEffect(() => {
     let mounted = true;
@@ -40,23 +34,42 @@ export default function TestResultsScreen({ navigateTo }) {
           return;
         }
 
-        // If your screen already sets these elsewhere, keep your existing logic.
-        // The main fix here is the recommendations import/call.
-
-        // ✅ Recommendations (optional)
-        if (typeof adaptiveTestService?.generateStudentRecommendations === 'function') {
-          const recsResult = await adaptiveTestService.generateStudentRecommendations(studentData.id);
-          if (mounted && recsResult?.success) {
-            setRecommendations(recsResult.recommendations || []);
-          }
-        } else {
-          // no recommendations feature -> keep empty
-          if (mounted) setRecommendations([]);
+        if (!sessionId) {
+          Alert.alert('خطأ', 'لا يوجد sessionId لعرض النتائج. تأكد من تمريره عند إنهاء الاختبار.');
+          return;
         }
 
-        if (mounted) setLoading(false);
+        // ✅ Load per-subject results for this session
+        const { data, error } = await supabase
+          .from('test_session_subjects')
+          .select(
+            `
+            subject_id,
+            questions_answered,
+            correct_answers,
+            is_complete,
+            metadata,
+            subjects:subjects (
+              id,
+              name_ar,
+              name_en,
+              name_he
+            )
+          `
+          )
+          .eq('session_id', sessionId);
+
+        if (error) {
+          console.log('Results query error:', error);
+          Alert.alert('خطأ', 'فشل تحميل نتائج المواد');
+          return;
+        }
+
+        if (!mounted) return;
+        setRows(data || []);
       } catch (e) {
-        console.log('TestResultsScreen error:', e);
+        console.log('TestResultsScreen error:', e?.message || e);
+      } finally {
         if (mounted) setLoading(false);
       }
     })();
@@ -64,13 +77,40 @@ export default function TestResultsScreen({ navigateTo }) {
     return () => {
       mounted = false;
     };
-  }, [studentData?.id]);
+  }, [studentData?.id, sessionId]);
+
+  const subjectResults = useMemo(() => {
+    const list = (rows || []).map((r, idx) => {
+      const answered = Number(r?.questions_answered || 0);
+      const correct = Number(r?.correct_answers || 0);
+      const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+      const s = r?.subjects;
+      const name =
+        s?.name_ar ||
+        s?.name_en ||
+        s?.name_he ||
+        `المادة ${idx + 1}`;
+
+      return {
+        subjectId: r.subject_id,
+        subjectName: name,
+        answered,
+        correct,
+        accuracy,
+      };
+    });
+
+    // Optional: keep stable order (by name)
+    list.sort((a, b) => a.subjectName.localeCompare(b.subjectName, 'ar'));
+    return list;
+  }, [rows]);
 
   const overallScore = useMemo(() => {
-    if (!comprehensiveResults || comprehensiveResults.length === 0) return 0;
-    const sum = comprehensiveResults.reduce((acc, r) => acc + Number(r?.accuracy || 0), 0);
-    return sum / comprehensiveResults.length;
-  }, [comprehensiveResults]);
+    if (!subjectResults.length) return 0;
+    const sum = subjectResults.reduce((acc, r) => acc + (r.accuracy || 0), 0);
+    return Math.round(sum / subjectResults.length);
+  }, [subjectResults]);
 
   const getAbilityLevel = (score) => {
     if (score >= 85) return 'ممتاز';
@@ -82,11 +122,15 @@ export default function TestResultsScreen({ navigateTo }) {
 
   const level = getAbilityLevel(overallScore);
 
-  const getSubjectNameById = (subjectId, index) => {
-    if (subjectNames && subjectNames[index]) return subjectNames[index];
-    const ability = allAbilities.find((a) => a.subject_id === subjectId);
-    return ability?.subjects?.name_ar || ability?.subjects?.name_en || `المادة ${index + 1}`;
-  };
+  const radarLabels = useMemo(
+    () => subjectResults.map((r) => r.subjectName),
+    [subjectResults]
+  );
+
+  const radarValues = useMemo(
+    () => subjectResults.map((r) => r.accuracy),
+    [subjectResults]
+  );
 
   if (loading) {
     return (
@@ -102,18 +146,32 @@ export default function TestResultsScreen({ navigateTo }) {
       <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
         <Text style={styles.heroTitle}>نتائج الاختبار</Text>
         <Text style={styles.heroSubtitle}>المستوى العام: {level}</Text>
+        <Text style={styles.heroSmall}>المعدل: {overallScore}%</Text>
       </LinearGradient>
 
-      {/* Keep your existing UI below this point */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>توصيات</Text>
-        {recommendations.length === 0 ? (
-          <Text style={styles.muted}>لا توجد توصيات حالياً.</Text>
+        <Text style={styles.sectionTitle}>قوة الطالب حسب المادة</Text>
+
+        {subjectResults.length === 0 ? (
+          <Text style={styles.muted}>لا توجد نتائج مواد لهذه الجلسة.</Text>
         ) : (
-          recommendations.map((r, idx) => (
-            <Text key={idx} style={styles.recItem}>• {String(r)}</Text>
-          ))
+          <View style={styles.radarBox}>
+            {/* ✅ Hexagon chart */}
+            <RadarChart labels={radarLabels} values={radarValues} />
+          </View>
         )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>تفصيل سريع</Text>
+        {subjectResults.map((r) => (
+          <View key={r.subjectId} style={styles.row}>
+            <Text style={styles.rowName}>{r.subjectName}</Text>
+            <Text style={styles.rowValue}>
+              {r.accuracy}% ({r.correct}/{r.answered})
+            </Text>
+          </View>
+        ))}
       </View>
 
       <TouchableOpacity style={styles.backBtn} onPress={() => navigateTo('adaptiveTest')}>
@@ -126,15 +184,55 @@ export default function TestResultsScreen({ navigateTo }) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F6F8FF' },
   content: { paddingBottom: 22 },
+
   hero: { padding: 18, borderRadius: 22, margin: 16 },
   heroTitle: { color: '#fff', fontWeight: '900', fontSize: 20 },
   heroSubtitle: { color: '#EAF0FF', fontWeight: '800', marginTop: 8 },
-  section: { marginHorizontal: 16, marginTop: 10, backgroundColor: '#fff', borderRadius: 18, padding: 14 },
+  heroSmall: { color: '#DDE7FF', fontWeight: '800', marginTop: 6 },
+
+  section: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 14,
+  },
   sectionTitle: { fontWeight: '900', color: '#102A68' },
   muted: { marginTop: 10, color: '#546A99', fontWeight: '700' },
-  recItem: { marginTop: 8, color: '#102A68', fontWeight: '800' },
-  backBtn: { margin: 16, backgroundColor: '#1E4FBF', borderRadius: 16, height: 48, alignItems: 'center', justifyContent: 'center' },
+
+  radarBox: {
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5ECFF',
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  row: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#F6F8FF',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rowName: { color: '#102A68', fontWeight: '900' },
+  rowValue: { color: '#546A99', fontWeight: '900' },
+
+  backBtn: {
+    margin: 16,
+    backgroundColor: '#1E4FBF',
+    borderRadius: 16,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   backBtnText: { color: '#fff', fontWeight: '900' },
+
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  centerText: { color: '#41547F', fontWeight: '900' }
+  centerText: { color: '#41547F', fontWeight: '900' },
 });
