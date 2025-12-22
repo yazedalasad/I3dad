@@ -5,10 +5,13 @@
  * - Option press pop animation
  * - RTL/LTR alignment support
  * - ✅ Stable random option order per question (shuffle once per question.id)
+ *
+ * CHANGES:
+ * 1) Removed the top "navbar" banner (LinearGradient hero).
+ * 2) Removed A/B/C/D letter boxes from the options UI (still submits original letter).
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -125,7 +128,7 @@ export default function QuestionCard({
   });
   const cardOpacity = mountAnim;
 
-  // ---------- Timer bar ----------
+  // ---------- Timer bar (kept, but now inside the question card) ----------
   const progressAnim = useRef(new Animated.Value(1)).current;
   const [timerColor, setTimerColor] = useState('#1B3A8A');
 
@@ -154,24 +157,6 @@ export default function QuestionCard({
     const mins = Math.floor(s / 60);
     const secs = s % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getDifficultyText = () => {
-    const diff = Number(question?.difficulty ?? 0);
-    if (diff < -1) return 'سهل جداً';
-    if (diff < 0) return 'سهل';
-    if (diff < 1) return 'متوسط';
-    if (diff < 2) return 'صعب';
-    return 'صعب جداً';
-  };
-
-  const getDifficultyColor = () => {
-    const diff = Number(question?.difficulty ?? 0);
-    if (diff < -1) return '#2ECC71';
-    if (diff < 0) return '#27AE60';
-    if (diff < 1) return '#F5B301';
-    if (diff < 2) return '#E67E22';
-    return '#E74C3C';
   };
 
   const getOptionState = (letter) => {
@@ -205,69 +190,46 @@ export default function QuestionCard({
 
   return (
     <View style={styles.page}>
-      {/* Top banner (TotalExam vibe) */}
-      <Animated.View style={{ opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] }}>
-        <LinearGradient
-          colors={['#1B3A8A', '#1E4FBF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View style={styles.heroRow}>
-            <View style={styles.heroLeft}>
-              <View style={styles.badge}>
-                <Ionicons name="speedometer-outline" size={14} color={getDifficultyColor()} />
-                <Text style={[styles.badgeText, { color: getDifficultyColor() }]}>
-                  {getDifficultyText()}
-                </Text>
-              </View>
-
-              <Text style={styles.questionNumber}>
-                {language === 'ar' ? 'السؤال' : 'שאלה'} {question?.question_order || '?'}
-              </Text>
-            </View>
-
-            {typeof timeRemaining === 'number' && (
-              <View style={styles.timerBox}>
-                <View style={styles.timerTop}>
-                  <Ionicons name="time-outline" size={16} color={timerColor} />
-                  <Text style={[styles.timerText, { color: timerColor }]}>
-                    {formatTime(timeRemaining)}
-                  </Text>
-                </View>
-                <View style={styles.timerBar}>
-                  <Animated.View
-                    style={[
-                      styles.timerProgress,
-                      {
-                        backgroundColor: timerColor,
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0%', '100%'],
-                        }),
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.heroHint}>
-            {language === 'ar'
-              ? 'اختر الإجابة الصحيحة من الخيارات التالية'
-              : 'בחר/י תשובה נכונה מהאפשרויות'}
-          </Text>
-        </LinearGradient>
-      </Animated.View>
-
-      {/* Question card */}
+      {/* Question card (navbar removed, everything starts here) */}
       <Animated.View
         style={[
           styles.questionCard,
           { opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] },
         ]}
       >
+        {/* Optional small header row (question number + timer), not the old navbar */}
+        <View style={styles.topRow}>
+          <Text style={[styles.questionNumber, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {language === 'ar' ? 'السؤال' : 'שאלה'} {question?.question_order || '?'}
+          </Text>
+
+          {typeof timeRemaining === 'number' && (
+            <View style={styles.timerInline}>
+              <View style={styles.timerTop}>
+                <Ionicons name="time-outline" size={16} color={timerColor} />
+                <Text style={[styles.timerText, { color: timerColor }]}>
+                  {formatTime(timeRemaining)}
+                </Text>
+              </View>
+
+              <View style={styles.timerBar}>
+                <Animated.View
+                  style={[
+                    styles.timerProgress,
+                    {
+                      backgroundColor: timerColor,
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
+        </View>
+
         <Text style={[styles.questionText, { textAlign: isRTL ? 'right' : 'left' }]}>
           {questionText}
         </Text>
@@ -286,9 +248,9 @@ export default function QuestionCard({
         )}
       </Animated.View>
 
-      {/* Options */}
+      {/* Options (A/B/C/D UI removed) */}
       <View style={styles.options}>
-        {options.map((option, idx) => {
+        {options.map((option) => {
           const state = getOptionState(option.letter);
           const scale = pressScales.get(option.letter) || new Animated.Value(1);
 
@@ -313,7 +275,7 @@ export default function QuestionCard({
                 onPress={() => {
                   if (disabled) return;
                   pop(option.letter);
-                  // ✅ sends original letter (A/B/C/D) even though UI order is shuffled
+                  // ✅ still sends original letter (A/B/C/D)
                   onAnswerSelect?.(option.letter);
                 }}
                 disabled={disabled}
@@ -326,26 +288,6 @@ export default function QuestionCard({
                 ]}
               >
                 <View style={styles.optionRow}>
-                  <View
-                    style={[
-                      styles.letterBox,
-                      state === 'selected' && styles.letterSelected,
-                      state === 'correct' && styles.letterCorrect,
-                      state === 'incorrect' && styles.letterIncorrect,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.letterText,
-                        state === 'selected' && styles.letterTextSelected,
-                        state === 'correct' && styles.letterTextCorrect,
-                        state === 'incorrect' && styles.letterTextIncorrect,
-                      ]}
-                    >
-                      {option.letter}
-                    </Text>
-                  </View>
-
                   <Text
                     style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}
                     numberOfLines={6}
@@ -388,9 +330,7 @@ export default function QuestionCard({
               size={18}
               color={isCorrect ? '#27AE60' : '#E74C3C'}
             />
-            <Text style={styles.explainTitle}>
-              {isCorrect ? 'توضيح' : 'تصحيح'}
-            </Text>
+            <Text style={styles.explainTitle}>{isCorrect ? 'توضيح' : 'تصحيح'}</Text>
           </View>
 
           <Text style={[styles.explainText, { textAlign: isRTL ? 'right' : 'left' }]}>
@@ -412,54 +352,8 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
 
-  hero: {
-    borderRadius: 20,
-    padding: 14,
-  },
-  heroRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  heroLeft: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  badge: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-  badgeText: { fontWeight: '900', fontSize: 12 },
-  questionNumber: { color: '#EAF1FF', fontWeight: '900', fontSize: 13 },
-
-  timerBox: { alignItems: 'flex-end', minWidth: 110 },
-  timerTop: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 },
-  timerText: { fontWeight: '900' },
-  timerBar: {
-    width: 110,
-    height: 7,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  timerProgress: { height: '100%', borderRadius: 999 },
-
-  heroHint: {
-    marginTop: 10,
-    color: '#DCE7FF',
-    fontWeight: '700',
-    textAlign: 'right',
-    fontSize: 12,
-  },
-
   questionCard: {
-    marginTop: 12,
+    marginTop: 6,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 14,
@@ -470,6 +364,33 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
+
+  topRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  questionNumber: {
+    color: '#1B3A8A',
+    fontWeight: '900',
+    fontSize: 13,
+    flex: 1,
+  },
+
+  timerInline: { alignItems: 'flex-end', minWidth: 110 },
+  timerTop: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 },
+  timerText: { fontWeight: '900' },
+  timerBar: {
+    width: 110,
+    height: 7,
+    backgroundColor: 'rgba(27,58,138,0.12)',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  timerProgress: { height: '100%', borderRadius: 999 },
+
   questionText: {
     color: '#142B63',
     fontSize: 18,
@@ -513,28 +434,17 @@ const styles = StyleSheet.create({
   },
 
   optionSelected: { borderColor: '#F5B301', borderWidth: 2 },
-  optionCorrect: { borderColor: '#27AE60', borderWidth: 2, backgroundColor: 'rgba(39,174,96,0.06)' },
-  optionIncorrect: { borderColor: '#E74C3C', borderWidth: 2, backgroundColor: 'rgba(231,76,60,0.06)' },
-  optionDisabled: { opacity: 0.55 },
-
-  letterBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EEF3FF',
-    borderWidth: 1,
-    borderColor: '#E6ECFF',
+  optionCorrect: {
+    borderColor: '#27AE60',
+    borderWidth: 2,
+    backgroundColor: 'rgba(39,174,96,0.06)',
   },
-  letterSelected: { backgroundColor: 'rgba(245,179,1,0.18)', borderColor: '#F5B301' },
-  letterCorrect: { backgroundColor: 'rgba(39,174,96,0.14)', borderColor: '#27AE60' },
-  letterIncorrect: { backgroundColor: 'rgba(231,76,60,0.12)', borderColor: '#E74C3C' },
-
-  letterText: { fontWeight: '900', color: '#142B63' },
-  letterTextSelected: { color: '#B37A00' },
-  letterTextCorrect: { color: '#1D8E4A' },
-  letterTextIncorrect: { color: '#B03A2E' },
+  optionIncorrect: {
+    borderColor: '#E74C3C',
+    borderWidth: 2,
+    backgroundColor: 'rgba(231,76,60,0.06)',
+  },
+  optionDisabled: { opacity: 0.55 },
 
   optionText: {
     flex: 1,

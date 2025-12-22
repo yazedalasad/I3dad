@@ -112,8 +112,14 @@ export default function StudentProfileScreen({ navigateTo }) {
             style={[styles.tab, activeTab === 'about' && styles.tabActive]}
             activeOpacity={0.9}
           >
-            <FontAwesome name="info-circle" size={14} color={activeTab === 'about' ? '#0b1223' : '#94a3b8'} />
-            <Text style={[styles.tabText, activeTab === 'about' && styles.tabTextActive]}>About</Text>
+            <FontAwesome
+              name="info-circle"
+              size={14}
+              color={activeTab === 'about' ? '#0b1223' : '#94a3b8'}
+            />
+            <Text style={[styles.tabText, activeTab === 'about' && styles.tabTextActive]}>
+              About
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -121,8 +127,14 @@ export default function StudentProfileScreen({ navigateTo }) {
             style={[styles.tab, activeTab === 'contact' && styles.tabActive]}
             activeOpacity={0.9}
           >
-            <FontAwesome name="phone" size={14} color={activeTab === 'contact' ? '#0b1223' : '#94a3b8'} />
-            <Text style={[styles.tabText, activeTab === 'contact' && styles.tabTextActive]}>Contact</Text>
+            <FontAwesome
+              name="phone"
+              size={14}
+              color={activeTab === 'contact' ? '#0b1223' : '#94a3b8'}
+            />
+            <Text style={[styles.tabText, activeTab === 'contact' && styles.tabTextActive]}>
+              Contact
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -151,6 +163,15 @@ export default function StudentProfileScreen({ navigateTo }) {
         )}
 
         {/* Bottom actions */}
+        <TouchableOpacity
+          style={styles.changePasswordBtn}
+          onPress={() => navigateTo('examHistory')}
+          activeOpacity={0.9}
+        >
+          <FontAwesome name="history" size={18} color="#27ae60" />
+          <Text style={styles.changePasswordText}>سجل الاختبارات</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.changePasswordBtn}
           onPress={() => navigateTo('changePassword')}

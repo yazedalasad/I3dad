@@ -29,6 +29,7 @@ import PersonalityTestScreen from '../screens/PersonalityTest/PersonalityTestScr
 import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen';
 
 import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScreen';
+import ExamHistoryScreen from '../screens/Profile/ExamHistoryScreen';
 import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
 
 export default function ManualNavigator() {
@@ -120,7 +121,7 @@ export default function ManualNavigator() {
           />
         );
 
-      // ✅ Actual exam screen (this was missing params before)
+      // ✅ Actual exam screen
       case 'startAdaptiveTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -170,6 +171,11 @@ export default function ManualNavigator() {
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <EditStudentProfileScreen navigateTo={navigateTo} />;
 
+      // ✅ NEW: Exam history (opens full radar per session)
+      case 'examHistory':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <ExamHistoryScreen navigateTo={navigateTo} />;
+
       default:
         return <HomeScreen navigateTo={navigateTo} />;
     }
@@ -196,7 +202,8 @@ export default function ManualNavigator() {
     'roleRouter',
     'adminDashboard',
     'principalDashboard',
-    'editProfile'
+    'editProfile',
+    'examHistory',
   ];
 
   return (
@@ -218,7 +225,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
   },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#64748b' }
+  loadingText: { marginTop: 16, fontSize: 16, color: '#64748b' },
 });

@@ -1,7 +1,11 @@
 /**
  * RADAR CHART COMPONENT (Theme matched: blue/white/yellow)
  *
- * Note: Still pure React Native (no SVG). Shows points + grid + axes + labels.
+ * ✅ Supports BOTH usages:
+ * 1) <RadarChart abilities={[{ ability_score, subjects:{name_ar/name_he/name_en} }]} />
+ * 2) <RadarChart labels={['Math', ...]} values={[80, ...]} />
+ *
+ * Note: Pure React Native (no SVG).
  */
 
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
@@ -23,12 +27,32 @@ function getSubjectName(ability, index) {
     ability?.subjects?.name_ar ||
     ability?.subjects?.name_he ||
     ability?.subjects?.name_en ||
+    ability?.subjectName ||
     `المادة ${index + 1}`
   );
 }
 
-export default function RadarChart({ abilities = [] }) {
-  if (!abilities || abilities.length === 0) {
+export default function RadarChart({ abilities, labels, values }) {
+  // Build a unified list of abilities either from:
+  // - "abilities" (original format)
+  // - OR (labels + values) format used elsewhere
+  const computedAbilities =
+    Array.isArray(abilities) && abilities.length
+      ? abilities
+      : Array.isArray(labels) && Array.isArray(values) && labels.length && values.length
+      ? labels
+          .map((name, i) => ({
+            ability_score: safeNum(values[i]),
+            subjects: {
+              name_ar: String(name || '').trim(),
+              name_he: String(name || '').trim(),
+              name_en: String(name || '').trim(),
+            },
+          }))
+          .filter((x) => String(getSubjectName(x, 0) || '').trim().length > 0)
+      : [];
+
+  if (!computedAbilities.length) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>لا توجد بيانات كافية لعرض الرسم.</Text>
@@ -37,7 +61,7 @@ export default function RadarChart({ abilities = [] }) {
   }
 
   // Sort by score and show Top 8 for clarity
-  const displayAbilities = [...abilities]
+  const displayAbilities = [...computedAbilities]
     .sort((a, b) => safeNum(b.ability_score) - safeNum(a.ability_score))
     .slice(0, 8);
 
@@ -49,7 +73,7 @@ export default function RadarChart({ abilities = [] }) {
     return {
       x: CENTER + distance * Math.cos(angle),
       y: CENTER + distance * Math.sin(angle),
-      angle
+      angle,
     };
   };
 
@@ -76,8 +100,8 @@ export default function RadarChart({ abilities = [] }) {
                   height: r * 2,
                   borderRadius: r,
                   top: CENTER - r,
-                  left: CENTER - r
-                }
+                  left: CENTER - r,
+                },
               ]}
             />
           );
@@ -93,8 +117,8 @@ export default function RadarChart({ abilities = [] }) {
                 styles.levelText,
                 {
                   left: CENTER - r - 18,
-                  top: CENTER - 10
-                }
+                  top: CENTER - 10,
+                },
               ]}
             >
               {level}
@@ -114,7 +138,7 @@ export default function RadarChart({ abilities = [] }) {
                 top: CENTER,
                 width: RADIUS,
                 transform: [{ rotate: `${(angleStep * index * 180) / Math.PI - 90}deg` }],
-              }
+              },
             ]}
           />
         ))}
@@ -130,8 +154,8 @@ export default function RadarChart({ abilities = [] }) {
                 styles.dataPoint,
                 {
                   left: point.x - 7,
-                  top: point.y - 7
-                }
+                  top: point.y - 7,
+                },
               ]}
             />
           );
@@ -156,8 +180,8 @@ export default function RadarChart({ abilities = [] }) {
                 {
                   left: labelPoint.x - 52,
                   top: labelPoint.y - 14,
-                  width: 104
-                }
+                  width: 104,
+                },
               ]}
             >
               <Text style={[styles.labelText, { textAlign }]} numberOfLines={1}>
@@ -191,7 +215,7 @@ export default function RadarChart({ abilities = [] }) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    gap: 12
+    gap: 12,
   },
 
   headerRow: {
@@ -199,34 +223,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6
+    marginBottom: 6,
   },
   title: {
     color: '#142B63',
     fontWeight: '900',
     fontSize: 14,
-    textAlign: 'right'
+    textAlign: 'right',
   },
   badge: {
     backgroundColor: '#EEF3FF',
     borderRadius: 999,
     paddingVertical: 6,
-    paddingHorizontal: 10
+    paddingHorizontal: 10,
   },
   badgeText: {
     color: '#1B3A8A',
     fontWeight: '900',
-    fontSize: 11
+    fontSize: 11,
   },
 
   emptyContainer: {
     height: 220,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   emptyText: {
     color: '#6B7FAE',
-    fontWeight: '800'
+    fontWeight: '800',
   },
 
   chartContainer: {
@@ -238,25 +262,25 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
-    elevation: 1
+    elevation: 1,
   },
 
   gridCircle: {
     position: 'absolute',
     borderWidth: 1,
-    borderColor: '#D6E0FF'
+    borderColor: '#D6E0FF',
   },
 
   axisLine: {
     height: 1,
-    backgroundColor: '#D6E0FF'
+    backgroundColor: '#D6E0FF',
   },
 
   levelText: {
     position: 'absolute',
     color: '#6B7FAE',
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
   },
 
   dataPoint: {
@@ -266,22 +290,22 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#F5B301', // yellow
     borderWidth: 2,
-    borderColor: '#1B3A8A' // blue ring
+    borderColor: '#1B3A8A', // blue ring
   },
 
   label: {
-    position: 'absolute'
+    position: 'absolute',
   },
   labelText: {
     fontSize: 11,
     color: '#142B63',
-    fontWeight: '900'
+    fontWeight: '900',
   },
   labelScore: {
     marginTop: 2,
     fontSize: 10,
     color: '#1B3A8A',
-    fontWeight: '900'
+    fontWeight: '900',
   },
 
   centerPoint: {
@@ -289,7 +313,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#1B3A8A'
+    backgroundColor: '#1B3A8A',
   },
 
   legend: {
@@ -298,12 +322,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 6,
     flexWrap: 'wrap',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   legendItem: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   legendDot: {
     width: 12,
@@ -311,17 +335,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#F5B301',
     borderWidth: 2,
-    borderColor: '#1B3A8A'
+    borderColor: '#1B3A8A',
   },
   legendLine: {
     width: 18,
     height: 2,
     backgroundColor: '#D6E0FF',
-    borderRadius: 2
+    borderRadius: 2,
   },
   legendText: {
     color: '#6B7FAE',
     fontWeight: '800',
-    fontSize: 12
-  }
+    fontSize: 12,
+  },
 });
