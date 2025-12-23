@@ -1,14 +1,20 @@
 /**
  * QUESTION CARD COMPONENT (TotalExam-style UI)
- * - Light theme (same vibe as TotalExamScreen)
- * - Smooth entrance animation
- * - Option press pop animation
- * - RTL/LTR alignment support
- * - ✅ Stable random option order per question (shuffle once per question.id)
  *
- * CHANGES:
- * 1) Removed the top "navbar" banner (LinearGradient hero).
- * 2) Removed A/B/C/D letter boxes from the options UI (still submits original letter).
+ * Supports 2 modes:
+ * 1) Exam mode (default): showFeedback = false
+ *    - ✅ NO correct/incorrect colors
+ *    - ✅ NO correct/incorrect icons
+ *    - ✅ Can still highlight selected option (optional UX)
+ *    - ✅ No explanation shown
+ *
+ * 2) Review mode: showFeedback = true
+ *    - ✅ Shows correct option + student selected option
+ *    - ✅ Shows explanation if exists
+ *
+ * Notes:
+ * - Stable random option order per question (shuffle once per question.id)
+ * - Still submits original letter (A/B/C/D)
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -55,10 +61,19 @@ export default function QuestionCard({
   selectedAnswer,
   onAnswerSelect,
   onSkipQuestion,
-  showFeedback,
-  isCorrect,
+
+  // ✅ Mode flag:
+  // - false => exam mode (NO correctness revealed)
+  // - true  => review mode (show correct/incorrect)
+  showFeedback = false,
+
+  // only meaningful when showFeedback=true
+  isCorrect = false,
+
   language,
   disabled,
+
+  // Timer (optional): pass null/undefined to hide
   timeRemaining,
   maxTime = 120,
 }) {
@@ -128,7 +143,7 @@ export default function QuestionCard({
   });
   const cardOpacity = mountAnim;
 
-  // ---------- Timer bar (kept, but now inside the question card) ----------
+  // ---------- Timer bar (optional, inside card) ----------
   const progressAnim = useRef(new Animated.Value(1)).current;
   const [timerColor, setTimerColor] = useState('#1B3A8A');
 
@@ -159,11 +174,17 @@ export default function QuestionCard({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  /**
+   * Option state rules:
+   * - Exam mode (showFeedback=false): ONLY "selected" highlight (no correctness)
+   * - Review mode (showFeedback=true): show correct + incorrect selection
+   */
   const getOptionState = (letter) => {
     if (!showFeedback) {
       if (selectedAnswer === letter) return 'selected';
       return 'normal';
     }
+
     if (letter === question?.correct_answer) return 'correct';
     if (letter === selectedAnswer && !isCorrect) return 'incorrect';
     return 'normal';
@@ -190,14 +211,13 @@ export default function QuestionCard({
 
   return (
     <View style={styles.page}>
-      {/* Question card (navbar removed, everything starts here) */}
+      {/* Question card */}
       <Animated.View
         style={[
           styles.questionCard,
           { opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] },
         ]}
       >
-        {/* Optional small header row (question number + timer), not the old navbar */}
         <View style={styles.topRow}>
           <Text style={[styles.questionNumber, { textAlign: isRTL ? 'right' : 'left' }]}>
             {language === 'ar' ? 'السؤال' : 'שאלה'} {question?.question_order || '?'}
@@ -234,6 +254,7 @@ export default function QuestionCard({
           {questionText}
         </Text>
 
+        {/* Skip only during exam mode */}
         {!showFeedback && !disabled && onSkipQuestion && (
           <TouchableOpacity
             style={styles.skipButton}
@@ -248,7 +269,7 @@ export default function QuestionCard({
         )}
       </Animated.View>
 
-      {/* Options (A/B/C/D UI removed) */}
+      {/* Options */}
       <View style={styles.options}>
         {options.map((option) => {
           const state = getOptionState(option.letter);
@@ -263,6 +284,28 @@ export default function QuestionCard({
             outputRange: [10, 0],
           });
 
+          // ✅ Icon rules:
+          // - Exam mode: show checkmark ONLY for selected
+          // - Review mode: show correct/incorrect markers
+          let rightIcon = null;
+          if (!showFeedback) {
+            rightIcon =
+              selectedAnswer === option.letter ? (
+                <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
+              ) : (
+                <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
+              );
+          } else {
+            rightIcon =
+              state === 'correct' ? (
+                <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
+              ) : state === 'incorrect' ? (
+                <Ionicons name="close-circle" size={22} color="#E74C3C" />
+              ) : (
+                <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
+              );
+          }
+
           return (
             <Animated.View
               key={option.letter}
@@ -275,15 +318,14 @@ export default function QuestionCard({
                 onPress={() => {
                   if (disabled) return;
                   pop(option.letter);
-                  // ✅ still sends original letter (A/B/C/D)
                   onAnswerSelect?.(option.letter);
                 }}
                 disabled={disabled}
                 style={[
                   styles.optionCard,
                   state === 'selected' && styles.optionSelected,
-                  state === 'correct' && styles.optionCorrect,
-                  state === 'incorrect' && styles.optionIncorrect,
+                  showFeedback && state === 'correct' && styles.optionCorrect,
+                  showFeedback && state === 'incorrect' && styles.optionIncorrect,
                   disabled && styles.optionDisabled,
                 ]}
               >
@@ -295,19 +337,7 @@ export default function QuestionCard({
                     {option.text}
                   </Text>
 
-                  {showFeedback ? (
-                    state === 'correct' ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
-                    ) : state === 'incorrect' ? (
-                      <Ionicons name="close-circle" size={22} color="#E74C3C" />
-                    ) : (
-                      <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
-                    )
-                  ) : selectedAnswer === option.letter ? (
-                    <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
-                  ) : (
-                    <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
-                  )}
+                  {rightIcon}
                 </View>
               </Pressable>
             </Animated.View>
@@ -315,7 +345,7 @@ export default function QuestionCard({
         })}
       </View>
 
-      {/* Explanation */}
+      {/* Explanation shown ONLY in review mode */}
       {showFeedback && (question?.explanation_ar || question?.explanation_he) && (
         <Animated.View
           style={[

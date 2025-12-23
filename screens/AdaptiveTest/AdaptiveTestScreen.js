@@ -2,7 +2,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   AppState,
   StyleSheet,
   Text,
@@ -46,8 +45,10 @@ export default function AdaptiveTestScreen({
   const questionStartRef = useRef(Date.now());
 
   const [skippedCount, setSkippedCount] = useState(0);
-  const [feedback, setFeedback] = useState(null); // { correct, correctAnswer }
-  const feedbackAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ History (allows student to go back and view previous questions WITHOUT showing correctness)
+  const [history, setHistory] = useState([]); // [{ question, selectedAnswer, timeTakenSeconds }]
+  const [viewingHistoryIndex, setViewingHistoryIndex] = useState(null); // number | null
 
   const timerRef = useRef(null);
   const heartbeatRef = useRef(null);
@@ -74,6 +75,18 @@ export default function AdaptiveTestScreen({
       target
     };
   }, [subjectStates]);
+
+  const isViewingPastQuestion = typeof viewingHistoryIndex === 'number';
+
+  const shownQuestion = useMemo(() => {
+    if (!isViewingPastQuestion) return question;
+    return history[viewingHistoryIndex]?.question || question;
+  }, [isViewingPastQuestion, question, history, viewingHistoryIndex]);
+
+  const shownSelectedAnswer = useMemo(() => {
+    if (!isViewingPastQuestion) return selectedAnswer;
+    return history[viewingHistoryIndex]?.selectedAnswer ?? null;
+  }, [isViewingPastQuestion, selectedAnswer, history, viewingHistoryIndex]);
 
   /* -------------------- INIT -------------------- */
   useEffect(() => {
@@ -173,47 +186,50 @@ export default function AdaptiveTestScreen({
   }
 
   /* -------------------- QUESTIONS -------------------- */
-async function loadNextQuestion(currentStates) {
-  setFetchingQuestion(true);
-  setFeedback(null);
-  setSelectedAnswer(null);
+  async function loadNextQuestion(currentStates) {
+    setFetchingQuestion(true);
 
-  try {
-    const next = await adaptiveTestService.getNextQuestion({
-      sessionId,
-      subjectStates: currentStates
-    });
+    // leaving history mode when fetching a new question
+    setViewingHistoryIndex(null);
+    setSelectedAnswer(null);
 
-    // ✅ IMPORTANT: handle completion error
-    if (next?.success === false) {
-      console.log('Next question error:', next.error);
+    try {
+      const next = await adaptiveTestService.getNextQuestion({
+        sessionId,
+        subjectStates: currentStates
+      });
 
-      if (next.error === 'ALL_SUBJECTS_COMPLETE') {
+      // ✅ IMPORTANT: handle completion error
+      if (next?.success === false) {
+        console.log('Next question error:', next.error);
+
+        if (next.error === 'ALL_SUBJECTS_COMPLETE') {
+          await finishTest(currentStates);
+          return;
+        }
+
+        setFetchingQuestion(false);
+        return;
+      }
+
+      if (!next?.question) {
         await finishTest(currentStates);
         return;
       }
 
+      setQuestion(next.question);
+      startTimer();
+    } catch (e) {
+      console.log('loadNextQuestion error:', e);
+    } finally {
       setFetchingQuestion(false);
-      return;
     }
-
-    if (!next?.question) {
-      await finishTest(currentStates);
-      return;
-    }
-
-    setQuestion(next.question);
-    startTimer();
-  } catch (e) {
-    console.log('loadNextQuestion error:', e);
-  } finally {
-    setFetchingQuestion(false);
   }
-}
-
 
   async function handleAnswer(answer) {
-    if (submitting || fetchingQuestion || feedback) return;
+    // ✅ If student is viewing a past question, don't allow submitting changes (safe + simple)
+    if (isViewingPastQuestion) return;
+    if (submitting || fetchingQuestion) return;
 
     setSelectedAnswer(answer);
     setSubmitting(true);
@@ -235,17 +251,21 @@ async function loadNextQuestion(currentStates) {
       return;
     }
 
-    showFeedback(result.isCorrect, question.correct_answer);
+    // ✅ Save answered question into local history (for "Back" viewing)
+    setHistory((prev) => [
+      ...prev,
+      { question, selectedAnswer: answer, timeTakenSeconds: getTimeTaken() }
+    ]);
 
-    setTimeout(async () => {
-      setSubmitting(false);
-      setSubjectStates(result.subjectStates);
-      await loadNextQuestion(result.subjectStates);
-    }, 700);
+    // ✅ No correctness feedback shown
+    setSubmitting(false);
+    setSubjectStates(result.subjectStates);
+    await loadNextQuestion(result.subjectStates);
   }
 
   async function handleSkipQuestion() {
-    if (submitting || fetchingQuestion || feedback) return;
+    if (isViewingPastQuestion) return;
+    if (submitting || fetchingQuestion) return;
 
     setSubmitting(true);
     stopTimer();
@@ -262,18 +282,28 @@ async function loadNextQuestion(currentStates) {
       questionOrder: totals.answered + 1
     });
 
-    showFeedback(false, question.correct_answer);
+    // Save history (still no correctness)
+    setHistory((prev) => [
+      ...prev,
+      { question, selectedAnswer: null, timeTakenSeconds: getTimeTaken() }
+    ]);
 
-    setTimeout(async () => {
-      setSubmitting(false);
+    setSkippedCount((c) => c + 1);
+
+    setSubmitting(false);
+    if (result?.success) {
       setSubjectStates(result.subjectStates);
-      setSkippedCount((c) => c + 1);
       await loadNextQuestion(result.subjectStates);
-    }, 700);
+      return;
+    }
+
+    // If failed, restart timer on same question
+    startTimer();
   }
 
   async function handleAutoTimeout() {
-    if (submitting || feedback) return;
+    if (isViewingPastQuestion) return;
+    if (submitting) return;
 
     setSubmitting(true);
 
@@ -289,25 +319,42 @@ async function loadNextQuestion(currentStates) {
       questionOrder: totals.answered + 1
     });
 
-    showFeedback(false, question.correct_answer);
+    setHistory((prev) => [
+      ...prev,
+      { question, selectedAnswer: null, timeTakenSeconds: QUESTION_TIME_LIMIT }
+    ]);
 
-    setTimeout(async () => {
-      setSubmitting(false);
+    setSkippedCount((c) => c + 1);
+
+    setSubmitting(false);
+    if (result?.success) {
       setSubjectStates(result.subjectStates);
-      setSkippedCount((c) => c + 1);
       await loadNextQuestion(result.subjectStates);
-    }, 700);
+      return;
+    }
   }
 
-  /* -------------------- FEEDBACK -------------------- */
-  function showFeedback(correct, correctAnswer) {
-    setFeedback({ correct, correctAnswer });
-    feedbackAnim.setValue(0);
-    Animated.timing(feedbackAnim, {
-      toValue: 1,
-      duration: 220,
-      useNativeDriver: true
-    }).start();
+  /* -------------------- HISTORY NAV (VIEW ONLY) -------------------- */
+  function goBackOne() {
+    if (submitting || fetchingQuestion) return;
+    if (!history.length) return;
+
+    stopTimer(); // don't run timer when viewing past questions
+
+    const idx = typeof viewingHistoryIndex === 'number'
+      ? viewingHistoryIndex - 1
+      : history.length - 1;
+
+    if (idx < 0) return;
+
+    setViewingHistoryIndex(idx);
+  }
+
+  function returnToCurrentQuestion() {
+    if (submitting || fetchingQuestion) return;
+    setViewingHistoryIndex(null);
+    // restart timer fresh for current question
+    startTimer();
   }
 
   /* -------------------- FINISH -------------------- */
@@ -333,7 +380,9 @@ async function loadNextQuestion(currentStates) {
       await interestService.updateInterestsFromSession(sessionId);
     } catch {}
 
+    // ✅ IMPORTANT: pass sessionId so results screen can load this session
     navigateTo('testResults', {
+      sessionId,
       subjectNames,
       skippedCount,
       totalTimeSpent: totalTimeSpentSeconds
@@ -341,7 +390,7 @@ async function loadNextQuestion(currentStates) {
   }
 
   /* -------------------- RENDER -------------------- */
-  if (initializing || fetchingQuestion || !question) {
+  if (initializing || fetchingQuestion || !shownQuestion) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
@@ -352,42 +401,52 @@ async function loadNextQuestion(currentStates) {
 
   return (
     <View style={styles.container}>
+      {/* Minimal progress (no correctness feedback shown) */}
       <ProgressIndicator
         current={totals.answered}
         total={totals.target}
-        timeLeft={timeLeft}
+        timeLeft={isViewingPastQuestion ? null : timeLeft}
         correctCount={totals.correct}
         incorrectCount={totals.incorrect}
         skippedCount={skippedCount}
       />
 
+      {/* Small helper line for back/view mode */}
+      {history.length > 0 && (
+        <View style={styles.historyRow}>
+          <Text style={styles.historyText}>
+            {isViewingPastQuestion
+              ? 'عرض سؤال سابق (بدون نتائج)'
+              : 'يمكنك الرجوع لعرض سؤال سابق (بدون نتائج)'}
+          </Text>
+
+          <View style={styles.historyBtns}>
+            {!isViewingPastQuestion ? (
+              <Text style={styles.historyBtn} onPress={goBackOne}>
+                <FontAwesome name="arrow-left" size={14} color="#1E4FBF" /> رجوع
+              </Text>
+            ) : (
+              <Text style={styles.historyBtn} onPress={returnToCurrentQuestion}>
+                رجوع للسؤال الحالي <FontAwesome name="arrow-right" size={14} color="#1E4FBF" />
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
       <QuestionCard
-        question={question}
-        selectedAnswer={selectedAnswer}
-        disabled={submitting}
+        question={shownQuestion}
+        selectedAnswer={shownSelectedAnswer}
+        disabled={submitting || isViewingPastQuestion} // ✅ lock answers while viewing history
         onAnswerSelect={handleAnswer}
         onSkipQuestion={handleSkipQuestion}
         language={language}
-        timeRemaining={timeLeft}
+        timeRemaining={isViewingPastQuestion ? null : timeLeft}
         maxTime={QUESTION_TIME_LIMIT}
-        showFeedback={!!feedback}
-        isCorrect={feedback?.correct}
+        // ✅ IMPORTANT: do not show correct/wrong during exam
+        showFeedback={false}
+        isCorrect={false}
       />
-
-      {feedback && (
-        <Animated.View style={[styles.feedbackBox, feedback.correct ? styles.ok : styles.bad]}>
-          <FontAwesome
-            name={feedback.correct ? 'check' : 'close'}
-            size={18}
-            color="#fff"
-          />
-          <Text style={styles.feedbackText}>
-            {feedback.correct
-              ? 'إجابة صحيحة'
-              : `إجابة خاطئة • الصحيح: ${feedback.correctAnswer}`}
-          </Text>
-        </Animated.View>
-      )}
     </View>
   );
 }
@@ -404,23 +463,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#41547F'
   },
-  feedbackBox: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-    padding: 14,
-    borderRadius: 16,
+
+  historyRow: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 2,
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5ECFF',
     flexDirection: 'row-reverse',
-    gap: 10,
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10
   },
-  ok: { backgroundColor: '#2ecc71' },
-  bad: { backgroundColor: '#e74c3c' },
-  feedbackText: {
-    color: '#fff',
-    fontWeight: '900',
+  historyText: {
+    color: '#546A99',
+    fontWeight: '800',
+    flex: 1,
     textAlign: 'right'
+  },
+  historyBtns: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10
+  },
+  historyBtn: {
+    color: '#1E4FBF',
+    fontWeight: '900'
   }
 });
-

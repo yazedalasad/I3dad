@@ -1,3 +1,5 @@
+// File: screens/Profile/StudentProfileScreen.js
+
 import { FontAwesome } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -161,6 +163,16 @@ export default function StudentProfileScreen({ navigateTo }) {
             <InfoLine label="School" value={studentData?.school_name} />
           </View>
         )}
+
+        {/* NEW: Recommendations button */}
+        <TouchableOpacity
+          style={styles.changePasswordBtn}
+          onPress={() => navigateTo('recommendations')}
+          activeOpacity={0.9}
+        >
+          <FontAwesome name="graduation-cap" size={18} color="#27ae60" />
+          <Text style={styles.changePasswordText}>التوصيات</Text>
+        </TouchableOpacity>
 
         {/* Bottom actions */}
         <TouchableOpacity

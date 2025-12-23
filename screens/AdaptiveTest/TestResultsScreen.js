@@ -13,7 +13,7 @@ import {
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
-// ✅ use your existing radar component
+// ✅ existing radar component
 import RadarChart from '../../components/AdaptiveTest/RadarChart';
 
 export default function TestResultsScreen({ navigateTo, sessionId }) {
@@ -35,7 +35,10 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
         }
 
         if (!sessionId) {
-          Alert.alert('خطأ', 'لا يوجد sessionId لعرض النتائج. تأكد من تمريره عند إنهاء الاختبار.');
+          Alert.alert(
+            'خطأ',
+            'لا يوجد sessionId لعرض النتائج. تأكد من تمريره عند إنهاء الاختبار.'
+          );
           return;
         }
 
@@ -86,11 +89,7 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
       const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
 
       const s = r?.subjects;
-      const name =
-        s?.name_ar ||
-        s?.name_en ||
-        s?.name_he ||
-        `المادة ${idx + 1}`;
+      const name = s?.name_ar || s?.name_en || s?.name_he || `المادة ${idx + 1}`;
 
       return {
         subjectId: r.subject_id,
@@ -101,7 +100,7 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
       };
     });
 
-    // Optional: keep stable order (by name)
+    // Optional: stable order (by name)
     list.sort((a, b) => a.subjectName.localeCompare(b.subjectName, 'ar'));
     return list;
   }, [rows]);
@@ -122,15 +121,17 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
 
   const level = getAbilityLevel(overallScore);
 
-  const radarLabels = useMemo(
-    () => subjectResults.map((r) => r.subjectName),
-    [subjectResults]
-  );
+  const radarLabels = useMemo(() => subjectResults.map((r) => r.subjectName), [subjectResults]);
+  const radarValues = useMemo(() => subjectResults.map((r) => r.accuracy), [subjectResults]);
 
-  const radarValues = useMemo(
-    () => subjectResults.map((r) => r.accuracy),
-    [subjectResults]
-  );
+  const goToReview = () => {
+    if (!sessionId) {
+      Alert.alert('خطأ', 'لا يوجد sessionId لعرض مراجعة الإجابات.');
+      return;
+    }
+
+    navigateTo('reviewAnswers', { sessionId });
+  };
 
   if (loading) {
     return (
@@ -156,7 +157,6 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
           <Text style={styles.muted}>لا توجد نتائج مواد لهذه الجلسة.</Text>
         ) : (
           <View style={styles.radarBox}>
-            {/* ✅ Hexagon chart */}
             <RadarChart labels={radarLabels} values={radarValues} />
           </View>
         )}
@@ -174,6 +174,12 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
         ))}
       </View>
 
+      {/* ✅ NEW: Review answers button */}
+      <TouchableOpacity style={styles.reviewBtn} onPress={goToReview}>
+        <Text style={styles.reviewBtnText}>مراجعة الإجابات</Text>
+      </TouchableOpacity>
+
+      {/* Keep existing back behavior (you can change destination later if you want) */}
       <TouchableOpacity style={styles.backBtn} onPress={() => navigateTo('adaptiveTest')}>
         <Text style={styles.backBtnText}>رجوع</Text>
       </TouchableOpacity>
@@ -222,6 +228,17 @@ const styles = StyleSheet.create({
   },
   rowName: { color: '#102A68', fontWeight: '900' },
   rowValue: { color: '#546A99', fontWeight: '900' },
+
+  reviewBtn: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    backgroundColor: '#F5B301',
+    borderRadius: 16,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewBtnText: { color: '#142B63', fontWeight: '900' },
 
   backBtn: {
     margin: 16,

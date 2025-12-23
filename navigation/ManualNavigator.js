@@ -1,3 +1,5 @@
+// File: navigation/ManualNavigator.js
+
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -31,6 +33,9 @@ import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen
 import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScreen';
 import ExamHistoryScreen from '../screens/Profile/ExamHistoryScreen';
 import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
+
+// ✅ NEW: Recommendations screen
+import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendationsScreen';
 
 export default function ManualNavigator() {
   const { user, loading, studentData } = useAuth();
@@ -176,6 +181,11 @@ export default function ManualNavigator() {
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <ExamHistoryScreen navigateTo={navigateTo} />;
 
+      // ✅ NEW: Recommendations page
+      case 'recommendations':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <StudentRecommendationsScreen navigateTo={navigateTo} />;
+
       default:
         return <HomeScreen navigateTo={navigateTo} />;
     }
@@ -204,6 +214,8 @@ export default function ManualNavigator() {
     'principalDashboard',
     'editProfile',
     'examHistory',
+    // ✅ NEW: hide navbar on recommendations (same style as examHistory/editProfile)
+    'recommendations',
   ];
 
   return (
