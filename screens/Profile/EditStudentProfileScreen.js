@@ -1,28 +1,48 @@
+// File: screens/Profile/EditStudentProfileScreen.js
+// ✅ Works on App (iOS/Android) + ✅ Web
+// ✅ Fixes Supabase Storage 400 by uploading bytes (Uint8Array) on mobile instead of RN Blob
+// ✅ Old data shown as placeholders (so you can change only one field)
+// ✅ Uploads to Supabase Storage bucket "avatars" and saves URL to students.avatar_url
+//
+// IMPORTANT (one-time):
+// 1) Create bucket: Storage -> avatars
+// 2) Add policies for storage.objects (insert/select) for bucket_id='avatars'
+// 3) Install image picker (mobile): npx expo install expo-image-picker
+
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 const gradeOptions = ['9', '10', '11', '12'];
 
+const AVATAR_BUCKET = 'avatars';
+const AVATAR_COLUMN = 'avatar_url';
+
 export default function EditStudentProfileScreen({ navigateTo }) {
   const { studentData, updateStudentData, user } = useAuth();
+
   const [saving, setSaving] = useState(false);
 
   const [schools, setSchools] = useState([]);
   const [showSchools, setShowSchools] = useState(false);
 
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  // Keep inputs empty => old values shown as placeholders
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -32,17 +52,26 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     birthday: '',
   });
 
-  // Load student data
+  // Load student data for avatar + defaults for selectors
   useEffect(() => {
     if (!studentData) return;
-    setForm({
-      first_name: studentData.first_name || '',
-      last_name: studentData.last_name || '',
-      phone: studentData.phone || '',
-      school_name: studentData.school_name || '',
-      grade: studentData.grade ? String(studentData.grade) : '',
-      birthday: studentData.birthday || '',
-    });
+
+    const url =
+      (studentData?.[AVATAR_COLUMN] ||
+        studentData?.avatar_url ||
+        studentData?.image_url ||
+        studentData?.profile_image_url ||
+        '')?.toString() || '';
+
+    setAvatarUrl(url);
+
+    // defaults for school/grade/birthday if user hasn't picked them yet
+    setForm((prev) => ({
+      ...prev,
+      school_name: prev.school_name || (studentData?.school_name || ''),
+      grade: prev.grade || (studentData?.grade ? String(studentData.grade) : ''),
+      birthday: prev.birthday || (studentData?.birthday || ''),
+    }));
   }, [studentData]);
 
   // Load schools (Arabic only)
@@ -54,23 +83,11 @@ export default function EditStudentProfileScreen({ navigateTo }) {
         .eq('is_active', true)
         .order('name_ar');
 
-      if (!error && data) {
-        setSchools(data.map((s) => s.name_ar));
-      }
+      if (!error && data) setSchools(data.map((s) => s.name_ar));
     };
 
     loadSchools();
   }, []);
-
-  const canSave = useMemo(() => {
-    return (
-      form.first_name.trim().length > 0 &&
-      form.last_name.trim().length > 0 &&
-      form.school_name.trim().length > 0 &&
-      gradeOptions.includes(String(form.grade)) &&
-      isValidDate(form.birthday)
-    );
-  }, [form]);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -83,6 +100,161 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     return !isNaN(d.getTime());
   }
 
+  // Final values = typed value OR old value
+  const resolved = useMemo(() => {
+    return {
+      first_name: (form.first_name.trim() || studentData?.first_name || '').trim(),
+      last_name: (form.last_name.trim() || studentData?.last_name || '').trim(),
+      phone: (form.phone.trim() || studentData?.phone || '').trim(),
+      school_name: (form.school_name || studentData?.school_name || '').trim(),
+      grade: String(form.grade || studentData?.grade || '').trim(),
+      birthday: String(form.birthday || studentData?.birthday || '').trim(),
+    };
+  }, [form, studentData]);
+
+  const canSave = useMemo(() => {
+    return (
+      resolved.first_name.length > 0 &&
+      resolved.last_name.length > 0 &&
+      resolved.school_name.length > 0 &&
+      gradeOptions.includes(String(resolved.grade)) &&
+      isValidDate(resolved.birthday)
+    );
+  }, [resolved]);
+
+  // ---------------------- AVATAR UPLOAD (FIXED) ----------------------
+  // Web: upload File directly
+  // Mobile: fetch(uri) -> blob -> arrayBuffer -> Uint8Array (avoids Supabase 400)
+  const uploadAvatar = async ({ uri, file }) => {
+    const userId = user?.id || studentData?.user_id || 'unknown';
+
+    let body;
+    let contentType = 'image/jpeg';
+    let ext = 'jpg';
+
+    if (Platform.OS === 'web') {
+      if (!file) throw new Error('No file selected');
+      contentType = file.type || 'image/jpeg';
+
+      // figure ext from mime
+      if (contentType.includes('png')) ext = 'png';
+      else if (contentType.includes('webp')) ext = 'webp';
+      else ext = 'jpg';
+
+      body = file; // ✅ File is supported on web
+    } else {
+      if (!uri) throw new Error('No image uri');
+
+      const resp = await fetch(uri);
+      const blob = await resp.blob();
+      contentType = blob.type || 'image/jpeg';
+
+      if (contentType.includes('png')) ext = 'png';
+      else if (contentType.includes('webp')) ext = 'webp';
+      else ext = 'jpg';
+
+      const ab = await blob.arrayBuffer();
+      body = new Uint8Array(ab); // ✅ This avoids the 400 error on mobile
+    }
+
+    const path = `students/${userId}/${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, body, { upsert: true, contentType });
+
+    if (uploadError) {
+      // Very common if Storage RLS policy is missing
+      throw uploadError;
+    }
+
+    // If bucket is PUBLIC:
+    const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+    const publicUrl = data?.publicUrl;
+
+    if (!publicUrl) {
+      throw new Error('No public URL returned (bucket might be private).');
+    }
+
+    // Save in DB
+    const { error: saveError } = await updateStudentData({ [AVATAR_COLUMN]: publicUrl });
+    if (saveError) throw saveError;
+
+    setAvatarUrl(publicUrl);
+    return publicUrl;
+  };
+
+  const pickAvatarMobile = async () => {
+    // dynamic import so web build never breaks
+    const ImagePicker = await import('expo-image-picker');
+
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow photo access.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    await uploadAvatar({ uri: asset.uri });
+    Alert.alert('Success', 'Profile image updated');
+  };
+
+  const pickAvatarWeb = async () => {
+    if (typeof document === 'undefined') return;
+
+    await new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+
+      input.onchange = async () => {
+        try {
+          const file = input.files?.[0];
+          if (!file) return resolve();
+
+          await uploadAvatar({ file });
+          Alert.alert('Success', 'Profile image updated');
+          resolve();
+        } catch (e) {
+          Alert.alert('Upload failed', e?.message || 'Upload failed');
+          resolve();
+        }
+      };
+
+      input.click();
+    });
+  };
+
+  const handlePickAvatar = async () => {
+    try {
+      setAvatarUploading(true);
+      if (Platform.OS === 'web') await pickAvatarWeb();
+      else await pickAvatarMobile();
+    } catch (e) {
+      Alert.alert(
+        'Upload failed',
+        e?.message ||
+          'Upload failed. If this keeps happening, your Storage policy may be missing.'
+      );
+      // optional debug:
+      // console.log('UPLOAD ERROR', e);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // ---------------------- SAVE PROFILE ----------------------
   const handleSave = async () => {
     if (!canSave) {
       Alert.alert(
@@ -95,12 +267,13 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     setSaving(true);
 
     const updates = {
-      first_name: form.first_name.trim(),
-      last_name: form.last_name.trim(),
-      phone: form.phone.trim(),
-      school_name: form.school_name.trim(), // Arabic name only
-      grade: parseInt(form.grade, 10),
-      birthday: form.birthday,
+      first_name: resolved.first_name,
+      last_name: resolved.last_name,
+      phone: resolved.phone,
+      school_name: resolved.school_name,
+      grade: parseInt(resolved.grade, 10),
+      birthday: resolved.birthday,
+      ...(avatarUrl ? { [AVATAR_COLUMN]: avatarUrl } : {}),
     };
 
     const { error } = await updateStudentData(updates);
@@ -115,7 +288,14 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     navigateTo('profile');
   };
 
-  const Field = ({ label, value, onChangeText, placeholder, keyboardType = 'default' }) => (
+  const Field = ({
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    keyboardType = 'default',
+    autoCapitalize = 'none',
+  }) => (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
@@ -123,15 +303,19 @@ export default function EditStudentProfileScreen({ navigateTo }) {
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#64748b"
-        style={styles.input}
+        style={[styles.input, styles.inputText]}
         keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
       />
     </View>
   );
 
   return (
     <View style={styles.screen}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
           {/* Top bar */}
           <View style={styles.topBar}>
@@ -140,6 +324,40 @@ export default function EditStudentProfileScreen({ navigateTo }) {
             </TouchableOpacity>
             <Text style={styles.title}>Edit Profile</Text>
             <View style={{ width: 42 }} />
+          </View>
+
+          {/* Avatar editor */}
+          <View style={styles.avatarCard}>
+            <View style={styles.avatarWrap}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <FontAwesome name="user" size={26} color="#27ae60" />
+                </View>
+              )}
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.avatarTitle}>Profile photo</Text>
+              <Text style={styles.avatarHint}>
+                {Platform.OS === 'web'
+                  ? 'Choose an image from your computer'
+                  : 'Choose an image from your phone'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.avatarBtn, avatarUploading && { opacity: 0.6 }]}
+              onPress={handlePickAvatar}
+              disabled={avatarUploading}
+              activeOpacity={0.9}
+            >
+              <FontAwesome name="camera" size={16} color="#0F172A" />
+              <Text style={styles.avatarBtnText}>
+                {avatarUploading ? 'Uploading...' : 'Change'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Account */}
@@ -161,21 +379,39 @@ export default function EditStudentProfileScreen({ navigateTo }) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Your details</Text>
 
-            <Field label="First name" value={form.first_name} onChangeText={(v) => setField('first_name', v)} />
-            <Field label="Last name" value={form.last_name} onChangeText={(v) => setField('last_name', v)} />
-            <Field label="Phone" value={form.phone} onChangeText={(v) => setField('phone', v)} keyboardType="phone-pad" />
+            <Field
+              label="First name"
+              value={form.first_name}
+              onChangeText={(v) => setField('first_name', v)}
+              placeholder={studentData?.first_name || 'First name'}
+              autoCapitalize="words"
+            />
+            <Field
+              label="Last name"
+              value={form.last_name}
+              onChangeText={(v) => setField('last_name', v)}
+              placeholder={studentData?.last_name || 'Last name'}
+              autoCapitalize="words"
+            />
+            <Field
+              label="Phone"
+              value={form.phone}
+              onChangeText={(v) => setField('phone', v)}
+              placeholder={studentData?.phone || 'Phone'}
+              keyboardType="phone-pad"
+            />
 
             {/* School selector */}
             <View style={styles.field}>
               <Text style={styles.label}>School (Arabic)</Text>
 
               <TouchableOpacity
-                style={styles.input}
+                style={[styles.input, styles.selectInput]}
                 onPress={() => setShowSchools(!showSchools)}
                 activeOpacity={0.9}
               >
-                <Text style={{ color: form.school_name ? '#fff' : '#64748b' }}>
-                  {form.school_name || 'Select school'}
+                <Text style={{ color: resolved.school_name ? '#fff' : '#64748b' }}>
+                  {resolved.school_name || 'Select school'}
                 </Text>
               </TouchableOpacity>
 
@@ -202,7 +438,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
               <Text style={styles.label}>Grade (9–12)</Text>
               <View style={styles.gradeRow}>
                 {gradeOptions.map((g) => {
-                  const active = String(form.grade) === g;
+                  const active = String(resolved.grade) === g;
                   return (
                     <TouchableOpacity
                       key={g}
@@ -222,7 +458,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
               label="Birth date (YYYY-MM-DD)"
               value={form.birthday}
               onChangeText={(v) => setField('birthday', v)}
-              placeholder="2007-05-19"
+              placeholder={studentData?.birthday || '2007-05-19'}
             />
           </View>
 
@@ -261,6 +497,39 @@ const styles = StyleSheet.create({
   },
   title: { color: '#fff', fontSize: 18, fontWeight: '900' },
 
+  avatarCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(39,174,96,0.35)',
+    backgroundColor: '#0b1223',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  avatarTitle: { color: '#fff', fontWeight: '900' },
+  avatarHint: { color: '#94A3B8', fontWeight: '700', marginTop: 2, fontSize: 12 },
+  avatarBtn: {
+    backgroundColor: '#27ae60',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  avatarBtnText: { color: '#0F172A', fontWeight: '900' },
+
   card: {
     backgroundColor: '#1e293b',
     borderRadius: 18,
@@ -289,6 +558,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
+  inputText: { color: '#fff', fontWeight: '800' },
+  selectInput: { justifyContent: 'center' },
 
   dropdown: {
     backgroundColor: '#0b1223',
@@ -296,6 +567,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    maxHeight: 260,
   },
   dropdownItem: {
     padding: 12,

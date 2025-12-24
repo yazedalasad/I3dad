@@ -1,8 +1,8 @@
 // File: screens/Profile/StudentProfileScreen.js
 
 import { FontAwesome } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function StudentProfileScreen({ navigateTo }) {
@@ -25,13 +25,33 @@ export default function StudentProfileScreen({ navigateTo }) {
     return parts || '—';
   }, [studentData?.city, studentData?.street, studentData?.house_number]);
 
+  // ✅ Clean URL (remove spaces/newlines/quotes) + cache buster
+  const avatarUrlRaw =
+    (studentData?.avatar_url || studentData?.image_url || studentData?.profile_image_url || '')
+      ?.toString()
+      .replace(/[\s"]/g, '')
+      .trim() || '';
+
+  const avatarUrl = avatarUrlRaw
+    ? `${avatarUrlRaw}${avatarUrlRaw.includes('?') ? '&' : '?'}v=${studentData?.updated_at || Date.now()}`
+    : null;
+
+  // ✅ If image fails, show fallback icon instead of blank
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => {
+    setImgFailed(false);
+  }, [avatarUrlRaw]);
+  useEffect(() => {
+     const url = (studentData?.avatar_url || '').toString();
+     console.log('AVATAR_URL_RAW:', JSON.stringify(url));
+  }, [studentData?.avatar_url]);
+
+
   const handleLogout = async () => {
     try {
       await signOut();
       navigateTo('login');
-    } catch (e) {
-      // silent
-    }
+    } catch (e) {}
   };
 
   const InfoLine = ({ label, value }) => (
@@ -41,26 +61,60 @@ export default function StudentProfileScreen({ navigateTo }) {
     </View>
   );
 
+  const showImage = avatarUrl && !imgFailed;
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <FontAwesome name="user" size={30} color="#27ae60" />
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{fullName}</Text>
-          <Text style={styles.subtitle}>{gradeText}</Text>
-        </View>
+      {/* BIG HERO IMAGE */}
+      <View style={styles.heroWrap}>
+        {showImage ? (
+          <>
+            <Image
+              source={{ uri: avatarUrl }}
+              style={styles.heroImage}
+              resizeMode="cover"
+              onError={(e) => {
+                console.log('IMAGE ERROR:', e?.nativeEvent, 'URL:', avatarUrlRaw);
+                setImgFailed(true);
+              }}
+              onLoad={() => console.log('IMAGE LOADED OK')}
+            />
+            <View style={styles.heroOverlay} />
+          </>
+        ) : (
+          <View style={styles.heroFallback}>
+            <FontAwesome name="user" size={56} color="#27ae60" />
+            {/* Optional tiny hint for debugging */}
+            {/* <Text style={{ color: '#94a3b8', marginTop: 8 }}>{avatarUrlRaw ? 'Image failed' : 'No image'}</Text> */}
+          </View>
+        )}
 
         <TouchableOpacity
-          style={styles.iconBtn}
+          style={styles.heroIconBtn}
           onPress={() => navigateTo('settings')}
           activeOpacity={0.85}
         >
-          <FontAwesome name="cog" size={18} color="#94a3b8" />
+          <FontAwesome name="cog" size={18} color="#e2e8f0" />
         </TouchableOpacity>
+
+        <View style={styles.heroTextArea}>
+          <Text style={styles.heroName}>{fullName}</Text>
+          <Text style={styles.heroSubtitle}>{gradeText}</Text>
+        </View>
+
+        {/* Small avatar bubble */}
+        <View style={styles.heroAvatar}>
+          {showImage ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={styles.heroAvatarImg}
+              resizeMode="cover"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <FontAwesome name="user" size={24} color="#27ae60" />
+          )}
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -164,7 +218,6 @@ export default function StudentProfileScreen({ navigateTo }) {
           </View>
         )}
 
-        {/* NEW: Recommendations button */}
         <TouchableOpacity
           style={styles.changePasswordBtn}
           onPress={() => navigateTo('recommendations')}
@@ -174,7 +227,6 @@ export default function StudentProfileScreen({ navigateTo }) {
           <Text style={styles.changePasswordText}>التوصيات</Text>
         </TouchableOpacity>
 
-        {/* Bottom actions */}
         <TouchableOpacity
           style={styles.changePasswordBtn}
           onPress={() => navigateTo('examHistory')}
@@ -207,38 +259,64 @@ export default function StudentProfileScreen({ navigateTo }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0b1223' },
 
-  header: {
-    paddingTop: 22,
-    paddingHorizontal: 18,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
+  heroWrap: {
+    height: 260,
     backgroundColor: '#0f172a',
-    borderWidth: 2,
-    borderColor: 'rgba(39,174,96,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(148,163,184,0.12)',
+    position: 'relative', // ✅ important for web
   },
-  name: { color: '#e2e8f0', fontSize: 18, fontWeight: '900' },
-  subtitle: { color: '#94a3b8', fontSize: 13, marginTop: 2, fontWeight: '700' },
-  iconBtn: {
-    width: 42,
-    height: 42,
+  heroImage: {
+    position: 'absolute', // ✅ important for web
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(11,18,35,0.55)',
+  },
+  heroFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  heroIconBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15,23,42,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(148,163,184,0.18)',
   },
 
-  content: { padding: 18, paddingTop: 10 },
+  heroTextArea: { position: 'absolute', left: 18, right: 18, bottom: 20 },
+  heroName: { color: '#e2e8f0', fontSize: 22, fontWeight: '900' },
+  heroSubtitle: { color: '#94a3b8', fontSize: 13, marginTop: 4, fontWeight: '800' },
+
+  heroAvatar: {
+    position: 'absolute',
+    left: 18,
+    top: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#0b1223',
+    borderWidth: 2,
+    borderColor: 'rgba(39,174,96,0.35)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroAvatarImg: { width: '100%', height: '100%' },
+
+  content: { padding: 18, paddingTop: 14 },
 
   statsCard: {
     backgroundColor: '#0f172a',
@@ -341,3 +419,4 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: '#e74c3c', fontWeight: '900', fontSize: 15 },
 });
+  
