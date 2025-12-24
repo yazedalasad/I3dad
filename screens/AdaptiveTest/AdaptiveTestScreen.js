@@ -1,11 +1,12 @@
-import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native';
 
 import ProgressIndicator from '../../components/AdaptiveTest/ProgressIndicator';
@@ -18,10 +19,6 @@ import interestService from '../../services/interestService';
 const QUESTION_TIME_LIMIT = 60;
 const HEARTBEAT_MS = 15000;
 
-function pickGuaranteedWrongAnswer(correct) {
-  return ['A', 'B', 'C', 'D'].find((x) => x !== correct) || 'A';
-}
-
 export default function AdaptiveTestScreen({
   navigateTo,
   sessionId,
@@ -30,7 +27,7 @@ export default function AdaptiveTestScreen({
   subjectIds,
   language = 'ar',
   isComprehensive = true,
-  subjectNames
+  subjectNames,
 }) {
   /* -------------------- STATE -------------------- */
   const [initializing, setInitializing] = useState(true);
@@ -46,14 +43,26 @@ export default function AdaptiveTestScreen({
 
   const [skippedCount, setSkippedCount] = useState(0);
 
-  // ✅ History (allows student to go back and view previous questions WITHOUT showing correctness)
-  const [history, setHistory] = useState([]); // [{ question, selectedAnswer, timeTakenSeconds }]
-  const [viewingHistoryIndex, setViewingHistoryIndex] = useState(null); // number | null
+  /**
+   * history items:
+   * {
+   *   question,
+   *   selectedAnswer, // string|null
+   *   timeTakenSeconds, // number|null
+   *   status: 'answered' | 'pending',
+   *   timeLeftWhenLeft: number|null, // ✅ for pending resume (e.g. 30)
+   * }
+   */
+  const [history, setHistory] = useState([]);
+  const [viewingHistoryIndex, setViewingHistoryIndex] = useState(null);
 
   const timerRef = useRef(null);
   const heartbeatRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
   const examStartRef = useRef(Date.now());
+
+  // ✅ keep current question paused time if user jumps away (optional but helpful)
+  const pausedCurrentTimeLeftRef = useRef(null);
 
   /* -------------------- DERIVED -------------------- */
   const totals = useMemo(() => {
@@ -72,21 +81,51 @@ export default function AdaptiveTestScreen({
       answered,
       correct,
       incorrect: Math.max(0, answered - correct),
-      target
+      target,
     };
   }, [subjectStates]);
 
-  const isViewingPastQuestion = typeof viewingHistoryIndex === 'number';
+  const isViewingHistory = typeof viewingHistoryIndex === 'number';
+  const viewedItem = isViewingHistory ? history[viewingHistoryIndex] : null;
+  const isViewingPending = !!viewedItem && viewedItem.status === 'pending';
+  const isViewingAnswered = !!viewedItem && viewedItem.status === 'answered';
 
   const shownQuestion = useMemo(() => {
-    if (!isViewingPastQuestion) return question;
+    if (!isViewingHistory) return question;
     return history[viewingHistoryIndex]?.question || question;
-  }, [isViewingPastQuestion, question, history, viewingHistoryIndex]);
+  }, [isViewingHistory, question, history, viewingHistoryIndex]);
 
   const shownSelectedAnswer = useMemo(() => {
-    if (!isViewingPastQuestion) return selectedAnswer;
+    if (!isViewingHistory) return selectedAnswer;
     return history[viewingHistoryIndex]?.selectedAnswer ?? null;
-  }, [isViewingPastQuestion, selectedAnswer, history, viewingHistoryIndex]);
+  }, [isViewingHistory, selectedAnswer, history, viewingHistoryIndex]);
+
+  // ✅ Question navigator squares:
+  // - history items are numbered 1..history.length
+  // - current question square is history.length + 1
+  const currentQuestionNumber = history.length + 1;
+
+  const navItems = useMemo(() => {
+    const hist = (history || []).map((h, idx) => ({
+      key: `h-${idx}`,
+      number: idx + 1,
+      type: 'history',
+      index: idx,
+      answered: h?.status === 'answered',
+      pending: h?.status === 'pending',
+    }));
+
+    const cur = {
+      key: `c-${currentQuestionNumber}`,
+      number: currentQuestionNumber,
+      type: 'current',
+      index: null,
+      answered: false,
+      pending: false,
+    };
+
+    return [...hist, cur];
+  }, [history, currentQuestionNumber]);
 
   /* -------------------- INIT -------------------- */
   useEffect(() => {
@@ -125,7 +164,7 @@ export default function AdaptiveTestScreen({
         sessionId,
         studentId,
         eventType: 'heartbeat',
-        metadata: { screen: 'AdaptiveTestScreen' }
+        metadata: { screen: 'AdaptiveTestScreen' },
       });
     }, HEARTBEAT_MS);
   }
@@ -154,21 +193,21 @@ export default function AdaptiveTestScreen({
       sessionId,
       studentId,
       eventType: nextState === 'active' ? 'focus' : 'blur',
-      metadata: { prev, next: nextState }
+      metadata: { prev, next: nextState },
     });
   }
 
   /* -------------------- TIMER -------------------- */
-  function startTimer() {
+  function startTimer(initialSeconds = QUESTION_TIME_LIMIT) {
     stopTimer();
     questionStartRef.current = Date.now();
-    setTimeLeft(QUESTION_TIME_LIMIT);
+    setTimeLeft(initialSeconds);
 
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
           stopTimer();
-          handleAutoTimeout();
+          handleAutoTimeout(); // Option A => becomes pending
           return 0;
         }
         return t - 1;
@@ -181,8 +220,15 @@ export default function AdaptiveTestScreen({
     timerRef.current = null;
   }
 
-  function getTimeTaken() {
-    return Math.floor((Date.now() - questionStartRef.current) / 1000);
+  function getTimeTakenFromLimit(limitSeconds) {
+    // time taken = limit - remaining
+    const taken = Math.max(0, Math.floor(limitSeconds - safeNum(timeLeft, 0)));
+    return taken;
+  }
+
+  function safeNum(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
   }
 
   /* -------------------- QUESTIONS -------------------- */
@@ -192,14 +238,14 @@ export default function AdaptiveTestScreen({
     // leaving history mode when fetching a new question
     setViewingHistoryIndex(null);
     setSelectedAnswer(null);
+    pausedCurrentTimeLeftRef.current = null;
 
     try {
       const next = await adaptiveTestService.getNextQuestion({
         sessionId,
-        subjectStates: currentStates
+        subjectStates: currentStates,
       });
 
-      // ✅ IMPORTANT: handle completion error
       if (next?.success === false) {
         console.log('Next question error:', next.error);
 
@@ -218,7 +264,7 @@ export default function AdaptiveTestScreen({
       }
 
       setQuestion(next.question);
-      startTimer();
+      startTimer(QUESTION_TIME_LIMIT);
     } catch (e) {
       console.log('loadNextQuestion error:', e);
     } finally {
@@ -227,134 +273,189 @@ export default function AdaptiveTestScreen({
   }
 
   async function handleAnswer(answer) {
-    // ✅ If student is viewing a past question, don't allow submitting changes (safe + simple)
-    if (isViewingPastQuestion) return;
     if (submitting || fetchingQuestion) return;
+
+    // If viewing history:
+    // - answered items are view-only
+    // - pending items CAN be answered now (Option A)
+    if (isViewingHistory && isViewingAnswered) return;
+
+    const activeQuestion = shownQuestion;
+    if (!activeQuestion) return;
 
     setSelectedAnswer(answer);
     setSubmitting(true);
     stopTimer();
 
+    // time taken depends on where we started the timer:
+    // - current question uses QUESTION_TIME_LIMIT
+    // - pending question started at its timeLeftWhenLeft
+    const limitForThisAttempt =
+      isViewingHistory && isViewingPending
+        ? safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT)
+        : QUESTION_TIME_LIMIT;
+
+    const timeTakenSeconds =
+      isViewingHistory && isViewingPending
+        ? Math.max(0, Math.floor(limitForThisAttempt - safeNum(timeLeft, 0)))
+        : Math.floor((Date.now() - questionStartRef.current) / 1000);
+
     const result = await adaptiveTestService.submitComprehensiveAnswer({
       sessionId,
       studentId,
-      question,
+      question: activeQuestion,
       selectedAnswer: answer,
-      timeTakenSeconds: getTimeTaken(),
+      timeTakenSeconds,
       subjectStates,
-      questionOrder: totals.answered + 1
+      questionOrder: isViewingHistory ? viewingHistoryIndex + 1 : history.length + 1,
+      subjectStatesFromUi: subjectStates,
     });
 
     if (!result?.success) {
       setSubmitting(false);
-      startTimer();
+
+      // Resume timer from where user was
+      if (isViewingHistory && isViewingPending) {
+        startTimer(safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT));
+      } else {
+        startTimer(QUESTION_TIME_LIMIT);
+      }
       return;
     }
 
-    // ✅ Save answered question into local history (for "Back" viewing)
+    // ✅ Update history:
+    // - if answering current question => append answered item
+    // - if answering pending history => update that item to answered
+    if (isViewingHistory && isViewingPending) {
+      setHistory((prev) => {
+        const copy = [...prev];
+        const old = copy[viewingHistoryIndex];
+        copy[viewingHistoryIndex] = {
+          ...old,
+          selectedAnswer: answer,
+          timeTakenSeconds,
+          status: 'answered',
+          timeLeftWhenLeft: null,
+        };
+        return copy;
+      });
+
+      // after answering pending: go back to current question and resume from paused time (if any)
+      setSubmitting(false);
+      setSubjectStates(result.subjectStates);
+
+      setViewingHistoryIndex(null);
+      const paused = pausedCurrentTimeLeftRef.current;
+      if (paused != null) startTimer(paused);
+      else startTimer(QUESTION_TIME_LIMIT);
+
+      return;
+    }
+
+    // answering the current question
     setHistory((prev) => [
       ...prev,
-      { question, selectedAnswer: answer, timeTakenSeconds: getTimeTaken() }
+      {
+        question: activeQuestion,
+        selectedAnswer: answer,
+        timeTakenSeconds,
+        status: 'answered',
+        timeLeftWhenLeft: null,
+      },
     ]);
 
-    // ✅ No correctness feedback shown
     setSubmitting(false);
     setSubjectStates(result.subjectStates);
     await loadNextQuestion(result.subjectStates);
   }
 
+  // ✅ OPTION A: Skip means "leave unanswered" (pending) and move on WITHOUT DB submit
   async function handleSkipQuestion() {
-    if (isViewingPastQuestion) return;
     if (submitting || fetchingQuestion) return;
+    if (!question) return;
+    if (isViewingHistory) return; // skip only makes sense on current
 
     setSubmitting(true);
     stopTimer();
 
-    const wrong = pickGuaranteedWrongAnswer(question.correct_answer);
+    const remaining = safeNum(timeLeft, QUESTION_TIME_LIMIT);
 
-    const result = await adaptiveTestService.submitComprehensiveAnswer({
-      sessionId,
-      studentId,
-      question,
-      selectedAnswer: wrong,
-      timeTakenSeconds: getTimeTaken(),
-      subjectStates,
-      questionOrder: totals.answered + 1
-    });
-
-    // Save history (still no correctness)
+    // store pending question with remaining time
     setHistory((prev) => [
       ...prev,
-      { question, selectedAnswer: null, timeTakenSeconds: getTimeTaken() }
+      {
+        question,
+        selectedAnswer: null,
+        timeTakenSeconds: null,
+        status: 'pending',
+        timeLeftWhenLeft: remaining, // ✅ resume from here
+      },
     ]);
 
     setSkippedCount((c) => c + 1);
 
     setSubmitting(false);
-    if (result?.success) {
-      setSubjectStates(result.subjectStates);
-      await loadNextQuestion(result.subjectStates);
-      return;
-    }
 
-    // If failed, restart timer on same question
-    startTimer();
+    // move forward to next question WITHOUT submit
+    await loadNextQuestion(subjectStates);
   }
 
+  // ✅ OPTION A: Timeout also becomes pending (timeLeftWhenLeft = 0)
   async function handleAutoTimeout() {
-    if (isViewingPastQuestion) return;
-    if (submitting) return;
+    if (submitting || fetchingQuestion) return;
+    if (!question) return;
+    if (isViewingHistory) return;
 
     setSubmitting(true);
-
-    const wrong = pickGuaranteedWrongAnswer(question.correct_answer);
-
-    const result = await adaptiveTestService.submitComprehensiveAnswer({
-      sessionId,
-      studentId,
-      question,
-      selectedAnswer: wrong,
-      timeTakenSeconds: QUESTION_TIME_LIMIT,
-      subjectStates,
-      questionOrder: totals.answered + 1
-    });
+    stopTimer();
 
     setHistory((prev) => [
       ...prev,
-      { question, selectedAnswer: null, timeTakenSeconds: QUESTION_TIME_LIMIT }
+      {
+        question,
+        selectedAnswer: null,
+        timeTakenSeconds: null,
+        status: 'pending',
+        timeLeftWhenLeft: 0, // resume from 0 => effectively no time, but rule is respected
+      },
     ]);
 
     setSkippedCount((c) => c + 1);
 
     setSubmitting(false);
-    if (result?.success) {
-      setSubjectStates(result.subjectStates);
-      await loadNextQuestion(result.subjectStates);
+    await loadNextQuestion(subjectStates);
+  }
+
+  /* -------------------- NAVIGATOR -------------------- */
+  function jumpToQuestion(item) {
+    if (submitting || fetchingQuestion) return;
+
+    // Jump to current question
+    if (item.type === 'current') {
+      setViewingHistoryIndex(null);
+
+      // Resume current timer if it was paused
+      const paused = pausedCurrentTimeLeftRef.current;
+      startTimer(paused != null ? paused : QUESTION_TIME_LIMIT);
+
       return;
     }
-  }
 
-  /* -------------------- HISTORY NAV (VIEW ONLY) -------------------- */
-  function goBackOne() {
-    if (submitting || fetchingQuestion) return;
-    if (!history.length) return;
+    // Jump to history item
+    // If leaving current question (unanswered), pause its remaining time
+    if (!isViewingHistory) {
+      pausedCurrentTimeLeftRef.current = safeNum(timeLeft, QUESTION_TIME_LIMIT);
+    }
 
-    stopTimer(); // don't run timer when viewing past questions
+    stopTimer();
+    setViewingHistoryIndex(item.index);
 
-    const idx = typeof viewingHistoryIndex === 'number'
-      ? viewingHistoryIndex - 1
-      : history.length - 1;
-
-    if (idx < 0) return;
-
-    setViewingHistoryIndex(idx);
-  }
-
-  function returnToCurrentQuestion() {
-    if (submitting || fetchingQuestion) return;
-    setViewingHistoryIndex(null);
-    // restart timer fresh for current question
-    startTimer();
+    // If opening a pending question, start timer from saved remaining
+    const target = history[item.index];
+    if (target?.status === 'pending') {
+      const remain = safeNum(target.timeLeftWhenLeft, 0);
+      startTimer(remain);
+    }
   }
 
   /* -------------------- FINISH -------------------- */
@@ -362,9 +463,7 @@ export default function AdaptiveTestScreen({
     stopTimer();
     stopHeartbeat();
 
-    const totalTimeSpentSeconds = Math.floor(
-      (Date.now() - examStartRef.current) / 1000
-    );
+    const totalTimeSpentSeconds = Math.floor((Date.now() - examStartRef.current) / 1000);
 
     await adaptiveTestService.completeComprehensiveAssessment({
       sessionId,
@@ -372,7 +471,7 @@ export default function AdaptiveTestScreen({
       subjectStates: finalStates,
       totalTimeSpentSeconds,
       skippedCount,
-      language
+      language,
     });
 
     try {
@@ -380,14 +479,13 @@ export default function AdaptiveTestScreen({
       await interestService.updateInterestsFromSession(sessionId);
     } catch {}
 
-    // ✅ ✅ CONNECT TO PERSONALITY PART (same exam)
     navigateTo('personalityTest', {
       studentId,
       language,
-      abilitySessionId: sessionId,   // pass ability session id
+      abilitySessionId: sessionId,
       subjectNames,
       skippedCount,
-      totalTimeSpent: totalTimeSpentSeconds
+      totalTimeSpent: totalTimeSpentSeconds,
     });
   }
 
@@ -401,51 +499,96 @@ export default function AdaptiveTestScreen({
     );
   }
 
+  const showViewOnlyChip = isViewingHistory && isViewingAnswered;
+  const showPendingChip = isViewingHistory && isViewingPending;
+
   return (
     <View style={styles.container}>
-      {/* Minimal progress (no correctness feedback shown) */}
       <ProgressIndicator
         current={totals.answered}
         total={totals.target}
-        timeLeft={isViewingPastQuestion ? null : timeLeft}
+        timeLeft={timeLeft}
         correctCount={totals.correct}
         incorrectCount={totals.incorrect}
         skippedCount={skippedCount}
       />
 
-      {/* Small helper line for back/view mode */}
-      {history.length > 0 && (
-        <View style={styles.historyRow}>
-          <Text style={styles.historyText}>
-            {isViewingPastQuestion
-              ? 'عرض سؤال سابق (بدون نتائج)'
-              : 'يمكنك الرجوع لعرض سؤال سابق (بدون نتائج)'}
-          </Text>
+      {/* ✅ Question Navigator (small squares) */}
+      {(history.length > 0 || question) && (
+        <View style={styles.navigatorWrap}>
+          <View style={styles.navigatorHeader}>
+            <Text style={styles.navigatorTitle}>
+              {language === 'ar' ? 'الأسئلة' : 'שאלות'}
+            </Text>
 
-          <View style={styles.historyBtns}>
-            {!isViewingPastQuestion ? (
-              <Text style={styles.historyBtn} onPress={goBackOne}>
-                <FontAwesome name="arrow-left" size={14} color="#1E4FBF" /> رجوع
-              </Text>
-            ) : (
-              <Text style={styles.historyBtn} onPress={returnToCurrentQuestion}>
-                رجوع للسؤال الحالي <FontAwesome name="arrow-right" size={14} color="#1E4FBF" />
-              </Text>
+            {showViewOnlyChip && (
+              <View style={styles.viewOnlyChip}>
+                <Text style={styles.viewOnlyText}>
+                  {language === 'ar' ? 'عرض فقط' : 'צפייה בלבד'}
+                </Text>
+              </View>
+            )}
+
+            {showPendingChip && (
+              <View style={styles.pendingChip}>
+                <Text style={styles.pendingText}>
+                  {language === 'ar' ? 'معلق - يمكنك الإجابة' : 'ממתין - אפשר לענות'}
+                </Text>
+              </View>
             )}
           </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.navigatorRow}
+          >
+            {navItems.map((it) => {
+              const isActive =
+                (it.type === 'current' && !isViewingHistory) ||
+                (it.type === 'history' && viewingHistoryIndex === it.index);
+
+              return (
+                <Pressable
+                  key={it.key}
+                  onPress={() => jumpToQuestion(it)}
+                  style={({ pressed }) => [
+                    styles.navSquare,
+                    it.type === 'current' && styles.navSquareCurrent,
+                    it.answered && styles.navSquareAnswered,
+                    it.pending && styles.navSquarePending,
+                    isActive && styles.navSquareActive,
+                    pressed && styles.navSquarePressed,
+                  ]}
+                >
+                  <Text style={[styles.navSquareText, isActive && styles.navSquareTextActive]}>
+                    {it.number}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <Text style={styles.navigatorHint}>
+            {language === 'ar'
+              ? 'اضغط رقم السؤال للرجوع. الأسئلة المعلقة يمكن الإجابة عنها والوقت يكمل من حيث توقفت.'
+              : 'לחץ/י על מספר. בשאלות ממתינות אפשר לענות והזמן ממשיך מאיפה שעצרת.'}
+          </Text>
         </View>
       )}
 
       <QuestionCard
         question={shownQuestion}
         selectedAnswer={shownSelectedAnswer}
-        disabled={submitting || isViewingPastQuestion} // ✅ lock answers while viewing history
+        // ✅ allow answering ONLY if:
+        // - not viewing history, OR viewing a pending question
+        disabled={submitting || (isViewingHistory && isViewingAnswered)}
         onAnswerSelect={handleAnswer}
-        onSkipQuestion={handleSkipQuestion}
+        // ✅ allow skip only on current question (not while viewing history)
+        onSkipQuestion={isViewingHistory ? null : handleSkipQuestion}
         language={language}
-        timeRemaining={isViewingPastQuestion ? null : timeLeft}
+        timeRemaining={timeLeft}
         maxTime={QUESTION_TIME_LIMIT}
-        // ✅ IMPORTANT: do not show correct/wrong during exam
         showFeedback={false}
         isCorrect={false}
       />
@@ -459,40 +602,113 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12
+    gap: 12,
   },
   centerText: {
     fontWeight: '800',
-    color: '#41547F'
+    color: '#41547F',
   },
 
-  historyRow: {
+  /* ---------- navigator ---------- */
+  navigatorWrap: {
     marginHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 2,
+    marginTop: 8,
+    marginBottom: 6,
     padding: 10,
     borderRadius: 14,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E5ECFF',
+  },
+  navigatorHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
-  historyText: {
+  navigatorTitle: {
+    color: '#102A68',
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  viewOnlyChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(148, 163, 184, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.35)',
+  },
+  viewOnlyText: {
+    color: '#546A99',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  pendingChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(245, 179, 1, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 179, 1, 0.28)',
+  },
+  pendingText: {
+    color: '#B37A00',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  navigatorRow: {
+    gap: 8,
+    paddingVertical: 2,
+    paddingRight: 4,
+  },
+  navigatorHint: {
+    marginTop: 8,
     color: '#546A99',
     fontWeight: '800',
-    flex: 1,
-    textAlign: 'right'
+    textAlign: 'right',
+    fontSize: 12,
+    lineHeight: 18,
   },
-  historyBtns: {
-    flexDirection: 'row-reverse',
+
+  navSquare: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFF',
     alignItems: 'center',
-    gap: 10
+    justifyContent: 'center',
   },
-  historyBtn: {
+  navSquarePressed: { transform: [{ scale: 0.98 }] },
+
+  // states (NO correctness!)
+  navSquareAnswered: {
+    borderColor: '#1E4FBF',
+    backgroundColor: '#EEF2FF',
+  },
+  navSquarePending: {
+    borderColor: '#F5B301',
+    backgroundColor: 'rgba(245,179,1,0.12)',
+  },
+  navSquareCurrent: {
+    borderStyle: 'dashed',
+    borderColor: '#94A3B8',
+    backgroundColor: '#fff',
+  },
+
+  navSquareActive: {
+    borderWidth: 2,
+    borderColor: '#1E4FBF',
+  },
+  navSquareText: {
+    color: '#0F172A',
+    fontWeight: '900',
+  },
+  navSquareTextActive: {
     color: '#1E4FBF',
-    fontWeight: '900'
-  }
+  },
 });

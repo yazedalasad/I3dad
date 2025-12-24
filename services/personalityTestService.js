@@ -30,6 +30,9 @@
 
 import { supabase } from '../config/supabase';
 
+/** ✅ Fast finish after N questions */
+const FAST_RESULT_LIMIT = 12;
+
 /* ----------------------------- helpers ----------------------------- */
 
 function quoteUuidsForIn(ids = []) {
@@ -125,8 +128,9 @@ export async function startPersonalityTest(studentId, language = 'ar') {
       .insert({
         student_id: studentId,
         language: lang,
-        total_questions: 20,
+        total_questions: FAST_RESULT_LIMIT, // ✅ fast mode
         status: 'in_progress',
+        questions_answered: 0,
       })
       .select()
       .single();
@@ -156,6 +160,12 @@ export async function getPersonalityQuestion(sessionId) {
       return { success: false, error: 'Session is not in progress' };
     }
 
+    // ✅ If session already reached fast limit, stop
+    const answeredByCounter = safeNumber(session.questions_answered, 0);
+    if (answeredByCounter >= FAST_RESULT_LIMIT) {
+      return { success: false, finished: true, error: 'Reached fast limit' };
+    }
+
     // Fetch answered question ids + their dimension_id (if any)
     const { data: responses, error: responsesError } = await supabase
       .from('personality_responses')
@@ -174,6 +184,14 @@ export async function getPersonalityQuestion(sessionId) {
         dimensionCounts[dimensionId] = (dimensionCounts[dimensionId] || 0) + 1;
       }
     });
+
+    // ✅ true answered count = usedQuestionIds length
+    const answered = usedQuestionIds.length;
+
+    // ✅ stop if reached limit
+    if (answered >= FAST_RESULT_LIMIT) {
+      return { success: false, finished: true, error: 'Reached fast limit' };
+    }
 
     // All active dimensions (ordered)
     const { data: dimensions, error: dimErr } = await supabase
@@ -216,7 +234,32 @@ export async function getPersonalityQuestion(sessionId) {
     if (questionsError) throw questionsError;
 
     if (!questions || questions.length === 0) {
-      return { success: false, error: 'No more questions available' };
+      // fallback: try any dimension if target has no remaining
+      let fallbackQ = supabase
+        .from('personality_questions')
+        .select('*, personality_dimensions(*)')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .limit(25);
+
+      if (usedQuestionIds.length > 0) {
+        fallbackQ = fallbackQ.not('id', 'in', quoteUuidsForIn(usedQuestionIds));
+      }
+
+      const { data: fallbackQuestions, error: fallbackError } = await fallbackQ;
+      if (fallbackError) throw fallbackError;
+
+      if (!fallbackQuestions || fallbackQuestions.length === 0) {
+        return { success: false, error: 'No more questions available' };
+      }
+
+      const question = fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)];
+
+      return {
+        success: true,
+        question,
+        progress: { answered, total: FAST_RESULT_LIMIT },
+      };
     }
 
     const question = questions[Math.floor(Math.random() * questions.length)];
@@ -225,8 +268,8 @@ export async function getPersonalityQuestion(sessionId) {
       success: true,
       question,
       progress: {
-        answered: usedQuestionIds.length,
-        total: safeNumber(session.total_questions, 50),
+        answered,
+        total: FAST_RESULT_LIMIT,
       },
     };
   } catch (error) {
@@ -263,7 +306,12 @@ export async function submitPersonalityAnswer(sessionId, questionId, answer, tim
     if (!session) throw new Error('Session not found');
     if (session.status !== 'in_progress') throw new Error('Session is not in progress');
 
-    const nextOrder = safeNumber(session.questions_answered, 0) + 1;
+    const alreadyAnswered = safeNumber(session.questions_answered, 0);
+    if (alreadyAnswered >= FAST_RESULT_LIMIT) {
+      return { success: false, error: 'Reached fast limit' };
+    }
+
+    const nextOrder = alreadyAnswered + 1;
 
     const responseData = {
       session_id: sessionId,
@@ -494,7 +542,6 @@ export async function completePersonalityTest(sessionId) {
         }
 
         // Weight: top ranks count more (10..1)
-        // If fewer items, still works.
         const topK = Math.min(10, orderedIds.length);
         for (let i = 0; i < topK; i++) {
           const id = orderedIds[i];
@@ -527,7 +574,7 @@ export async function completePersonalityTest(sessionId) {
       return { avg: a.sum / a.count, min: a.min, max: a.max, count: a.count };
     }
 
-    // numeric base scores 0..100 (can be 0 if no numeric questions for that dimension)
+    // numeric base scores 0..100
     const o = avgFor('O');
     const c = avgFor('C');
     const e = avgFor('E');
@@ -542,8 +589,7 @@ export async function completePersonalityTest(sessionId) {
       N: scaleTo100(n.avg, n.min, n.max),
     };
 
-    // delta contribution converted to 0..100 with a reasonable expected range
-    // ranking weights can get large; pick a bigger range.
+    // delta contribution converted to 0..100
     const deltaRange = 120; // tweak later if needed
     const delta100 = {
       O: deltasTo100(delta.O, deltaRange),
@@ -553,8 +599,6 @@ export async function completePersonalityTest(sessionId) {
       N: deltasTo100(delta.N, deltaRange),
     };
 
-    // Combine:
-    // If a dimension has base numeric questions, use mostly base; otherwise rely on delta.
     function combine(code) {
       const numericCount = aggNumeric[code]?.count || 0;
       const wBase = numericCount > 0 ? 0.75 : 0.0;
@@ -568,8 +612,12 @@ export async function completePersonalityTest(sessionId) {
     const agreeableness = combine('A');
     const neuroticism = combine('N');
 
-    // Confidence: based on answeredCount (all types)
-    const confidenceLevel = clamp(Math.round((answeredCount / 50) * 100), 0, 100);
+    // ✅ Confidence: based on answeredCount vs fast limit
+    const confidenceLevel = clamp(
+      Math.round((answeredCount / FAST_RESULT_LIMIT) * 100),
+      0,
+      100
+    );
 
     const profileRow = {
       student_id: session.student_id,
@@ -594,6 +642,7 @@ export async function completePersonalityTest(sessionId) {
         },
         delta_raw: delta,
         delta_range: deltaRange,
+        fast_limit: FAST_RESULT_LIMIT,
       },
     };
 
@@ -652,7 +701,10 @@ export async function generatePersonalityInsights(studentId, sessionId, profileO
       );
 
     if (insightsError) {
-      console.log('Insights not saved (optional table missing or error):', insightsError?.message || insightsError);
+      console.log(
+        'Insights not saved (optional table missing or error):',
+        insightsError?.message || insightsError
+      );
       return { success: false, error: insightsError?.message || String(insightsError) };
     }
 

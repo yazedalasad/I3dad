@@ -33,13 +33,12 @@ import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScree
 import ExamHistoryScreen from '../screens/Profile/ExamHistoryScreen';
 import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
 
-// ✅ NEW: Recommendations screen
+// ✅ Recommendations screen
 import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendationsScreen';
 
-// ✅ ADD: Personality screens (you already created PersonalityTestScreen)
-import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
-// If you created this file, keep it. If not yet, you can remove these two lines for now.
+// ✅ Personality screens
 import PersonalityResultsScreen from '../screens/AdaptiveTest/PersonalityResultsScreen';
+import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
 
 export default function ManualNavigator() {
   const { user, loading, studentData } = useAuth();
@@ -146,7 +145,7 @@ export default function ManualNavigator() {
           />
         );
 
-      // ✅ Combined results entry (we will upgrade TestResultsScreen later to show personality too)
+      // ✅ Combined results entry
       case 'testResults':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -154,36 +153,34 @@ export default function ManualNavigator() {
             navigateTo={navigateTo}
             sessionId={screenParams.sessionId}
             subjectId={screenParams.subjectId}
-            // ✅ pass personality session if available (ability -> personality -> results)
             personalitySessionId={screenParams.personalitySessionId || null}
-            // ✅ useful for loading profile by student if needed later
             studentId={screenParams.studentId || studentData?.id}
             language={screenParams.language || 'ar'}
           />
         );
 
-      // ✅ PERSONALITY PART (SECOND PART OF EXAM)
+      // ✅ PERSONALITY TEST
       case 'personalityTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
           <PersonalityTestScreen
             navigateTo={navigateTo}
-            // use params first, fallback to studentData
             studentId={screenParams.studentId || studentData?.id}
             language={screenParams.language || 'ar'}
-            // this is the ability session id coming from finishTest()
             abilitySessionId={screenParams.abilitySessionId || null}
-            // optional resume
             existingPersonalitySessionId={screenParams.existingPersonalitySessionId || null}
           />
         );
 
+      // ✅ PERSONALITY RESULTS
       case 'personalityResults':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
           <PersonalityResultsScreen
             navigateTo={navigateTo}
-            profiles={screenParams.profiles}
+            // ✅ PersonalityResultsScreen expects studentId (NOT profiles)
+            studentId={screenParams.studentId || studentData?.id}
+            language={screenParams.language || 'ar'}
           />
         );
 
@@ -203,12 +200,10 @@ export default function ManualNavigator() {
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <EditStudentProfileScreen navigateTo={navigateTo} />;
 
-      // ✅ NEW: Exam history (opens full radar per session)
       case 'examHistory':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <ExamHistoryScreen navigateTo={navigateTo} />;
 
-      // ✅ NEW: Recommendations page
       case 'recommendations':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <StudentRecommendationsScreen navigateTo={navigateTo} />;
@@ -241,11 +236,11 @@ export default function ManualNavigator() {
     'principalDashboard',
     'editProfile',
     'examHistory',
-    // ✅ NEW: hide navbar on recommendations (same style as examHistory/editProfile)
     'recommendations',
-    // ✅ optional: hide navbar during exam parts
+    // ✅ hide navbar during exam parts
     'startAdaptiveTest',
     'personalityTest',
+    'personalityResults',
     'testResults',
   ];
 

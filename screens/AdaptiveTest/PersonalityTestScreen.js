@@ -21,14 +21,15 @@ import {
   submitPersonalityAnswer,
 } from '../../services/personalityTestService';
 
-const DEFAULT_TOTAL = 20;
+// ✅ how many questions before we jump to results fast
+const FAST_RESULT_LIMIT = 12;
 
 export default function PersonalityTestScreen({
   navigateTo,
   studentId,
   language = 'ar',
-  abilitySessionId = null, // pass from ability exam so we can go back to combined results later
-  existingPersonalitySessionId = null, // optional if you want to resume
+  abilitySessionId = null, // pass from ability exam if exists
+  existingPersonalitySessionId = null, // optional resume
 }) {
   const [initializing, setInitializing] = useState(true);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
@@ -36,16 +37,18 @@ export default function PersonalityTestScreen({
 
   const [sessionId, setSessionId] = useState(existingPersonalitySessionId);
   const [question, setQuestion] = useState(null);
-  const [progress, setProgress] = useState({ answered: 0, total: DEFAULT_TOTAL });
 
-  // answers (existing)
+  // We show total = FAST_RESULT_LIMIT (fast mode)
+  const [progress, setProgress] = useState({ answered: 0, total: FAST_RESULT_LIMIT });
+
+  // answers
   const [scaleValue, setScaleValue] = useState(null);
   const [choiceIndex, setChoiceIndex] = useState(null);
   const [textValue, setTextValue] = useState('');
 
-  // answers (new types)
+  // extra types
   const [forcedChoice, setForcedChoice] = useState(null); // 'A' | 'B'
-  const [rankingOrder, setRankingOrder] = useState([]); // array of option items (ordered)
+  const [rankingOrder, setRankingOrder] = useState([]); // ordered items
 
   const questionStartRef = useRef(Date.now());
   const isArabic = String(language).toLowerCase() !== 'he';
@@ -62,7 +65,6 @@ export default function PersonalityTestScreen({
   }, [question, isArabic]);
 
   const options = useMemo(() => {
-    // For multiple_choice + ranking_10 when stored as an array
     const raw = question?.options;
     if (!raw) return [];
     if (Array.isArray(raw)) return raw;
@@ -75,7 +77,7 @@ export default function PersonalityTestScreen({
     (async () => {
       try {
         if (!studentId) {
-          Alert.alert('خطأ', 'لا يوجد studentId لبدء اختبار الشخصية.');
+          Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'لا يوجد studentId لبدء اختبار الشخصية.' : 'אין studentId כדי להתחיל מבחן אישיות.');
           return;
         }
 
@@ -85,7 +87,7 @@ export default function PersonalityTestScreen({
         if (!sid) {
           const start = await startPersonalityTest(studentId, language);
           if (!start?.success) {
-            Alert.alert('خطأ', start?.error || 'فشل إنشاء جلسة اختبار الشخصية.');
+            Alert.alert(isArabic ? 'خطأ' : 'שגיאה', start?.error || (isArabic ? 'فشل إنشاء جلسة اختبار الشخصية.' : 'יצירת סשן נכשלה.'));
             return;
           }
           sid = start.sessionId;
@@ -123,6 +125,34 @@ export default function PersonalityTestScreen({
     return Math.max(0, Math.floor((Date.now() - questionStartRef.current) / 1000));
   }
 
+  // ✅ finish and go to personality results fast
+  async function finishPersonality(sid) {
+    try {
+      const done = await completePersonalityTest(sid);
+
+      // go directly to PersonalityResultsScreen
+      navigateTo('personalityResults', {
+        studentId,
+        language,
+        // optional: keep ability session id so user can open full exam results later
+        abilitySessionId,
+        personalitySessionId: sid,
+        // optional: if service returns the profile, pass it too (not required)
+        profile: done?.profile || null,
+      });
+    } catch (e) {
+      console.log('finishPersonality error:', e?.message || e);
+
+      // even if complete fails, still go to results screen (it can fetch latest profile by studentId)
+      navigateTo('personalityResults', {
+        studentId,
+        language,
+        abilitySessionId,
+        personalitySessionId: sid,
+      });
+    }
+  }
+
   async function loadNextQuestion(sid) {
     if (!sid) return;
 
@@ -132,13 +162,26 @@ export default function PersonalityTestScreen({
     try {
       const res = await getPersonalityQuestion(sid);
 
+      // if service says no more questions -> finish
       if (!res?.success) {
         await finishPersonality(sid);
         return;
       }
 
+      // service progress (answered comes from questions_answered)
+      const answered = Number(res?.progress?.answered ?? 0);
+
+      // ✅ FAST MODE: after 12 answers -> finish now
+      if (answered >= FAST_RESULT_LIMIT) {
+        await finishPersonality(sid);
+        return;
+      }
+
       setQuestion(res.question);
-      setProgress(res.progress || { answered: 0, total: DEFAULT_TOTAL });
+      setProgress({
+        answered,
+        total: FAST_RESULT_LIMIT,
+      });
 
       // init ranking list if needed
       if (res.question?.question_type === 'ranking_10') {
@@ -150,7 +193,7 @@ export default function PersonalityTestScreen({
       startQuestionTimer();
     } catch (e) {
       console.log('loadNextQuestion error:', e?.message || e);
-      Alert.alert('خطأ', 'فشل تحميل سؤال الشخصية.');
+      Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'فشل تحميل سؤال الشخصية.' : 'טעינת שאלה נכשלה.');
     } finally {
       setLoadingQuestion(false);
     }
@@ -159,53 +202,42 @@ export default function PersonalityTestScreen({
   function validateAnswer() {
     if (!question) return { ok: false, message: isArabic ? 'لا يوجد سؤال.' : 'אין שאלה.' };
 
-    const type = question.question_type;
+    const type = question.question_type || 'scale_10';
 
     if (type === 'scale_10') {
-      if (!Number.isFinite(Number(scaleValue))) return { ok: false, message: isArabic ? 'اختر رقمًا من 1 إلى 10.' : 'בחר מספר 1 עד 10.' };
-      const v = Number(scaleValue);
-      if (v < 1 || v > 10) return { ok: false, message: isArabic ? 'القيمة يجب أن تكون بين 1 و 10.' : 'הערך חייב להיות בין 1 ל-10.' };
+      if (scaleValue == null) return { ok: false, message: isArabic ? 'اختر رقمًا من 1 إلى 10.' : 'בחר/י מספר מ-1 עד 10.' };
       return { ok: true };
     }
 
     if (type === 'multiple_choice') {
-      if (choiceIndex === null || choiceIndex === undefined) return { ok: false, message: isArabic ? 'اختر إجابة.' : 'בחר תשובה.' };
+      if (choiceIndex == null) return { ok: false, message: isArabic ? 'اختر خيارًا.' : 'בחר/י אפשרות.' };
       return { ok: true };
     }
 
     if (type === 'open_ended') {
-      if (!String(textValue || '').trim()) return { ok: false, message: isArabic ? 'اكتب إجابة قصيرة.' : 'כתוב/כתבי תשובה קצרה.' };
+      if (!String(textValue || '').trim()) return { ok: false, message: isArabic ? 'اكتب إجابة.' : 'כתוב/כתבי תשובה.' };
       return { ok: true };
     }
 
     if (type === 'forced_choice_pair') {
-      if (forcedChoice !== 'A' && forcedChoice !== 'B') {
-        return { ok: false, message: isArabic ? 'اختر أحد الخيارين.' : 'בחר/י אחת מהאפשרויות.' };
-      }
+      if (forcedChoice !== 'A' && forcedChoice !== 'B') return { ok: false, message: isArabic ? 'اختر A أو B.' : 'בחר/י A או B.' };
       return { ok: true };
     }
 
     if (type === 'ranking_10') {
       if (!Array.isArray(rankingOrder) || rankingOrder.length < 2) {
-        return { ok: false, message: isArabic ? 'رتّب عنصرين على الأقل.' : 'סדר/י לפחות שני פריטים.' };
-      }
-      // must have ids if you want to score by id later
-      const missingId = rankingOrder.some((x) => x?.id === undefined || x?.id === null);
-      if (missingId) {
-        return { ok: false, message: isArabic ? 'بعض العناصر لا تحتوي على id.' : 'לחלק מהפריטים אין id.' };
+        return { ok: false, message: isArabic ? 'رتّب العناصر.' : 'סדר/י את הפריטים.' };
       }
       return { ok: true };
     }
 
-    return { ok: false, message: isArabic ? 'نوع سؤال غير مدعوم.' : 'סוג שאלה לא נתמך.' };
+    return { ok: true };
   }
 
   function buildAnswerPayload() {
-    const type = question.question_type;
+    const type = question?.question_type || 'scale_10';
 
-    if (type === 'scale_10') {
-      return { scaleValue: Number(scaleValue) };
-    }
+    if (type === 'scale_10') return { scaleValue: Number(scaleValue) };
 
     if (type === 'multiple_choice') {
       const opt = options?.[choiceIndex] || {};
@@ -226,7 +258,6 @@ export default function PersonalityTestScreen({
     }
 
     if (type === 'ranking_10') {
-      // store ordered ids (top => first)
       const order = (rankingOrder || []).map((x) => String(x.id));
       return { order };
     }
@@ -265,25 +296,6 @@ export default function PersonalityTestScreen({
       Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'حصل خطأ أثناء الإرسال.' : 'אירעה שגיאה בשליחה.');
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function finishPersonality(sid) {
-    try {
-      await completePersonalityTest(sid);
-
-      if (abilitySessionId) {
-        navigateTo('testResults', { sessionId: abilitySessionId, personalitySessionId: sid });
-      } else {
-        navigateTo('home');
-      }
-    } catch (e) {
-      console.log('finishPersonality error:', e?.message || e);
-      if (abilitySessionId) {
-        navigateTo('testResults', { sessionId: abilitySessionId, personalitySessionId: sid });
-      } else {
-        navigateTo('home');
-      }
     }
   }
 
@@ -351,7 +363,7 @@ export default function PersonalityTestScreen({
           placeholderTextColor="#94A3B8"
           multiline
           style={styles.textArea}
-          textAlign={isArabic ? 'right' : 'right'}
+          textAlign="right"
         />
       </View>
     );
@@ -365,89 +377,74 @@ export default function PersonalityTestScreen({
     const labelA = (isArabic ? A?.ar : A?.he) ?? A?.en ?? 'A';
     const labelB = (isArabic ? B?.ar : B?.he) ?? B?.en ?? 'B';
 
+    const activeA = forcedChoice === 'A';
+    const activeB = forcedChoice === 'B';
+
     return (
-      <View style={{ gap: 12 }}>
+      <View style={styles.choiceList}>
         <Pressable
           onPress={() => setForcedChoice('A')}
           style={({ pressed }) => [
             styles.choiceItem,
-            forcedChoice === 'A' && styles.choiceItemActive,
-            pressed && forcedChoice !== 'A' ? styles.choiceItemPressed : null,
+            activeA && styles.choiceItemActive,
+            pressed && !activeA ? styles.choiceItemPressed : null,
           ]}
         >
-          <View style={[styles.radio, forcedChoice === 'A' && styles.radioActive]} />
-          <Text style={[styles.choiceText, forcedChoice === 'A' && styles.choiceTextActive]}>{labelA}</Text>
+          <View style={[styles.radio, activeA && styles.radioActive]} />
+          <Text style={[styles.choiceText, activeA && styles.choiceTextActive]}>{labelA}</Text>
         </Pressable>
 
         <Pressable
           onPress={() => setForcedChoice('B')}
           style={({ pressed }) => [
             styles.choiceItem,
-            forcedChoice === 'B' && styles.choiceItemActive,
-            pressed && forcedChoice !== 'B' ? styles.choiceItemPressed : null,
+            activeB && styles.choiceItemActive,
+            pressed && !activeB ? styles.choiceItemPressed : null,
           ]}
         >
-          <View style={[styles.radio, forcedChoice === 'B' && styles.radioActive]} />
-          <Text style={[styles.choiceText, forcedChoice === 'B' && styles.choiceTextActive]}>{labelB}</Text>
+          <View style={[styles.radio, activeB && styles.radioActive]} />
+          <Text style={[styles.choiceText, activeB && styles.choiceTextActive]}>{labelB}</Text>
         </Pressable>
       </View>
     );
   }
 
-  function moveRankingItem(index, dir) {
-    const to = index + dir;
-    if (to < 0 || to >= rankingOrder.length) return;
-
-    const next = [...rankingOrder];
-    const tmp = next[index];
-    next[index] = next[to];
-    next[to] = tmp;
-    setRankingOrder(next);
+  function moveRanking(fromIdx, toIdx) {
+    setRankingOrder((prev) => {
+      const arr = Array.isArray(prev) ? [...prev] : [];
+      if (fromIdx < 0 || toIdx < 0 || fromIdx >= arr.length || toIdx >= arr.length) return arr;
+      const [item] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, item);
+      return arr;
+    });
   }
 
   function renderRanking10() {
-    const list = rankingOrder || [];
-    if (!list.length) {
+    if (!rankingOrder?.length) {
       return <Text style={styles.muted}>{isArabic ? 'لا توجد عناصر للترتيب.' : 'אין פריטים לסידור.'}</Text>;
     }
 
     return (
       <View style={{ gap: 10 }}>
-        <Text style={styles.muted}>
-          {isArabic ? 'رتّب القيم حسب الأولوية (الأعلى = الأهم):' : 'סדר/י לפי עדיפות (למעלה = הכי חשוב):'}
-        </Text>
-
-        {list.map((item, idx) => {
+        {rankingOrder.map((item, idx) => {
           const label = (isArabic ? item?.ar : item?.he) ?? item?.en ?? `Item ${idx + 1}`;
-          const canUp = idx > 0;
-          const canDown = idx < list.length - 1;
-
           return (
             <View key={String(item?.id ?? idx)} style={styles.rankRow}>
               <Text style={styles.rankIndex}>{idx + 1}</Text>
-              <Text style={styles.rankText}>{label}</Text>
+              <Text style={styles.rankLabel} numberOfLines={2}>
+                {label}
+              </Text>
 
               <View style={styles.rankBtns}>
                 <Pressable
-                  disabled={!canUp}
-                  onPress={() => moveRankingItem(idx, -1)}
-                  style={({ pressed }) => [
-                    styles.rankBtn,
-                    !canUp && styles.rankBtnDisabled,
-                    pressed && canUp ? styles.rankBtnPressed : null,
-                  ]}
+                  onPress={() => moveRanking(idx, Math.max(0, idx - 1))}
+                  style={({ pressed }) => [styles.rankBtn, pressed ? styles.rankBtnPressed : null]}
                 >
                   <Text style={styles.rankBtnText}>↑</Text>
                 </Pressable>
-
                 <Pressable
-                  disabled={!canDown}
-                  onPress={() => moveRankingItem(idx, 1)}
-                  style={({ pressed }) => [
-                    styles.rankBtn,
-                    !canDown && styles.rankBtnDisabled,
-                    pressed && canDown ? styles.rankBtnPressed : null,
-                  ]}
+                  onPress={() => moveRanking(idx, Math.min(rankingOrder.length - 1, idx + 1))}
+                  style={({ pressed }) => [styles.rankBtn, pressed ? styles.rankBtnPressed : null]}
                 >
                   <Text style={styles.rankBtnText}>↓</Text>
                 </Pressable>
@@ -459,8 +456,8 @@ export default function PersonalityTestScreen({
     );
   }
 
-  function renderQuestionBody() {
-    const type = question?.question_type;
+  function renderAnswerInput() {
+    const type = question?.question_type || 'scale_10';
 
     if (type === 'scale_10') return renderScale10();
     if (type === 'multiple_choice') return renderMultipleChoice();
@@ -468,74 +465,83 @@ export default function PersonalityTestScreen({
     if (type === 'forced_choice_pair') return renderForcedChoicePair();
     if (type === 'ranking_10') return renderRanking10();
 
-    return <Text style={styles.muted}>{isArabic ? 'نوع سؤال غير مدعوم.' : 'סוג שאלה לא נתמך.'}</Text>;
+    // fallback
+    return renderScale10();
   }
 
   if (initializing) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.centerText}>{isArabic ? 'جارٍ بدء اختبار الشخصية...' : 'מתחיל מבחן אישיות...'}</Text>
+      <View style={[styles.page, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#1E4FBF" />
+        <Text style={{ marginTop: 12, color: '#64748b', fontWeight: '700' }}>
+          {isArabic ? 'جاري التحضير...' : 'טוען...'}
+        </Text>
       </View>
     );
   }
 
+  const pct = progress.total ? Math.min(100, Math.round((progress.answered / progress.total) * 100)) : 0;
+
   return (
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <LinearGradient colors={['#1E4FBF', '#274B9F']} style={styles.hero}>
           <Text style={styles.heroTitle}>{isArabic ? 'اختبار الشخصية' : 'מבחן אישיות'}</Text>
           <Text style={styles.heroSubtitle}>
-            {isArabic ? 'الجزء الثاني من الاختبار الشامل' : 'חלק שני של המבחן המקיף'}
+            {isArabic
+              ? `سؤال ${progress.answered + 1} من ${progress.total} (سريع)`
+              : `שאלה ${progress.answered + 1} מתוך ${progress.total} (מהיר)`}
           </Text>
 
           <View style={styles.progressRow}>
-            <Text style={styles.progressText}>
-              {isArabic ? 'التقدّم:' : 'התקדמות:'} {progress.answered}/{progress.total}
-            </Text>
+            <Text style={styles.progressText}>{pct}%</Text>
           </View>
         </LinearGradient>
 
         <View style={styles.card}>
-          {loadingQuestion ? (
-            <View style={styles.centerBox}>
-              <ActivityIndicator />
-              <Text style={styles.loadingText}>{isArabic ? 'جارٍ تحميل السؤال...' : 'טוען שאלה...'}</Text>
+          {!!dimensionName && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{dimensionName}</Text>
             </View>
-          ) : !question ? (
-            <Text style={styles.muted}>{isArabic ? 'لا يوجد سؤال حالياً.' : 'אין שאלה כרגע.'}</Text>
-          ) : (
-            <>
-              {!!dimensionName && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{dimensionName}</Text>
-                </View>
-              )}
-
-              <Text style={styles.qText}>{qText}</Text>
-
-              <View style={styles.body}>{renderQuestionBody()}</View>
-
-              <Pressable
-                onPress={onSubmit}
-                disabled={submitting || loadingQuestion || !question}
-                style={({ pressed }) => [
-                  styles.submitBtn,
-                  (submitting || loadingQuestion || !question) && styles.submitBtnDisabled,
-                  pressed && !submitting && !loadingQuestion ? styles.submitBtnPressed : null,
-                ]}
-              >
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{isArabic ? 'التالي' : 'הבא'}</Text>}
-              </Pressable>
-
-              <Pressable
-                onPress={() => finishPersonality(sessionId)}
-                style={({ pressed }) => [styles.skipBtn, pressed ? styles.skipBtnPressed : null]}
-              >
-                <Text style={styles.skipBtnText}>{isArabic ? 'إنهاء الاختبار' : 'סיים מבחן'}</Text>
-              </Pressable>
-            </>
           )}
+
+          <Text style={styles.qText}>{qText}</Text>
+
+          <View style={styles.body}>
+            {loadingQuestion ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#1E4FBF" />
+                <Text style={styles.muted}>{isArabic ? 'جاري تحميل السؤال...' : 'טוען שאלה...'}</Text>
+              </View>
+            ) : (
+              renderAnswerInput()
+            )}
+          </View>
+
+          <View style={styles.actions}>
+            <Pressable
+              onPress={onSubmit}
+              disabled={submitting || loadingQuestion}
+              style={({ pressed }) => [
+                styles.submitBtn,
+                (submitting || loadingQuestion) && styles.btnDisabled,
+                pressed ? styles.submitBtnPressed : null,
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>{isArabic ? 'التالي' : 'הבא'}</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => finishPersonality(sessionId)}
+              style={({ pressed }) => [styles.skipBtn, pressed ? styles.skipBtnPressed : null]}
+            >
+              <Text style={styles.skipBtnText}>{isArabic ? 'إنهاء الاختبار' : 'סיים מבחן'}</Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -583,6 +589,8 @@ const styles = StyleSheet.create({
   qText: { fontSize: 16, fontWeight: '800', color: '#0F172A', lineHeight: 24 },
   body: { marginTop: 14 },
 
+  muted: { marginTop: 10, color: '#64748b', fontWeight: '700' },
+
   scaleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -625,11 +633,11 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: '#94A3B8',
+    borderColor: '#CBD5E1',
     marginRight: 10,
   },
   radioActive: { borderColor: '#1E4FBF', backgroundColor: '#1E4FBF' },
-  choiceText: { flex: 1, color: '#0F172A', fontWeight: '700' },
+  choiceText: { flex: 1, fontWeight: '800', color: '#0F172A' },
   choiceTextActive: { color: '#1E40AF' },
 
   inputBox: {
@@ -640,30 +648,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   textArea: {
-    minHeight: 120,
-    fontSize: 14,
+    minHeight: 110,
+    fontWeight: '700',
     color: '#0F172A',
     lineHeight: 20,
-    textAlignVertical: 'top',
   },
 
-  // ranking styles
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     backgroundColor: '#fff',
   },
-  rankIndex: {
-    width: 26,
-    fontWeight: '900',
-    color: '#1E40AF',
-  },
-  rankText: { flex: 1, color: '#0F172A', fontWeight: '800' },
+  rankIndex: { width: 26, textAlign: 'center', fontWeight: '900', color: '#1E40AF' },
+  rankLabel: { flex: 1, fontWeight: '800', color: '#0F172A' },
   rankBtns: { flexDirection: 'row', gap: 8 },
   rankBtn: {
     width: 34,
@@ -675,38 +677,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F8FAFC',
   },
-  rankBtnDisabled: { opacity: 0.35 },
-  rankBtnPressed: { transform: [{ scale: 0.98 }] },
+  rankBtnPressed: { transform: [{ scale: 0.97 }] },
   rankBtnText: { fontWeight: '900', color: '#0F172A' },
 
+  actions: { marginTop: 14, gap: 10 },
+
   submitBtn: {
-    marginTop: 14,
-    height: 48,
+    height: 46,
     borderRadius: 14,
     backgroundColor: '#1E4FBF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitBtnDisabled: { opacity: 0.6 },
   submitBtnPressed: { transform: [{ scale: 0.99 }] },
-  submitBtnText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  submitBtnText: { color: '#fff', fontWeight: '900' },
 
   skipBtn: {
-    marginTop: 10,
-    height: 44,
+    height: 46,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CBD5E1',
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   skipBtnPressed: { transform: [{ scale: 0.99 }] },
-  skipBtnText: { color: '#334155', fontWeight: '800' },
+  skipBtnText: { color: '#0F172A', fontWeight: '900' },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F6F8FF' },
-  centerText: { marginTop: 10, color: '#334155', fontWeight: '700' },
-  centerBox: { alignItems: 'center', paddingVertical: 18 },
-  loadingText: { marginTop: 8, color: '#64748B', fontWeight: '700' },
-  muted: { color: '#64748B', fontWeight: '700' },
+  btnDisabled: { opacity: 0.7 },
 });
