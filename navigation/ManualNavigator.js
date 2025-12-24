@@ -26,8 +26,7 @@ import AdminDashboardScreen from '../screens/Dashboard/AdminDashboardScreen';
 import PrincipalDashboardScreen from '../screens/Dashboard/PrincipalDashboardScreen';
 
 import HomeScreen from '../screens/Home/HomeScreen';
-import PersonalityResultsScreen from '../screens/PersonalityTest/PersonalityResultsScreen';
-import PersonalityTestScreen from '../screens/PersonalityTest/PersonalityTestScreen';
+
 import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen';
 
 import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScreen';
@@ -36,6 +35,11 @@ import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
 
 // ✅ NEW: Recommendations screen
 import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendationsScreen';
+
+// ✅ ADD: Personality screens (you already created PersonalityTestScreen)
+import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
+// If you created this file, keep it. If not yet, you can remove these two lines for now.
+import PersonalityResultsScreen from '../screens/AdaptiveTest/PersonalityResultsScreen';
 
 export default function ManualNavigator() {
   const { user, loading, studentData } = useAuth();
@@ -126,7 +130,7 @@ export default function ManualNavigator() {
           />
         );
 
-      // ✅ Actual exam screen
+      // ✅ Actual exam screen (ABILITY PART)
       case 'startAdaptiveTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -142,6 +146,7 @@ export default function ManualNavigator() {
           />
         );
 
+      // ✅ Combined results entry (we will upgrade TestResultsScreen later to show personality too)
       case 'testResults':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -149,16 +154,38 @@ export default function ManualNavigator() {
             navigateTo={navigateTo}
             sessionId={screenParams.sessionId}
             subjectId={screenParams.subjectId}
+            // ✅ pass personality session if available (ability -> personality -> results)
+            personalitySessionId={screenParams.personalitySessionId || null}
+            // ✅ useful for loading profile by student if needed later
+            studentId={screenParams.studentId || studentData?.id}
+            language={screenParams.language || 'ar'}
           />
         );
 
+      // ✅ PERSONALITY PART (SECOND PART OF EXAM)
       case 'personalityTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
-        return <PersonalityTestScreen navigateTo={navigateTo} />;
+        return (
+          <PersonalityTestScreen
+            navigateTo={navigateTo}
+            // use params first, fallback to studentData
+            studentId={screenParams.studentId || studentData?.id}
+            language={screenParams.language || 'ar'}
+            // this is the ability session id coming from finishTest()
+            abilitySessionId={screenParams.abilitySessionId || null}
+            // optional resume
+            existingPersonalitySessionId={screenParams.existingPersonalitySessionId || null}
+          />
+        );
 
       case 'personalityResults':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
-        return <PersonalityResultsScreen navigateTo={navigateTo} profiles={screenParams.profiles} />;
+        return (
+          <PersonalityResultsScreen
+            navigateTo={navigateTo}
+            profiles={screenParams.profiles}
+          />
+        );
 
       case 'adminDashboard':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
@@ -216,6 +243,10 @@ export default function ManualNavigator() {
     'examHistory',
     // ✅ NEW: hide navbar on recommendations (same style as examHistory/editProfile)
     'recommendations',
+    // ✅ optional: hide navbar during exam parts
+    'startAdaptiveTest',
+    'personalityTest',
+    'testResults',
   ];
 
   return (

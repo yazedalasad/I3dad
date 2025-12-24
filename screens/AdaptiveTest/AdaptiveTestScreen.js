@@ -380,9 +380,11 @@ export default function AdaptiveTestScreen({
       await interestService.updateInterestsFromSession(sessionId);
     } catch {}
 
-    // ✅ IMPORTANT: pass sessionId so results screen can load this session
-    navigateTo('testResults', {
-      sessionId,
+    // ✅ ✅ CONNECT TO PERSONALITY PART (same exam)
+    navigateTo('personalityTest', {
+      studentId,
+      language,
+      abilitySessionId: sessionId,   // pass ability session id
       subjectNames,
       skippedCount,
       totalTimeSpent: totalTimeSpentSeconds

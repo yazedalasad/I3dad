@@ -1,12 +1,36 @@
 /**
- * PERSONALITY TEST SERVICE
+ * PERSONALITY TEST SERVICE (UPDATED + NEW QUESTION TYPES)
  *
- * Orchestrates personality assessment using Big Five model
- * Supports multiple question types: 10-point scale, multiple choice, open-ended
- * Integrates with AI (placeholder now) for insights
+ * Big Five personality assessment in its OWN module (separate from ability questions).
+ * Works with the SQL structure:
+ *  - personality_dimensions (code: O,C,E,A,N)
+ *  - personality_questions (reverse_scored, scale_min/scale_max, options jsonb, question_type)
+ *  - personality_test_sessions
+ *  - personality_responses (answer_json jsonb for flexible types)
+ *  - student_personality_profiles (ONE ROW PER SESSION with O/C/E/A/N)
+ *  - v_student_personality_latest (optional view)
+ *
+ * Supports question types:
+ *  - scale_10
+ *  - multiple_choice
+ *  - open_ended
+ *  - forced_choice_pair      (A vs B, stored in answer_json)
+ *  - ranking_10              (order 10 items, stored in answer_json)
+ *
+ * Scoring:
+ *  - scale_10: numeric 1..10, reverse_scored supported
+ *  - multiple_choice: uses option.value if provided, else index+1 (can be reverse_scored)
+ *  - forced_choice_pair: expects options = { A:{scores:{O:..}}, B:{scores:{...}} }
+ *  - ranking_10: expects options array items may include scores; top ranks contribute more
+ *
+ * Notes:
+ * - Keeps your API: startPersonalityTest, getPersonalityQuestion, submitPersonalityAnswer, completePersonalityTest
+ * - personality_insights is OPTIONAL.
  */
 
 import { supabase } from '../config/supabase';
+
+/* ----------------------------- helpers ----------------------------- */
 
 function quoteUuidsForIn(ids = []) {
   // Supabase "in" string must look like: ("uuid1","uuid2")
@@ -18,22 +42,90 @@ function safeNumber(n, fallback = 0) {
   return Number.isFinite(x) ? x : fallback;
 }
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function normalizeLang(language) {
+  const lang = String(language || 'ar').toLowerCase();
+  return lang === 'he' ? 'he' : 'ar';
+}
+
 /**
- * Start a new personality test session
- *
- * @param {string} studentId
- * @param {'ar'|'he'} language
+ * Map raw average on scale [min..max] => 0..100
  */
+function scaleTo100(avg, min, max) {
+  const a = safeNumber(avg, NaN);
+  if (!Number.isFinite(a)) return 0;
+  if (max <= min) return 0;
+  const t = (a - min) / (max - min);
+  return clamp(t * 100, 0, 100);
+}
+
+/**
+ * Reverse score for a value on [min..max]
+ * Example for 1..10: reverse(2) => 9
+ */
+function reverseScore(v, min, max) {
+  const x = safeNumber(v, NaN);
+  if (!Number.isFinite(x)) return x;
+  return (max + min) - x;
+}
+
+/**
+ * Try to get numeric value for multiple_choice:
+ * - If question.options is an array and option has {value}, use it
+ * - Else fallback to (index + 1)
+ */
+function getMultipleChoiceNumericValue(question, selectedIndex) {
+  const idx = safeNumber(selectedIndex, NaN);
+  if (!Number.isFinite(idx) || idx < 0) return NaN;
+
+  const opts = Array.isArray(question?.options) ? question.options : null;
+  if (opts && opts[idx] && Number.isFinite(Number(opts[idx].value))) {
+    return Number(opts[idx].value);
+  }
+  return idx + 1;
+}
+
+/**
+ * Adds trait deltas to accumulator
+ */
+function addTraitScores(acc, deltas) {
+  if (!deltas || typeof deltas !== 'object') return;
+  const keys = ['O', 'C', 'E', 'A', 'N'];
+  for (const k of keys) {
+    if (deltas[k] === undefined || deltas[k] === null) continue;
+    acc[k] = safeNumber(acc[k], 0) + safeNumber(deltas[k], 0);
+  }
+}
+
+/**
+ * Convert trait deltas (can be negative) to 0..100 using a soft clamp.
+ * defaultRange = expected absolute range (e.g. 20 means -20..+20)
+ */
+function deltasTo100(delta, defaultRange = 20) {
+  const d = safeNumber(delta, 0);
+  const r = Math.max(1, safeNumber(defaultRange, 20));
+  // map [-r..+r] => [0..100]
+  const t = (d + r) / (2 * r);
+  return clamp(t * 100, 0, 100);
+}
+
+/* -------------------------- core API -------------------------- */
+
 export async function startPersonalityTest(studentId, language = 'ar') {
   try {
     if (!studentId) throw new Error('studentId is required');
+
+    const lang = normalizeLang(language);
 
     const { data: session, error: sessionError } = await supabase
       .from('personality_test_sessions')
       .insert({
         student_id: studentId,
-        language,
-        total_questions: 50,
+        language: lang,
+        total_questions: 20,
         status: 'in_progress',
       })
       .select()
@@ -48,11 +140,6 @@ export async function startPersonalityTest(studentId, language = 'ar') {
   }
 }
 
-/**
- * Get next personality question (balanced by dimension)
- *
- * @param {string} sessionId
- */
 export async function getPersonalityQuestion(sessionId) {
   try {
     if (!sessionId) throw new Error('sessionId is required');
@@ -69,7 +156,7 @@ export async function getPersonalityQuestion(sessionId) {
       return { success: false, error: 'Session is not in progress' };
     }
 
-    // Fetch answered question ids + their dimension_id
+    // Fetch answered question ids + their dimension_id (if any)
     const { data: responses, error: responsesError } = await supabase
       .from('personality_responses')
       .select('question_id, personality_questions(dimension_id)')
@@ -100,7 +187,7 @@ export async function getPersonalityQuestion(sessionId) {
       throw new Error('No active personality dimensions found');
     }
 
-    // Pick the dimension with fewest questions answered
+    // Pick dimension with fewest answered
     let targetDimensionId = dimensions[0].id;
     let minCount = Number.POSITIVE_INFINITY;
 
@@ -112,13 +199,14 @@ export async function getPersonalityQuestion(sessionId) {
       }
     }
 
-    // Pull candidate questions
+    // Pull candidate questions (include dimension)
     let query = supabase
       .from('personality_questions')
       .select('*, personality_dimensions(*)')
       .eq('dimension_id', targetDimensionId)
       .eq('is_active', true)
-      .limit(20);
+      .order('sort_order', { ascending: true })
+      .limit(25);
 
     if (usedQuestionIds.length > 0) {
       query = query.not('id', 'in', quoteUuidsForIn(usedQuestionIds));
@@ -147,14 +235,6 @@ export async function getPersonalityQuestion(sessionId) {
   }
 }
 
-/**
- * Submit personality question answer
- *
- * @param {string} sessionId
- * @param {string} questionId
- * @param {object} answer
- * @param {number} timeTakenSeconds
- */
 export async function submitPersonalityAnswer(sessionId, questionId, answer, timeTakenSeconds) {
   try {
     if (!sessionId) throw new Error('sessionId is required');
@@ -197,8 +277,11 @@ export async function submitPersonalityAnswer(sessionId, questionId, answer, tim
     // Type-specific fields + validation
     if (question.question_type === 'scale_10') {
       const v = safeNumber(answer?.scaleValue, NaN);
-      if (!Number.isFinite(v) || v < 1 || v > 10) {
-        throw new Error('scaleValue must be between 1 and 10');
+      const min = safeNumber(question.scale_min, 1);
+      const max = safeNumber(question.scale_max, 10);
+
+      if (!Number.isFinite(v) || v < min || v > max) {
+        throw new Error(`scaleValue must be between ${min} and ${max}`);
       }
       responseData.scale_value = v;
     } else if (question.question_type === 'multiple_choice') {
@@ -208,10 +291,37 @@ export async function submitPersonalityAnswer(sessionId, questionId, answer, tim
       responseData.selected_option_index = idx;
       responseData.selected_option_text_ar = answer?.optionTextAr ?? null;
       responseData.selected_option_text_he = answer?.optionTextHe ?? null;
+      responseData.selected_option_text_en = answer?.optionTextEn ?? null;
+
+      // Save full structure too (optional, helps debugging/scoring later)
+      responseData.answer_json = {
+        optionIndex: idx,
+        optionTextAr: answer?.optionTextAr ?? null,
+        optionTextHe: answer?.optionTextHe ?? null,
+        optionTextEn: answer?.optionTextEn ?? null,
+      };
     } else if (question.question_type === 'open_ended') {
       const text = String(answer?.textResponse ?? '').trim();
       if (!text) throw new Error('textResponse is required');
       responseData.text_response = text;
+      responseData.answer_json = { textResponse: text };
+    } else if (question.question_type === 'forced_choice_pair') {
+      // Expected: answer = { chosen: 'A' | 'B' }
+      const chosen = String(answer?.chosen ?? '').toUpperCase();
+      if (chosen !== 'A' && chosen !== 'B') {
+        throw new Error('forced_choice_pair requires answer.chosen = "A" or "B"');
+      }
+      responseData.answer_json = { chosen };
+    } else if (question.question_type === 'ranking_10') {
+      // Expected: answer = { ranking: [ {id, rank} ... ] } OR { order: [id1,id2,...] }
+      const ranking = Array.isArray(answer?.ranking) ? answer.ranking : null;
+      const order = Array.isArray(answer?.order) ? answer.order : null;
+
+      if (!ranking && !order) {
+        throw new Error('ranking_10 requires answer.ranking[] or answer.order[]');
+      }
+
+      responseData.answer_json = ranking ? { ranking } : { order };
     } else {
       throw new Error(`Unsupported question type: ${question.question_type}`);
     }
@@ -219,7 +329,7 @@ export async function submitPersonalityAnswer(sessionId, questionId, answer, tim
     const { error: responseError } = await supabase.from('personality_responses').insert(responseData);
     if (responseError) throw responseError;
 
-    // Update session counters
+    // Update session counter
     const { error: updateError } = await supabase
       .from('personality_test_sessions')
       .update({ questions_answered: nextOrder })
@@ -234,16 +344,21 @@ export async function submitPersonalityAnswer(sessionId, questionId, answer, tim
   }
 }
 
-/**
- * Complete personality test and calculate profile
- *
- * @param {string} sessionId
- */
 export async function completePersonalityTest(sessionId) {
   try {
     if (!sessionId) throw new Error('sessionId is required');
 
-    // Get all responses (with question + dimension)
+    // Get session
+    const { data: session, error: sessionError } = await supabase
+      .from('personality_test_sessions')
+      .select('id, student_id, started_at, status, total_questions, questions_answered')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError) throw sessionError;
+    if (!session) throw new Error('Session not found');
+
+    // Pull responses with questions + dimensions
     const { data: responses, error: responsesError } = await supabase
       .from('personality_responses')
       .select('*, personality_questions(*, personality_dimensions(*))')
@@ -251,102 +366,14 @@ export async function completePersonalityTest(sessionId) {
 
     if (responsesError) throw responsesError;
 
-    const { data: session, error: sessionError } = await supabase
-      .from('personality_test_sessions')
-      .select('student_id, started_at')
-      .eq('id', sessionId)
-      .single();
-
-    if (sessionError) throw sessionError;
-    if (!session) throw new Error('Session not found');
-
-    if (!responses || responses.length === 0) {
-      // still mark completed but no profiles
-      const { error: updateError } = await supabase
-        .from('personality_test_sessions')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          total_time_seconds: 0,
-        })
-        .eq('id', sessionId);
-
-      if (updateError) throw updateError;
-
-      return { success: true, profiles: [] };
-    }
-
-    // Aggregate per dimension
-    const dimensionAgg = {}; // { [dimensionId]: { dimension, totalScore, count } }
-
-    for (const r of responses) {
-      const q = r?.personality_questions;
-      const dim = q?.personality_dimensions;
-      if (!q || !dim) continue;
-
-      const dimensionId = dim.id;
-      if (!dimensionAgg[dimensionId]) {
-        dimensionAgg[dimensionId] = { dimension: dim, totalScore: 0, count: 0 };
-      }
-
-      let score = 0;
-
-      if (r.response_type === 'scale_10') {
-        score = safeNumber(r.scale_value, 0);
-        if (q.is_reverse_scored) score = 11 - score; // reverse 1..10
-      } else if (r.response_type === 'multiple_choice') {
-        score = safeNumber(r.selected_option_index, 0) + 1; // simple mapping
-      } else {
-        // open_ended (or others) currently don't affect numeric score
-        continue;
-      }
-
-      score *= safeNumber(q.weight, 1.0);
-
-      dimensionAgg[dimensionId].totalScore += score;
-      dimensionAgg[dimensionId].count += 1;
-    }
-
-    const profiles = [];
-
-    for (const [dimensionId, agg] of Object.entries(dimensionAgg)) {
-      if (agg.count <= 0) continue;
-
-      const avgScore = agg.totalScore / agg.count; // typically 1..10
-      const normalizedScore = (avgScore / 10) * 100;
-
-      const { error: profileError } = await supabase
-        .from('student_personality_profiles')
-        .upsert(
-          {
-            student_id: session.student_id,
-            dimension_id: dimensionId,
-            dimension_score: normalizedScore,
-            raw_score: avgScore,
-            total_questions_answered: agg.count,
-            last_assessed_at: new Date().toISOString(),
-            last_session_id: sessionId,
-            confidence_level: Math.min(100, (agg.count / 10) * 100),
-          },
-          { onConflict: 'student_id,dimension_id' }
-        );
-
-      if (profileError) throw profileError;
-
-      profiles.push({
-        dimension: agg.dimension,
-        score: normalizedScore,
-        rawScore: avgScore,
-      });
-    }
-
     const startedAt = session.started_at ? new Date(session.started_at).getTime() : null;
     const totalSeconds =
       startedAt && Number.isFinite(startedAt)
         ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
         : null;
 
-    const { error: updateError } = await supabase
+    // Mark session completed regardless
+    const { error: updateSessionErr } = await supabase
       .from('personality_test_sessions')
       .update({
         status: 'completed',
@@ -355,12 +382,232 @@ export async function completePersonalityTest(sessionId) {
       })
       .eq('id', sessionId);
 
-    if (updateError) throw updateError;
+    if (updateSessionErr) throw updateSessionErr;
 
-    // Generate insights (basic placeholder)
-    await generatePersonalityInsights(session.student_id, sessionId, profiles);
+    // If no responses
+    if (!responses || responses.length === 0) {
+      return {
+        success: true,
+        profile: {
+          student_id: session.student_id,
+          session_id: sessionId,
+          openness: 0,
+          conscientiousness: 0,
+          extraversion: 0,
+          agreeableness: 0,
+          neuroticism: 0,
+          confidence_level: 0,
+          answered_count: 0,
+        },
+      };
+    }
 
-    return { success: true, profiles };
+    // Aggregate numeric-by-dimension (for scale_10/multiple_choice)
+    const aggNumeric = {
+      O: { sum: 0, count: 0, min: 1, max: 10 },
+      C: { sum: 0, count: 0, min: 1, max: 10 },
+      E: { sum: 0, count: 0, min: 1, max: 10 },
+      A: { sum: 0, count: 0, min: 1, max: 10 },
+      N: { sum: 0, count: 0, min: 1, max: 10 },
+    };
+
+    // Aggregate deltas from playful types
+    const delta = { O: 0, C: 0, E: 0, A: 0, N: 0 };
+
+    let answeredCount = 0;
+
+    for (const r of responses) {
+      const q = r?.personality_questions;
+      const dim = q?.personality_dimensions;
+      const dimCode = String(dim?.code || '').toUpperCase();
+
+      // --------- numeric types ---------
+      if (r.response_type === 'scale_10' || r.response_type === 'multiple_choice') {
+        if (!aggNumeric[dimCode]) continue;
+
+        const min = safeNumber(q?.scale_min, 1);
+        const max = safeNumber(q?.scale_max, 10);
+        aggNumeric[dimCode].min = min;
+        aggNumeric[dimCode].max = max;
+
+        let value = NaN;
+
+        if (r.response_type === 'scale_10') {
+          value = safeNumber(r.scale_value, NaN);
+        } else {
+          value = getMultipleChoiceNumericValue(q, r.selected_option_index);
+        }
+
+        if (!Number.isFinite(value)) continue;
+
+        if (q?.reverse_scored === true) {
+          value = reverseScore(value, min, max);
+        }
+
+        value = clamp(value, min, max);
+
+        aggNumeric[dimCode].sum += value;
+        aggNumeric[dimCode].count += 1;
+        answeredCount += 1;
+        continue;
+      }
+
+      // --------- forced choice (trait deltas) ---------
+      if (r.response_type === 'forced_choice_pair') {
+        const chosen = String(r?.answer_json?.chosen || '').toUpperCase();
+        const opts = q?.options || {};
+        const choice = chosen === 'A' ? opts?.A : chosen === 'B' ? opts?.B : null;
+        const deltas = choice?.scores || choice?.traits || null;
+
+        addTraitScores(delta, deltas);
+        answeredCount += 1;
+        continue;
+      }
+
+      // --------- ranking (trait deltas with weights by rank) ---------
+      if (r.response_type === 'ranking_10') {
+        const opts = Array.isArray(q?.options) ? q.options : [];
+
+        // ranking can be: {order:[id1,id2,...]} OR {ranking:[{id,rank},...]}
+        const order = Array.isArray(r?.answer_json?.order) ? r.answer_json.order : null;
+        const ranking = Array.isArray(r?.answer_json?.ranking) ? r.answer_json.ranking : null;
+
+        // Build list of ids ordered by priority (index 0 = top)
+        let orderedIds = [];
+        if (order && order.length) {
+          orderedIds = order.map((x) => String(x));
+        } else if (ranking && ranking.length) {
+          orderedIds = [...ranking]
+            .filter((x) => x && x.id != null)
+            .sort((a, b) => safeNumber(a.rank, 999) - safeNumber(b.rank, 999))
+            .map((x) => String(x.id));
+        }
+
+        if (!orderedIds.length || !opts.length) continue;
+
+        // Map option by id
+        const byId = {};
+        for (const o of opts) {
+          if (!o) continue;
+          const id = o.id != null ? String(o.id) : null;
+          if (id) byId[id] = o;
+        }
+
+        // Weight: top ranks count more (10..1)
+        // If fewer items, still works.
+        const topK = Math.min(10, orderedIds.length);
+        for (let i = 0; i < topK; i++) {
+          const id = orderedIds[i];
+          const item = byId[id];
+          if (!item) continue;
+
+          const w = topK - i; // top=10, next=9...
+          const deltas = item?.scores || item?.traits || null;
+          if (!deltas) continue;
+
+          addTraitScores(delta, {
+            O: safeNumber(deltas.O, 0) * w,
+            C: safeNumber(deltas.C, 0) * w,
+            E: safeNumber(deltas.E, 0) * w,
+            A: safeNumber(deltas.A, 0) * w,
+            N: safeNumber(deltas.N, 0) * w,
+          });
+        }
+
+        answeredCount += 1;
+        continue;
+      }
+
+      // open_ended doesn't affect numeric score now
+    }
+
+    function avgFor(code) {
+      const a = aggNumeric[code];
+      if (!a || a.count <= 0) return { avg: NaN, min: 1, max: 10, count: 0 };
+      return { avg: a.sum / a.count, min: a.min, max: a.max, count: a.count };
+    }
+
+    // numeric base scores 0..100 (can be 0 if no numeric questions for that dimension)
+    const o = avgFor('O');
+    const c = avgFor('C');
+    const e = avgFor('E');
+    const a = avgFor('A');
+    const n = avgFor('N');
+
+    const base = {
+      O: scaleTo100(o.avg, o.min, o.max),
+      C: scaleTo100(c.avg, c.min, c.max),
+      E: scaleTo100(e.avg, e.min, e.max),
+      A: scaleTo100(a.avg, a.min, a.max),
+      N: scaleTo100(n.avg, n.min, n.max),
+    };
+
+    // delta contribution converted to 0..100 with a reasonable expected range
+    // ranking weights can get large; pick a bigger range.
+    const deltaRange = 120; // tweak later if needed
+    const delta100 = {
+      O: deltasTo100(delta.O, deltaRange),
+      C: deltasTo100(delta.C, deltaRange),
+      E: deltasTo100(delta.E, deltaRange),
+      A: deltasTo100(delta.A, deltaRange),
+      N: deltasTo100(delta.N, deltaRange),
+    };
+
+    // Combine:
+    // If a dimension has base numeric questions, use mostly base; otherwise rely on delta.
+    function combine(code) {
+      const numericCount = aggNumeric[code]?.count || 0;
+      const wBase = numericCount > 0 ? 0.75 : 0.0;
+      const wDelta = numericCount > 0 ? 0.25 : 1.0;
+      return clamp(base[code] * wBase + delta100[code] * wDelta, 0, 100);
+    }
+
+    const openness = combine('O');
+    const conscientiousness = combine('C');
+    const extraversion = combine('E');
+    const agreeableness = combine('A');
+    const neuroticism = combine('N');
+
+    // Confidence: based on answeredCount (all types)
+    const confidenceLevel = clamp(Math.round((answeredCount / 50) * 100), 0, 100);
+
+    const profileRow = {
+      student_id: session.student_id,
+      session_id: sessionId,
+      openness,
+      conscientiousness,
+      extraversion,
+      agreeableness,
+      neuroticism,
+      confidence_level: confidenceLevel,
+      answered_count: answeredCount,
+      summary_ar: null,
+      summary_he: null,
+      summary_en: null,
+      metadata: {
+        per_dimension_counts: {
+          O: o.count,
+          C: c.count,
+          E: e.count,
+          A: a.count,
+          N: n.count,
+        },
+        delta_raw: delta,
+        delta_range: deltaRange,
+      },
+    };
+
+    const { data: savedProfile, error: profileErr } = await supabase
+      .from('student_personality_profiles')
+      .insert(profileRow)
+      .select()
+      .single();
+
+    if (profileErr) throw profileErr;
+
+    await generatePersonalityInsights(session.student_id, sessionId, savedProfile);
+
+    return { success: true, profile: savedProfile };
   } catch (error) {
     console.error('Error completing personality test:', error);
     return { success: false, error: error.message };
@@ -368,14 +615,16 @@ export async function completePersonalityTest(sessionId) {
 }
 
 /**
- * Generate personality insights (placeholder until DeepSeek integration)
+ * OPTIONAL: personality_insights
  */
-export async function generatePersonalityInsights(studentId, sessionId, profiles) {
+export async function generatePersonalityInsights(studentId, sessionId, profileOrProfiles) {
   try {
     if (!studentId) throw new Error('studentId is required');
     if (!sessionId) throw new Error('sessionId is required');
 
-    const insights = generateBasicInsights(profiles);
+    const profile = Array.isArray(profileOrProfiles) ? null : profileOrProfiles;
+
+    const insights = generateBasicInsights(profile);
 
     const { error: insightsError } = await supabase
       .from('personality_insights')
@@ -402,7 +651,10 @@ export async function generatePersonalityInsights(studentId, sessionId, profiles
         { onConflict: 'session_id' }
       );
 
-    if (insightsError) throw insightsError;
+    if (insightsError) {
+      console.log('Insights not saved (optional table missing or error):', insightsError?.message || insightsError);
+      return { success: false, error: insightsError?.message || String(insightsError) };
+    }
 
     return { success: true, insights };
   } catch (error) {
@@ -411,60 +663,84 @@ export async function generatePersonalityInsights(studentId, sessionId, profiles
   }
 }
 
-/**
- * Generate basic insights based on personality scores
- */
-function generateBasicInsights(profiles) {
-  const safeProfiles = Array.isArray(profiles) ? profiles.filter(Boolean) : [];
-  const sorted = [...safeProfiles].sort((a, b) => safeNumber(b.score, 0) - safeNumber(a.score, 0));
-  const top1 = sorted[0] || null;
-  const top2 = sorted[1] || null;
+function generateBasicInsights(profile) {
+  if (!profile) {
+    return {
+      personalityType: 'متوازن',
+      descriptionAr: 'لم يتم توليد تحليل مفصل.',
+      descriptionHe: 'לא נוצר ניתוח מפורט.',
+      strengthsAr: ['نقاط قوة عامة'],
+      strengthsHe: ['חוזקות כלליות'],
+      developmentAreasAr: ['تطوير مهارات عامة'],
+      developmentAreasHe: ['שיפור כישורים כלליים'],
+      careersAr: ['مسارات عامة'],
+      careersHe: ['מסלולים כלליים'],
+      studyStyleAr: 'أسلوب تعلم عام.',
+      studyStyleHe: 'סגנון למידה כללי.',
+      communicationStyleAr: 'تواصل عام.',
+      communicationStyleHe: 'תקשורת כללית.',
+    };
+  }
 
-  const personalityType =
-    top1 && safeNumber(top1.score, 0) > 70 ? top1.dimension?.name_ar || 'متوازن' : 'متوازن';
+  const scores = [
+    { k: 'O', v: safeNumber(profile.openness, 0), ar: 'الانفتاح', he: 'פתיחות' },
+    { k: 'C', v: safeNumber(profile.conscientiousness, 0), ar: 'الانضباط', he: 'מצפוניות' },
+    { k: 'E', v: safeNumber(profile.extraversion, 0), ar: 'الانبساط', he: 'מוחצנות' },
+    { k: 'A', v: safeNumber(profile.agreeableness, 0), ar: 'التوافق', he: 'נעימות' },
+    { k: 'N', v: safeNumber(profile.neuroticism, 0), ar: 'القلق/العصابية', he: 'נוירוטיות' },
+  ].sort((a, b) => b.v - a.v);
 
-  const top1Ar = top1?.dimension?.name_ar || 'سمة 1';
-  const top2Ar = top2?.dimension?.name_ar || 'سمة 2';
-  const top1He = top1?.dimension?.name_he || 'תכונה 1';
-  const top2He = top2?.dimension?.name_he || 'תכונה 2';
+  const top1 = scores[0];
+  const top2 = scores[1];
+
+  const personalityType = top1.v >= 70 ? top1.ar : 'متوازن';
 
   return {
     personalityType,
-    descriptionAr: `شخصيتك تتميز بـ${top1Ar} و${top2Ar}.`,
-    descriptionHe: `האישיות שלך מאופיינת ב${top1He} וב${top2He}.`,
-    strengthsAr: [
-      top1?.dimension?.description_ar || 'نقاط قوة واضحة في التعامل مع المهام.',
-      top2?.dimension?.description_ar || 'قدرة جيدة على التكيّف والتعلّم.',
-    ],
-    strengthsHe: [
-      top1?.dimension?.description_he || 'חוזקות ברורות בהתמודדות עם משימות.',
-      top2?.dimension?.description_he || 'יכולת טובה להסתגל וללמוד.',
-    ],
-    developmentAreasAr: ['تطوير مهارات التواصل', 'تحسين إدارة الوقت'],
-    developmentAreasHe: ['פיתוח כישורי תקשורת', 'שיפור ניהול זמן'],
-    careersAr: ['مهندس برمجيات', 'مصمم جرافيك', 'معلم'],
-    careersHe: ['מהנדס תוכנה', 'מעצב גרפי', 'מורה'],
-    studyStyleAr: 'أنت تتعلم بشكل أفضل من خلال التطبيق العملي والتجربة المباشرة.',
-    studyStyleHe: 'אתה לומד הכי טוב דרך יישום מעשי וניסיון ישיר.',
-    communicationStyleAr: 'أنت تفضل التواصل المباشر والواضح مع الآخرين.',
-    communicationStyleHe: 'אתה מעדיף תקשורת ישירה וברורה עם אחרים.',
+    descriptionAr: `شخصيتك تتميز بـ${top1.ar} و${top2.ar}.`,
+    descriptionHe: `האישיות שלך מאופיינת ב${top1.he} וב${top2.he}.`,
+    strengthsAr: [`قوة في جانب ${top1.ar}.`, `قوة إضافية في جانب ${top2.ar}.`],
+    strengthsHe: [`חוזקה בתחום ${top1.he}.`, `חוזקה נוספת בתחום ${top2.he}.`],
+    developmentAreasAr: ['تطوير إدارة الوقت', 'تحسين أسلوب المذاكرة'],
+    developmentAreasHe: ['שיפור ניהול זמן', 'שיפור סגנון למידה'],
+    careersAr: ['مجالات تناسب اهتماماتك وقدراتك'],
+    careersHe: ['תחומים שמתאימים ליכולות ולהעדפות שלך'],
+    studyStyleAr: 'أنت تتعلم أفضل عندما تربط بين النظرية والتطبيق.',
+    studyStyleHe: 'את/ה לומד/ת הכי טוב כשמשלבים בין תיאוריה ליישום.',
+    communicationStyleAr: 'تفضل تواصلًا واضحًا ومباشرًا.',
+    communicationStyleHe: 'מעדיף/ה תקשורת ברורה וישירה.',
   };
 }
 
-/**
- * Get student personality profile (profiles + latest insights)
- */
 export async function getStudentPersonalityProfile(studentId) {
   try {
     if (!studentId) throw new Error('studentId is required');
 
-    const { data: profiles, error: profilesError } = await supabase
-      .from('student_personality_profiles')
-      .select('*, personality_dimensions(*)')
-      .eq('student_id', studentId);
+    // Prefer view if exists
+    let latestProfile = null;
 
-    if (profilesError) throw profilesError;
+    const { data: viewRow, error: viewErr } = await supabase
+      .from('v_student_personality_latest')
+      .select('*')
+      .eq('student_id', studentId)
+      .single();
 
+    if (!viewErr && viewRow) {
+      latestProfile = viewRow;
+    } else {
+      const { data: profileRow, error: profileErr } = await supabase
+        .from('student_personality_profiles')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (profileErr) throw profileErr;
+      latestProfile = profileRow;
+    }
+
+    // Insights optional
     const { data: insights, error: insightsError } = await supabase
       .from('personality_insights')
       .select('*')
@@ -475,7 +751,7 @@ export async function getStudentPersonalityProfile(studentId) {
 
     const latestInsights = insightsError ? null : insights;
 
-    return { success: true, profiles: profiles || [], insights: latestInsights };
+    return { success: true, profile: latestProfile, insights: latestInsights };
   } catch (error) {
     console.error('Error getting personality profile:', error);
     return { success: false, error: error.message };
