@@ -130,9 +130,17 @@ export default function AdminDashboardScreen({ navigateTo }) {
   );
 
   const handleLogout = async () => {
+  try {
     await signOut();
     navigateTo('home');
+   } catch (error) {
+     Alert.alert(
+      'Logout failed',
+      error?.message || 'Something went wrong while signing out'
+     );
+   }
   };
+
 
   const isWeb = Platform.OS === 'web';
 

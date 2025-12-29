@@ -27,3 +27,4 @@ react-native-screens@3.22.1
 react-native-web@0.19.13
 style-loader@4.0.0
 typescript@5.9.3
+react-test-renderer@18.2.0

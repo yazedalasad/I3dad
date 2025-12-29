@@ -355,9 +355,17 @@ export default function PrincipalDashboardScreen({ navigateTo }) {
   }, [user?.id]);
 
   const handleLogout = async () => {
+  try {
     await signOut();
     navigateTo('home');
-  };
+  } catch (error) {
+    Alert.alert(
+      'Logout failed',
+      error?.message || 'Something went wrong while signing out'
+    );
+  }
+};
+
 
   if (loading) {
     return (
