@@ -1,23 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-
-import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
+import QuestionCard from './QuestionCard';
 
 export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 'ar' }) {
   const { studentData } = useAuth();
+
+  // ✅ IMPORTANT: use the AdaptiveTest component namespace
+  const { t, i18n } = useTranslation('componentsAdaptiveTest');
+
+  // Optional: sync language with prop (so component works standalone too)
+  useEffect(() => {
+    const nextLang = String(language).toLowerCase().startsWith('he') ? 'he' : 'ar';
+    if (String(i18n.language).toLowerCase() !== nextLang) {
+      i18n.changeLanguage(nextLang).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]); // [{ response, question }]
@@ -30,16 +44,21 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
         setLoading(true);
 
         if (!studentData?.id) {
-          Alert.alert('خطأ', 'لم يتم العثور على الطالب');
+          Alert.alert(
+            t('generic.error', isArabic ? 'خطأ' : 'שגיאה'),
+            isArabic ? 'لم يتم العثور على الطالب' : 'לא נמצא תלמיד'
+          );
           return;
         }
 
         if (!sessionId) {
-          Alert.alert('خطأ', 'لا يوجد sessionId لعرض مراجعة الإجابات.');
+          Alert.alert(
+            t('generic.error', isArabic ? 'خطأ' : 'שגיאה'),
+            isArabic ? 'لا يوجد sessionId لعرض مراجعة الإجابات.' : 'אין sessionId להצגת סקירת תשובות.'
+          );
           return;
         }
 
-        // ✅ Load all responses for this session + join questions
         const { data, error } = await supabase
           .from('student_responses')
           .select(
@@ -63,7 +82,10 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
 
         if (error) {
           console.log('Review answers query error:', error);
-          Alert.alert('خطأ', 'فشل تحميل مراجعة الإجابات.');
+          Alert.alert(
+            t('generic.error', isArabic ? 'خطأ' : 'שגיאה'),
+            isArabic ? 'فشل تحميل مراجعة الإجابات.' : 'טעינת סקירת התשובות נכשלה.'
+          );
           return;
         }
 
@@ -75,11 +97,7 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
               const q = r?.questions || null;
               if (!q) return null;
 
-              // Inject order so QuestionCard can display it
-              const question = {
-                ...q,
-                question_order: r.question_order,
-              };
+              const question = { ...q, question_order: r.question_order };
 
               return {
                 response: {
@@ -97,8 +115,11 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
 
         setItems(normalized);
       } catch (e) {
-        console.log('ReviewAnswersScreen error:', e?.message || e);
-        Alert.alert('خطأ', 'حدث خطأ أثناء تحميل المراجعة.');
+        console.log('ReviewAnswers error:', e?.message || e);
+        Alert.alert(
+          t('generic.error', isArabic ? 'خطأ' : 'שגיאה'),
+          t('generic.unknownError', isArabic ? 'حدث خطأ غير متوقع.' : 'אירעה שגיאה לא צפויה.')
+        );
       } finally {
         if (mounted) setLoading(false);
       }
@@ -107,7 +128,7 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
     return () => {
       mounted = false;
     };
-  }, [studentData?.id, sessionId]);
+  }, [studentData?.id, sessionId, i18n.language]);
 
   const summary = useMemo(() => {
     const total = items.length;
@@ -117,15 +138,14 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
   }, [items]);
 
   const goBack = () => {
-    // Go back to results (or any screen you prefer)
-    navigateTo?.('testResults', { sessionId });
+    navigateTo?.('testResults', { sessionId, language: i18n.language });
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
-        <Text style={styles.centerText}>جارٍ تحميل مراجعة الإجابات...</Text>
+        <Text style={styles.centerText}>{t('review.loading')}</Text>
       </View>
     );
   }
@@ -134,12 +154,12 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
     return (
       <View style={styles.page}>
         <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
-          <Text style={styles.heroTitle}>مراجعة الإجابات</Text>
-          <Text style={styles.heroSubtitle}>لا توجد إجابات لهذه الجلسة.</Text>
+          <Text style={styles.heroTitle}>{t('review.title')}</Text>
+          <Text style={styles.heroSubtitle}>{t('review.empty')}</Text>
         </LinearGradient>
 
         <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-          <Text style={styles.backBtnText}>رجوع</Text>
+          <Text style={styles.backBtnText}>{t('generic.back')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -149,41 +169,45 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
         <View style={styles.heroTop}>
-          <Text style={styles.heroTitle}>مراجعة الإجابات</Text>
+          <Text style={styles.heroTitle}>{t('review.title')}</Text>
+
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
               <Ionicons name="checkmark-circle" size={16} color="#EAF0FF" />
-              <Text style={styles.badgeText}>صحيح: {summary.correct}</Text>
+              <Text style={styles.badgeText}>
+                {t('review.correct')}: {summary.correct}
+              </Text>
             </View>
+
             <View style={styles.badge}>
               <Ionicons name="close-circle" size={16} color="#EAF0FF" />
-              <Text style={styles.badgeText}>خطأ: {summary.wrong}</Text>
+              <Text style={styles.badgeText}>
+                {t('review.wrong')}: {summary.wrong}
+              </Text>
             </View>
+
             <View style={styles.badge}>
               <Ionicons name="list" size={16} color="#EAF0FF" />
-              <Text style={styles.badgeText}>المجموع: {summary.total}</Text>
+              <Text style={styles.badgeText}>
+                {t('review.total')}: {summary.total}
+              </Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.heroHint}>
-          هنا يمكنك رؤية إجابتك والإجابة الصحيحة بعد إنهاء الاختبار.
-        </Text>
+        <Text style={styles.heroHint}>{t('review.hint')}</Text>
       </LinearGradient>
 
-      {/* Render every question in REVIEW mode */}
       {items.map((it) => (
         <View key={it.response.id} style={styles.cardWrap}>
           <QuestionCard
             question={it.question}
             selectedAnswer={it.response.selectedAnswer}
-            disabled={true}
-            onAnswerSelect={null}
-            onSkipQuestion={null}
-            language={language}
+            disabled
+            language={i18n.language}
             timeRemaining={null}
             maxTime={0}
-            showFeedback={true}
+            showFeedback
             isCorrect={it.response.isCorrect}
           />
 
@@ -203,13 +227,9 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
                 it.response.isCorrect ? styles.correctChip : styles.wrongChip,
               ]}
             >
-              <Ionicons
-                name={it.response.isCorrect ? 'checkmark' : 'close'}
-                size={14}
-                color="#fff"
-              />
+              <Ionicons name={it.response.isCorrect ? 'checkmark' : 'close'} size={14} color="#fff" />
               <Text style={styles.resultText}>
-                {it.response.isCorrect ? 'صحيح' : 'خطأ'}
+                {it.response.isCorrect ? t('review.correct') : t('review.wrong')}
               </Text>
             </View>
           </View>
@@ -217,7 +237,7 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
       ))}
 
       <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-        <Text style={styles.backBtnText}>رجوع للنتائج</Text>
+        <Text style={styles.backBtnText}>{t('generic.backToResults')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

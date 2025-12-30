@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   AppState,
@@ -29,6 +30,29 @@ export default function AdaptiveTestScreen({
   isComprehensive = true,
   subjectNames,
 }) {
+  // ✅ IMPORTANT: use the namespace where adaptiveTestScreen/navigator keys live
+  const { t, i18n } = useTranslation('adaptiveTest');
+
+  const isHebrew = String(language || '').toLowerCase().startsWith('he');
+  const isArabic = !isHebrew;
+
+  // Keep i18n in sync with the screen language prop
+  useEffect(() => {
+    const nextLang = language === 'he' ? 'he' : 'ar';
+    if (i18n.language !== nextLang) {
+      i18n.changeLanguage(nextLang).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  // Small helper so missing keys won't break the UI
+  // ✅ Upgraded: supports AR + HE fallback so Hebrew won't show Arabic text
+  const tt = (key, fallbackAr, fallbackHe) => {
+    const v = t(key);
+    if (typeof v === 'string' && v !== key) return v;
+    return isHebrew ? (fallbackHe ?? fallbackAr) : fallbackAr;
+  };
+
   /* -------------------- STATE -------------------- */
   const [initializing, setInitializing] = useState(true);
   const [fetchingQuestion, setFetchingQuestion] = useState(false);
@@ -204,13 +228,13 @@ export default function AdaptiveTestScreen({
     setTimeLeft(initialSeconds);
 
     timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
+      setTimeLeft((tsec) => {
+        if (tsec <= 1) {
           stopTimer();
           handleAutoTimeout(); // Option A => becomes pending
           return 0;
         }
-        return t - 1;
+        return tsec - 1;
       });
     }, 1000);
   }
@@ -218,12 +242,6 @@ export default function AdaptiveTestScreen({
   function stopTimer() {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
-  }
-
-  function getTimeTakenFromLimit(limitSeconds) {
-    // time taken = limit - remaining
-    const taken = Math.max(0, Math.floor(limitSeconds - safeNum(timeLeft, 0)));
-    return taken;
   }
 
   function safeNum(v, fallback = 0) {
@@ -494,7 +512,9 @@ export default function AdaptiveTestScreen({
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
-        <Text style={styles.centerText}>جارٍ تحميل السؤال...</Text>
+        <Text style={styles.centerText}>
+          {tt('adaptiveTestScreen.loadingQuestion', 'جاري تحميل السؤال…', 'טוען שאלה…')}
+        </Text>
       </View>
     );
   }
@@ -518,13 +538,13 @@ export default function AdaptiveTestScreen({
         <View style={styles.navigatorWrap}>
           <View style={styles.navigatorHeader}>
             <Text style={styles.navigatorTitle}>
-              {language === 'ar' ? 'الأسئلة' : 'שאלות'}
+              {tt('navigator.title', 'الأسئلة', 'שאלות')}
             </Text>
 
             {showViewOnlyChip && (
               <View style={styles.viewOnlyChip}>
                 <Text style={styles.viewOnlyText}>
-                  {language === 'ar' ? 'عرض فقط' : 'צפייה בלבד'}
+                  {tt('navigator.viewOnly', 'عرض فقط', 'צפייה בלבד')}
                 </Text>
               </View>
             )}
@@ -532,7 +552,7 @@ export default function AdaptiveTestScreen({
             {showPendingChip && (
               <View style={styles.pendingChip}>
                 <Text style={styles.pendingText}>
-                  {language === 'ar' ? 'معلق - يمكنك الإجابة' : 'ממתין - אפשר לענות'}
+                  {tt('navigator.pending', 'معلّق - يمكنك الإجابة', 'ממתין — אפשר לענות')}
                 </Text>
               </View>
             )}
@@ -570,9 +590,11 @@ export default function AdaptiveTestScreen({
           </ScrollView>
 
           <Text style={styles.navigatorHint}>
-            {language === 'ar'
-              ? 'اضغط رقم السؤال للرجوع. الأسئلة المعلقة يمكن الإجابة عنها والوقت يكمل من حيث توقفت.'
-              : 'לחץ/י על מספר. בשאלות ממתינות אפשר לענות והזמן ממשיך מאיפה שעצרת.'}
+            {tt(
+              'navigator.hint',
+              'اضغط رقم السؤال للرجوع. الأسئلة المعلّقة يمكن الإجابة عنها والوقت يكمل من حيث توقفت.',
+              'לחץ/י על מספר כדי לחזור. בשאלות ממתינות אפשר לענות והזמן ממשיך מאיפה שעצרת.'
+            )}
           </Text>
         </View>
       )}

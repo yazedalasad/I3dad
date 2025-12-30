@@ -1,0 +1,82 @@
+{
+  "common": {
+    "loading": "جاري التحميل…",
+    "back": "رجوع",
+    "next": "التالي",
+    "finish": "إنهاء",
+    "close": "إغلاق",
+    "continue": "متابعة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "yes": "نعم",
+    "no": "لا"
+  },
+
+  "errors": {
+    "title": "خطأ",
+    "warning": "تنبيه",
+    "somethingWrong": "حدث خطأ غير متوقع.",
+    "tryAgain": "حاول مرة أخرى."
+  },
+
+  "adaptiveTestScreen": {
+    "title": "اختبار تكيّفي",
+    "loadingQuestion": "جاري تحميل السؤال…",
+    "timeLeft": "الوقت المتبقي",
+    "question": "سؤال",
+    "of": "من",
+    "submit": "إرسال الإجابة",
+    "skip": "تخطي",
+    "review": "مراجعة"
+  },
+
+  "navigator": {
+    "title": "الأسئلة",
+    "viewOnly": "عرض فقط",
+    "pending": "معلّق - يمكنك الإجابة",
+    "hint": "اضغط رقم السؤال للرجوع. الأسئلة المعلّقة يمكن الإجابة عنها والوقت يكمل من حيث توقفت."
+  },
+
+  "results": {
+    "title": "نتائج الاختبار",
+    "yourLevel": "مستواك",
+    "recommendations": "اقتراحات",
+    "strengths": "نقاط القوة",
+    "needsWork": "نقاط تحتاج تطوير",
+    "share": "مشاركة",
+    "download": "تحميل"
+  },
+
+  "totalExam": {
+    "title": "الامتحان الشامل",
+    "start": "ابدأ الامتحان",
+    "continue": "تابع الامتحان",
+    "done": "تم إنهاء الامتحان",
+    "score": "النتيجة",
+    "showResults": "عرض النتائج"
+  },
+
+  "personalityTest": {
+    "title": "اختبار الشخصية",
+    "start": "ابدأ الاختبار",
+    "submit": "إرسال",
+    "question": "سؤال",
+    "chooseOne": "اختر إجابة واحدة"
+  },
+
+  "personalityResults": {
+    "title": "نتائج الشخصية",
+    "yourType": "نوع شخصيتك",
+    "summary": "ملخص",
+    "traits": "الصفات",
+    "careers": "مجالات مناسبة",
+    "backHome": "العودة للرئيسية",
+
+    "chartTitle": "الرسم البياني",
+    "chartHint": "صورة عامة لتوزيع السمات.",
+    "fullTestResults": "نتائج الاختبار الكامل",
+    "noResultsYet": "لا توجد نتائج بعد",
+    "headlineWithConfidence": "نتائج الشخصية (نسبة الثقة {{conf}}٪)",
+    "defaultDescription": "تعكس هذه النتائج نمطًا عامًا بناءً على إجاباتك."
+  }
+}

@@ -1,5 +1,7 @@
+// screens/AdaptiveTest/TestResultsScreen.js
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -16,8 +18,25 @@ import { useAuth } from '../../contexts/AuthContext';
 // ✅ existing radar component
 import RadarChart from '../../components/AdaptiveTest/RadarChart';
 
-export default function TestResultsScreen({ navigateTo, sessionId }) {
+export default function TestResultsScreen({ navigateTo, sessionId, language = 'ar' }) {
   const { studentData } = useAuth();
+  const { t, i18n } = useTranslation();
+
+  // Sync i18n language with prop
+  useEffect(() => {
+    const nextLang = String(language).toLowerCase() === 'he' ? 'he' : 'ar';
+    if (i18n.language !== nextLang) {
+      i18n.changeLanguage(nextLang).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
+
+  const tt = (key, fallback) => {
+    const v = t(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]); // test_session_subjects rows with subject info
@@ -30,14 +49,19 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
         setLoading(true);
 
         if (!studentData?.id) {
-          Alert.alert('خطأ', 'لم يتم العثور على الطالب');
+          Alert.alert(tt('errors.title', isArabic ? 'خطأ' : 'שגיאה'), tt('errors.somethingWrong', isArabic ? 'لم يتم العثور على الطالب' : 'לא נמצא תלמיד'));
           return;
         }
 
         if (!sessionId) {
           Alert.alert(
-            'خطأ',
-            'لا يوجد sessionId لعرض النتائج. تأكد من تمريره عند إنهاء الاختبار.'
+            tt('errors.title', isArabic ? 'خطأ' : 'שגיאה'),
+            tt(
+              'results.missingSessionId',
+              isArabic
+                ? 'لا يوجد sessionId لعرض النتائج. تأكد من تمريره عند إنهاء الاختبار.'
+                : 'אין sessionId להצגת התוצאות. ודא/י שהוא נשלח בסיום המבחן.'
+            )
           );
           return;
         }
@@ -64,7 +88,10 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
 
         if (error) {
           console.log('Results query error:', error);
-          Alert.alert('خطأ', 'فشل تحميل نتائج المواد');
+          Alert.alert(
+            tt('errors.title', isArabic ? 'خطأ' : 'שגיאה'),
+            tt('results.loadSubjectsFailed', isArabic ? 'فشل تحميل نتائج المواد' : 'טעינת תוצאות מקצועות נכשלה')
+          );
           return;
         }
 
@@ -72,6 +99,7 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
         setRows(data || []);
       } catch (e) {
         console.log('TestResultsScreen error:', e?.message || e);
+        Alert.alert(tt('errors.title', isArabic ? 'خطأ' : 'שגיאה'), tt('errors.somethingWrong', isArabic ? 'حدث خطأ غير متوقع.' : 'אירעה שגיאה לא צפויה.'));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -80,7 +108,7 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
     return () => {
       mounted = false;
     };
-  }, [studentData?.id, sessionId]);
+  }, [studentData?.id, sessionId, isArabic]);
 
   const subjectResults = useMemo(() => {
     const list = (rows || []).map((r, idx) => {
@@ -89,7 +117,12 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
       const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
 
       const s = r?.subjects;
-      const name = s?.name_ar || s?.name_en || s?.name_he || `المادة ${idx + 1}`;
+      const name =
+        (isArabic ? s?.name_ar : s?.name_he) ||
+        s?.name_en ||
+        s?.name_he ||
+        s?.name_ar ||
+        (isArabic ? `المادة ${idx + 1}` : `מקצוע ${idx + 1}`);
 
       return {
         subjectId: r.subject_id,
@@ -100,10 +133,10 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
       };
     });
 
-    // Optional: stable order (by name)
-    list.sort((a, b) => a.subjectName.localeCompare(b.subjectName, 'ar'));
+    // stable order
+    list.sort((a, b) => a.subjectName.localeCompare(b.subjectName, isArabic ? 'ar' : 'he'));
     return list;
-  }, [rows]);
+  }, [rows, isArabic]);
 
   const overallScore = useMemo(() => {
     if (!subjectResults.length) return 0;
@@ -112,11 +145,19 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
   }, [subjectResults]);
 
   const getAbilityLevel = (score) => {
-    if (score >= 85) return 'ممتاز';
-    if (score >= 70) return 'جيد جدًا';
-    if (score >= 55) return 'جيد';
-    if (score >= 40) return 'مقبول';
-    return 'ضعيف';
+    if (isArabic) {
+      if (score >= 85) return 'ممتاز';
+      if (score >= 70) return 'جيد جدًا';
+      if (score >= 55) return 'جيد';
+      if (score >= 40) return 'مقبول';
+      return 'ضعيف';
+    }
+    // Hebrew fallbacks (you can move to i18n later)
+    if (score >= 85) return 'מצוין';
+    if (score >= 70) return 'טוב מאוד';
+    if (score >= 55) return 'טוב';
+    if (score >= 40) return 'סביר';
+    return 'חלש';
   };
 
   const level = getAbilityLevel(overallScore);
@@ -126,18 +167,24 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
 
   const goToReview = () => {
     if (!sessionId) {
-      Alert.alert('خطأ', 'لا يوجد sessionId لعرض مراجعة الإجابات.');
+      Alert.alert(
+        tt('errors.title', isArabic ? 'خطأ' : 'שגיאה'),
+        tt(
+          'results.noSessionForReview',
+          isArabic ? 'لا يوجد sessionId لعرض مراجعة الإجابات.' : 'אין sessionId להצגת סקירת תשובות.'
+        )
+      );
       return;
     }
 
-    navigateTo('reviewAnswers', { sessionId });
+    navigateTo('reviewAnswers', { sessionId, language: i18n.language });
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
-        <Text style={styles.centerText}>جارٍ تحميل النتائج...</Text>
+        <Text style={styles.centerText}>{tt('common.loading', isArabic ? 'جاري التحميل…' : 'טוען...')}</Text>
       </View>
     );
   }
@@ -145,25 +192,37 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
-        <Text style={styles.heroTitle}>نتائج الاختبار</Text>
-        <Text style={styles.heroSubtitle}>المستوى العام: {level}</Text>
-        <Text style={styles.heroSmall}>المعدل: {overallScore}%</Text>
+        <Text style={styles.heroTitle}>{tt('results.title', isArabic ? 'نتائج الاختبار' : 'תוצאות מבחן')}</Text>
+
+        <Text style={styles.heroSubtitle}>
+          {tt('results.yourLevel', isArabic ? 'مستواك' : 'הרמה שלך')}: {level}
+        </Text>
+
+        <Text style={styles.heroSmall}>
+          {tt('totalExam.score', isArabic ? 'النتيجة' : 'ציון')}: {overallScore}%
+        </Text>
       </LinearGradient>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>قوة الطالب حسب المادة</Text>
+        <Text style={styles.sectionTitle}>
+          {tt('results.strengths', isArabic ? 'نقاط القوة' : 'חוזקות')} {isArabic ? 'حسب المادة' : 'לפי מקצוע'}
+        </Text>
 
         {subjectResults.length === 0 ? (
-          <Text style={styles.muted}>لا توجد نتائج مواد لهذه الجلسة.</Text>
+          <Text style={styles.muted}>
+            {tt('results.noSubjects', isArabic ? 'لا توجد نتائج مواد لهذه الجلسة.' : 'אין תוצאות מקצועות לסשן הזה.')}
+          </Text>
         ) : (
           <View style={styles.radarBox}>
+            {/* Your RadarChart might use props: labels/values OR data. Keeping your original usage */}
             <RadarChart labels={radarLabels} values={radarValues} />
           </View>
         )}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>تفصيل سريع</Text>
+        <Text style={styles.sectionTitle}>{tt('results.details', isArabic ? 'تفصيل سريع' : 'פירוט מהיר')}</Text>
+
         {subjectResults.map((r) => (
           <View key={r.subjectId} style={styles.row}>
             <Text style={styles.rowName}>{r.subjectName}</Text>
@@ -174,14 +233,14 @@ export default function TestResultsScreen({ navigateTo, sessionId }) {
         ))}
       </View>
 
-      {/* ✅ NEW: Review answers button */}
       <TouchableOpacity style={styles.reviewBtn} onPress={goToReview}>
-        <Text style={styles.reviewBtnText}>مراجعة الإجابات</Text>
+        <Text style={styles.reviewBtnText}>
+          {tt('results.review', isArabic ? 'مراجعة' : 'סקירה')}
+        </Text>
       </TouchableOpacity>
 
-      {/* Keep existing back behavior (you can change destination later if you want) */}
       <TouchableOpacity style={styles.backBtn} onPress={() => navigateTo('adaptiveTest')}>
-        <Text style={styles.backBtnText}>رجوع</Text>
+        <Text style={styles.backBtnText}>{tt('common.back', isArabic ? 'رجوع' : 'חזרה')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -1,0 +1,151 @@
+{
+  "common": {
+    "loading": "جاري التحميل…",
+    "view": "عرض",
+    "viewAll": "عرض الكل",
+    "open": "فتح",
+    "all": "الكل",
+    "today": "اليوم",
+    "signOut": "تسجيل الخروج",
+    "logoutFailed": "فشل تسجيل الخروج",
+    "logoutError": "حدث خطأ أثناء تسجيل الخروج"
+  },
+
+  "admin": {
+    "brand": "Admin",
+    "menuTitle": "القائمة",
+    "sidebar": {
+      "dashboard": "لوحة التحكم",
+      "management": "الإدارة",
+      "reports": "التقارير",
+      "users": "المستخدمون"
+    },
+
+    "top": {
+      "pageTitle": "لوحة تحليلات",
+      "pageSub": "هذا تصميم تجريبي (الأزرار حالياً للتجربة فقط).",
+      "buttons": "أزرار"
+    },
+
+    "tabs": {
+      "overview": "نظرة عامة",
+      "management": "إدارة",
+      "demographics": "إحصائيات",
+      "more": "المزيد"
+    },
+
+    "panels": {
+      "portfolio": "أداء اللوحة",
+      "technicalSupport": "الدعم الفني",
+      "timeline": "الجدول الزمني",
+      "adminPages": "صفحات الأدمن"
+    },
+
+    "actions": {
+      "viewCompleteReport": "عرض التقرير الكامل",
+      "viewAllMessages": "عرض كل الرسائل"
+    },
+
+    "kpis": {
+      "cashDeposits": "الإيداعات",
+      "invitedStudents": "الطلاب المدعوون",
+      "capitalGains": "المكاسب"
+    },
+
+    "pages": {
+      "students": "الطلاب",
+      "principals": "المدراء",
+      "activities": "الفعاليات",
+      "registrations": "التسجيلات",
+      "subjects": "المواد",
+      "questions": "الأسئلة",
+      "degrees": "الدرجات",
+      "programs": "البرامج",
+      "institutions": "المؤسسات",
+      "successStories": "قصص نجاح",
+      "analytics": "تحليلات",
+      "settings": "الإعدادات"
+    },
+
+    "toast": {
+      "placeholderTitle": "قريباً",
+      "placeholderBody": "زر تجريبي (سيتم تنفيذه لاحقاً)."
+    }
+  },
+
+  "principal": {
+    "loadingDashboard": "جاري تحميل لوحة التحكم…",
+    "headerTitle": "نظرة عامة للمدير",
+    "headerSub": "تمكين المدارس من خلال مؤشرات مجمّعة",
+
+    "kpis": {
+      "totalStudents": "إجمالي الطلاب",
+      "activeToday": "جلسات نشطة اليوم",
+      "subjectsCoveredThisMonth": "المواد المغطاة (هذا الشهر)",
+      "avgAccuracyThisMonth": "متوسط الدقة (هذا الشهر)",
+      "focusLostToday": "{{count}} مرات فقدان التركيز اليوم"
+    },
+
+    "panels": {
+      "avgPerformance": "متوسط أداء الطلاب",
+      "juniorHigh": "المرحلة الإعدادية",
+      "seniorHigh": "المرحلة الثانوية",
+      "careerInterests": "توزيع الاهتمامات المهنية",
+      "testParticipation": "المشاركة في الاختبارات",
+      "insights": "رؤى وتوصيات",
+      "export": "تصدير التقارير"
+    },
+
+    "months": {
+      "thisMonth": "هذا الشهر",
+      "lastMonth": "الشهر الماضي"
+    },
+
+    "participation": {
+      "completed": "مكتمل",
+      "inProgress": "قيد التنفيذ",
+      "abandoned": "متروك"
+    },
+
+    "insightsBullets": {
+      "b1": "إمكانات عالية في STEM",
+      "b2": "التركيز على مهارات اللغة",
+      "b3": "فعاليات إرشاد مهني"
+    },
+
+    "links": {
+      "viewDetailed": "عرض التفاصيل →"
+    },
+
+    "export": {
+      "downloadSchoolReport": "تحميل تقرير المدرسة",
+      "downloadClassReports": "تحميل تقارير الصفوف"
+    },
+
+    "quickActions": {
+      "title": "إجراءات سريعة",
+      "manageStudents": "إدارة الطلاب",
+      "activities": "الفعاليات",
+      "reports": "التقارير"
+    },
+
+    "footer": {
+      "loggedInAs": "تم تسجيل الدخول كـ: {{email}}"
+    },
+
+    "alerts": {
+      "error": "خطأ",
+      "failedLoadPrincipal": "فشل تحميل بيانات المدير.",
+      "accessDenied": "لا يوجد صلاحية",
+      "notPrincipal": "حسابك غير مسجّل كمدير.",
+      "info": "معلومة",
+      "laterInsights": "لاحقاً: فتح شاشة التفاصيل",
+      "export": "تصدير",
+      "laterSchoolPdf": "لاحقاً: إنشاء PDF لتقرير المدرسة",
+      "laterClassPdf": "لاحقاً: إنشاء PDF لتقارير الصفوف",
+      "nextStep": "الخطوة القادمة",
+      "createStudentsScreen": "إنشاء شاشة طلاب للمدير",
+      "createReportsScreen": "إنشاء شاشة تقارير للمدير"
+    }
+  }
+}

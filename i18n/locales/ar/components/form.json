@@ -1,0 +1,34 @@
+{
+  "picker": {
+    "placeholder": "اختر...",
+    "titleFallback": "اختر"
+  },
+
+  "datePicker": {
+    "placeholder": "اختر التاريخ",
+    "modalTitleFallback": "اختر التاريخ",
+    "ageRangeSuffix": "({{min}}-{{max}} سنة)",
+    "ageRangeInfo": "يجب أن يكون العمر بين {{min}} و {{max}} سنة",
+
+    "labels": {
+      "year": "السنة",
+      "month": "الشهر",
+      "day": "اليوم",
+      "currentAge": "العمر الحالي:",
+      "selectedDate": "التاريخ المختار:"
+    },
+
+    "actions": {
+      "confirm": "تأكيد"
+    },
+
+    "validation": {
+      "minAge": "يجب أن يكون العمر {{min}} سنة على الأقل",
+      "maxAge": "يجب أن يكون العمر {{max}} سنة على الأكثر"
+    },
+
+    "units": {
+      "years": "سنة"
+    }
+  }
+}

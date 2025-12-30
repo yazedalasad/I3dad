@@ -1,0 +1,54 @@
+{
+  "generic": {
+    "loading": "טוען...",
+    "back": "חזרה",
+    "backToResults": "חזרה לתוצאות",
+    "error": "שגיאה",
+    "unknownError": "אירעה שגיאה לא צפויה"
+  },
+
+  "question": {
+    "questionLabel": "שאלה",
+    "skip": "דלג/י על השאלה",
+    "unsupported": "סוג שאלה לא נתמך.",
+    "noOptions": "אין אפשרויות."
+  },
+
+  "openEnded": {
+    "placeholder": "כתוב/כתבי כאן..."
+  },
+
+  "review": {
+    "title": "סקירת תשובות",
+    "loading": "טוען סקירת תשובות...",
+    "empty": "אין תשובות לסשן זה.",
+    "hint": "כאן ניתן לראות את תשובתך ואת התשובה הנכונה לאחר סיום המבחן.",
+    "correct": "נכון",
+    "wrong": "לא נכון",
+    "total": "סה״כ"
+  },
+
+  "progress": {
+    "progress": "התקדמות",
+    "accuracy": "דיוק",
+    "skipped": "דולג",
+    "wrong": "שגוי"
+  },
+
+  "radar": {
+    "title": "מפת יכולות לפי מקצועות",
+    "top": "טופ {{count}}",
+    "empty": "אין מספיק נתונים להצגת התרשים.",
+    "legendPoints": "נקודות ביצוע",
+    "legendLevels": "רמות (20–100)"
+  },
+
+  "explanation": {
+    "correctTitle": "הסבר",
+    "wrongTitle": "תיקון"
+  },
+
+  "time": {
+    "seconds": "{{value}} שניות"
+  }
+}

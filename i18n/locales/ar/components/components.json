@@ -1,0 +1,48 @@
+{
+  "navbar": {
+    "home": "الرئيسية",
+    "successStories": "قصص النجاح",
+    "activities": "الأنشطة",
+    "test": "الاختبار",
+    "profile": "حسابي",
+    "about": "عن إعداد",
+    "login": "تسجيل الدخول"
+  },
+
+  "footer": {
+    "tagline": "تمكين الطلاب العرب الإسرائيليين منذ 2024",
+    "about": "من نحن",
+    "privacy": "سياسة الخصوصية",
+    "contact": "تواصل معنا",
+    "support": "دعم",
+    "copyright": "© 2024 I3dad. جميع الحقوق محفوظة.",
+    "madeWith": "صنع بـ ❤️ للطلاب العرب الإسرائيليين"
+  },
+
+  "language": {
+    "arabic": "العربية",
+    "hebrew": "עברית"
+  },
+
+  "picker": {
+    "select": "اختر",
+    "placeholder": "اختر..."
+  },
+
+  "datePicker": {
+    "placeholder": "اختر التاريخ",
+    "confirm": "تأكيد",
+    "ageBetween": "يجب أن يكون العمر بين {{min}} و {{max}} سنة",
+    "minAge": "يجب أن يكون العمر {{min}} سنة على الأقل",
+    "maxAge": "يجب أن يكون العمر {{max}} سنة على الأكثر",
+    "year": "السنة",
+    "month": "الشهر",
+    "day": "اليوم",
+    "currentAge": "العمر الحالي:",
+    "selectedDate": "التاريخ المختار:"
+  },
+
+  "featureCard": {
+    "readMore": "اقرأ المزيد"
+  }
+}

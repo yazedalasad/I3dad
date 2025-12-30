@@ -1,6 +1,7 @@
 // screens/AdaptiveTest/PersonalityTestScreen.js
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -31,6 +32,24 @@ export default function PersonalityTestScreen({
   abilitySessionId = null, // pass from ability exam if exists
   existingPersonalitySessionId = null, // optional resume
 }) {
+  // ✅ IMPORTANT: personalityTest keys are inside adaptiveTest namespace (adaptiveTest.json)
+  const { t, i18n } = useTranslation('adaptiveTest');
+
+  // Sync i18n language with prop
+  useEffect(() => {
+    const nextLang = String(language).toLowerCase() === 'he' ? 'he' : 'ar';
+    if (String(i18n.language).toLowerCase() !== nextLang) {
+      i18n.changeLanguage(nextLang).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  // Safe translator fallback (so UI doesn't break if a key is missing)
+  const tt = (key, fallback) => {
+    const v = t(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
   const [initializing, setInitializing] = useState(true);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -51,7 +70,7 @@ export default function PersonalityTestScreen({
   const [rankingOrder, setRankingOrder] = useState([]); // ordered items
 
   const questionStartRef = useRef(Date.now());
-  const isArabic = String(language).toLowerCase() !== 'he';
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
 
   const qText = useMemo(() => {
     if (!question) return '';
@@ -77,7 +96,10 @@ export default function PersonalityTestScreen({
     (async () => {
       try {
         if (!studentId) {
-          Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'لا يوجد studentId لبدء اختبار الشخصية.' : 'אין studentId כדי להתחיל מבחן אישיות.');
+          Alert.alert(
+            tt('errors.title', 'خطأ'),
+            tt('errors.somethingWrong', 'لا يوجد studentId لبدء اختبار الشخصية.')
+          );
           return;
         }
 
@@ -87,7 +109,10 @@ export default function PersonalityTestScreen({
         if (!sid) {
           const start = await startPersonalityTest(studentId, language);
           if (!start?.success) {
-            Alert.alert(isArabic ? 'خطأ' : 'שגיאה', start?.error || (isArabic ? 'فشل إنشاء جلسة اختبار الشخصية.' : 'יצירת סשן נכשלה.'));
+            Alert.alert(
+              tt('errors.title', 'خطأ'),
+              start?.error || tt('errors.tryAgain', 'فشل إنشاء جلسة اختبار الشخصية.')
+            );
             return;
           }
           sid = start.sessionId;
@@ -98,6 +123,7 @@ export default function PersonalityTestScreen({
         await loadNextQuestion(sid);
       } catch (e) {
         console.log('PersonalityTestScreen init error:', e?.message || e);
+        Alert.alert(tt('errors.title', 'خطأ'), tt('errors.somethingWrong', 'حدث خطأ غير متوقع.'));
       } finally {
         if (mounted) setInitializing(false);
       }
@@ -193,7 +219,10 @@ export default function PersonalityTestScreen({
       startQuestionTimer();
     } catch (e) {
       console.log('loadNextQuestion error:', e?.message || e);
-      Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'فشل تحميل سؤال الشخصية.' : 'טעינת שאלה נכשלה.');
+      Alert.alert(
+        tt('errors.title', 'خطأ'),
+        tt('errors.tryAgain', 'فشل تحميل سؤال الشخصية.')
+      );
     } finally {
       setLoadingQuestion(false);
     }
@@ -205,22 +234,26 @@ export default function PersonalityTestScreen({
     const type = question.question_type || 'scale_10';
 
     if (type === 'scale_10') {
-      if (scaleValue == null) return { ok: false, message: isArabic ? 'اختر رقمًا من 1 إلى 10.' : 'בחר/י מספר מ-1 עד 10.' };
+      if (scaleValue == null)
+        return { ok: false, message: isArabic ? 'اختر رقمًا من 1 إلى 10.' : 'בחר/י מספר מ-1 עד 10.' };
       return { ok: true };
     }
 
     if (type === 'multiple_choice') {
-      if (choiceIndex == null) return { ok: false, message: isArabic ? 'اختر خيارًا.' : 'בחר/י אפשרות.' };
+      if (choiceIndex == null)
+        return { ok: false, message: tt('personalityTest.chooseOne', isArabic ? 'اختر إجابة واحدة' : 'בחר/י תשובה אחת') };
       return { ok: true };
     }
 
     if (type === 'open_ended') {
-      if (!String(textValue || '').trim()) return { ok: false, message: isArabic ? 'اكتب إجابة.' : 'כתוב/כתבי תשובה.' };
+      if (!String(textValue || '').trim())
+        return { ok: false, message: isArabic ? 'اكتب إجابة.' : 'כתוב/כתבי תשובה.' };
       return { ok: true };
     }
 
     if (type === 'forced_choice_pair') {
-      if (forcedChoice !== 'A' && forcedChoice !== 'B') return { ok: false, message: isArabic ? 'اختر A أو B.' : 'בחר/י A או B.' };
+      if (forcedChoice !== 'A' && forcedChoice !== 'B')
+        return { ok: false, message: isArabic ? 'اختر A أو B.' : 'בחר/י A או B.' };
       return { ok: true };
     }
 
@@ -270,7 +303,7 @@ export default function PersonalityTestScreen({
 
     const v = validateAnswer();
     if (!v.ok) {
-      Alert.alert(isArabic ? 'تنبيه' : 'שים לב', v.message || '');
+      Alert.alert(tt('errors.warning', isArabic ? 'تنبيه' : 'שים לב'), v.message || '');
       return;
     }
 
@@ -278,14 +311,14 @@ export default function PersonalityTestScreen({
 
     try {
       const ans = buildAnswerPayload();
-      const t = timeTakenSeconds();
+      const seconds = timeTakenSeconds();
 
-      const res = await submitPersonalityAnswer(sessionId, question.id, ans, t);
+      const res = await submitPersonalityAnswer(sessionId, question.id, ans, seconds);
 
       if (!res?.success) {
         Alert.alert(
-          isArabic ? 'خطأ' : 'שגיאה',
-          res?.error || (isArabic ? 'فشل إرسال الإجابة.' : 'שליחת תשובה נכשלה.')
+          tt('errors.title', 'خطأ'),
+          res?.error || tt('errors.tryAgain', 'فشل إرسال الإجابة.')
         );
         return;
       }
@@ -293,7 +326,7 @@ export default function PersonalityTestScreen({
       await loadNextQuestion(sessionId);
     } catch (e) {
       console.log('submit error:', e?.message || e);
-      Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'حصل خطأ أثناء الإرسال.' : 'אירעה שגיאה בשליחה.');
+      Alert.alert(tt('errors.title', 'خطأ'), tt('errors.somethingWrong', 'حدث خطأ غير متوقع.'));
     } finally {
       setSubmitting(false);
     }
@@ -325,7 +358,11 @@ export default function PersonalityTestScreen({
 
   function renderMultipleChoice() {
     if (!options.length) {
-      return <Text style={styles.muted}>{isArabic ? 'لا توجد خيارات لهذا السؤال.' : 'אין אפשרויות לשאלה.'}</Text>;
+      return (
+        <Text style={styles.muted}>
+          {tt('personalityTest.noOptions', isArabic ? 'لا توجد خيارات لهذا السؤال.' : 'אין אפשרויות לשאלה.')}
+        </Text>
+      );
     }
 
     return (
@@ -359,11 +396,14 @@ export default function PersonalityTestScreen({
         <TextInput
           value={textValue}
           onChangeText={setTextValue}
-          placeholder={isArabic ? 'اكتب إجابتك هنا...' : 'כתוב/כתבי את התשובה כאן...'}
+          placeholder={tt(
+            'personalityTest.placeholder',
+            isArabic ? 'اكتب إجابتك هنا...' : 'כתוב/כתבי את התשובה כאן...'
+          )}
           placeholderTextColor="#94A3B8"
           multiline
           style={styles.textArea}
-          textAlign="right"
+          textAlign={isArabic ? 'right' : 'left'}
         />
       </View>
     );
@@ -421,7 +461,11 @@ export default function PersonalityTestScreen({
 
   function renderRanking10() {
     if (!rankingOrder?.length) {
-      return <Text style={styles.muted}>{isArabic ? 'لا توجد عناصر للترتيب.' : 'אין פריטים לסידור.'}</Text>;
+      return (
+        <Text style={styles.muted}>
+          {tt('personalityTest.noRankingItems', isArabic ? 'لا توجد عناصر للترتيب.' : 'אין פריטים לסידור.')}
+        </Text>
+      );
     }
 
     return (
@@ -465,7 +509,6 @@ export default function PersonalityTestScreen({
     if (type === 'forced_choice_pair') return renderForcedChoicePair();
     if (type === 'ranking_10') return renderRanking10();
 
-    // fallback
     return renderScale10();
   }
 
@@ -474,7 +517,7 @@ export default function PersonalityTestScreen({
       <View style={[styles.page, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color="#1E4FBF" />
         <Text style={{ marginTop: 12, color: '#64748b', fontWeight: '700' }}>
-          {isArabic ? 'جاري التحضير...' : 'טוען...'}
+          {tt('common.loading', 'جاري التحميل…')}
         </Text>
       </View>
     );
@@ -486,7 +529,11 @@ export default function PersonalityTestScreen({
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content}>
         <LinearGradient colors={['#1E4FBF', '#274B9F']} style={styles.hero}>
-          <Text style={styles.heroTitle}>{isArabic ? 'اختبار الشخصية' : 'מבחן אישיות'}</Text>
+          {/* ✅ FIXED: pulls from adaptiveTest.json -> personalityTest.title */}
+          <Text style={styles.heroTitle}>
+            {tt('personalityTest.title', isArabic ? 'اختبار الشخصية' : 'מבחן אישיות')}
+          </Text>
+
           <Text style={styles.heroSubtitle}>
             {isArabic
               ? `سؤال ${progress.answered + 1} من ${progress.total} (سريع)`
@@ -511,7 +558,9 @@ export default function PersonalityTestScreen({
             {loadingQuestion ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#1E4FBF" />
-                <Text style={styles.muted}>{isArabic ? 'جاري تحميل السؤال...' : 'טוען שאלה...'}</Text>
+                <Text style={styles.muted}>
+                  {tt('adaptiveTestScreen.loadingQuestion', isArabic ? 'جاري تحميل السؤال…' : 'טוען שאלה...')}
+                </Text>
               </View>
             ) : (
               renderAnswerInput()
@@ -531,7 +580,9 @@ export default function PersonalityTestScreen({
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitBtnText}>{isArabic ? 'التالي' : 'הבא'}</Text>
+                <Text style={styles.submitBtnText}>
+                  {tt('common.next', isArabic ? 'التالي' : 'הבא')}
+                </Text>
               )}
             </Pressable>
 
@@ -539,7 +590,9 @@ export default function PersonalityTestScreen({
               onPress={() => finishPersonality(sessionId)}
               style={({ pressed }) => [styles.skipBtn, pressed ? styles.skipBtnPressed : null]}
             >
-              <Text style={styles.skipBtnText}>{isArabic ? 'إنهاء الاختبار' : 'סיים מבחן'}</Text>
+              <Text style={styles.skipBtnText}>
+                {tt('common.finish', isArabic ? 'إنهاء' : 'סיום')}
+              </Text>
             </Pressable>
           </View>
         </View>

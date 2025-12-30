@@ -1,0 +1,34 @@
+{
+  "picker": {
+    "placeholder": "בחר/י...",
+    "titleFallback": "בחר/י"
+  },
+
+  "datePicker": {
+    "placeholder": "בחר/י תאריך",
+    "modalTitleFallback": "בחר/י תאריך",
+    "ageRangeSuffix": "({{min}}-{{max}} שנים)",
+    "ageRangeInfo": "הגיל חייב להיות בין {{min}} ל-{{max}} שנים",
+
+    "labels": {
+      "year": "שנה",
+      "month": "חודש",
+      "day": "יום",
+      "currentAge": "הגיל הנוכחי:",
+      "selectedDate": "התאריך שנבחר:"
+    },
+
+    "actions": {
+      "confirm": "אישור"
+    },
+
+    "validation": {
+      "minAge": "הגיל חייב להיות לפחות {{min}} שנים",
+      "maxAge": "הגיל חייב להיות לכל היותר {{max}} שנים"
+    },
+
+    "units": {
+      "years": "שנים"
+    }
+  }
+}

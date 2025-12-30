@@ -1,0 +1,151 @@
+{
+  "common": {
+    "loading": "טוען…",
+    "view": "צפייה",
+    "viewAll": "צפה בהכול",
+    "open": "פתח",
+    "all": "הכול",
+    "today": "היום",
+    "signOut": "התנתקות",
+    "logoutFailed": "ההתנתקות נכשלה",
+    "logoutError": "אירעה שגיאה בעת התנתקות"
+  },
+
+  "admin": {
+    "brand": "Admin",
+    "menuTitle": "תפריט",
+    "sidebar": {
+      "dashboard": "דשבורד",
+      "management": "ניהול",
+      "reports": "דוחות",
+      "users": "משתמשים"
+    },
+
+    "top": {
+      "pageTitle": "דשבורד אנליטיקה",
+      "pageSub": "זהו דמו של ממשק אדמין (הכפתורים כרגע מציגים דמה).",
+      "buttons": "כפתורים"
+    },
+
+    "tabs": {
+      "overview": "סקירה",
+      "management": "ניהול",
+      "demographics": "דמוגרפיה",
+      "more": "עוד"
+    },
+
+    "panels": {
+      "portfolio": "ביצועי מערכת",
+      "technicalSupport": "תמיכה טכנית",
+      "timeline": "ציר זמן",
+      "adminPages": "עמודי אדמין"
+    },
+
+    "actions": {
+      "viewCompleteReport": "צפה בדוח המלא",
+      "viewAllMessages": "צפה בכל ההודעות"
+    },
+
+    "kpis": {
+      "cashDeposits": "הפקדות",
+      "invitedStudents": "תלמידים מוזמנים",
+      "capitalGains": "רווחים"
+    },
+
+    "pages": {
+      "students": "תלמידים",
+      "principals": "מנהלים",
+      "activities": "פעילויות",
+      "registrations": "הרשמות",
+      "subjects": "מקצועות",
+      "questions": "שאלות",
+      "degrees": "תארים",
+      "programs": "תוכניות",
+      "institutions": "מוסדות",
+      "successStories": "סיפורי הצלחה",
+      "analytics": "אנליטיקה",
+      "settings": "הגדרות"
+    },
+
+    "toast": {
+      "placeholderTitle": "בקרוב",
+      "placeholderBody": "כפתור דמה (יופעל בהמשך)."
+    }
+  },
+
+  "principal": {
+    "loadingDashboard": "טוען דשבורד…",
+    "headerTitle": "סקירת מנהל",
+    "headerSub": "העצמת בתי ספר באמצעות תובנות מרוכזות",
+
+    "kpis": {
+      "totalStudents": "סה״כ תלמידים",
+      "activeToday": "סשנים פעילים היום",
+      "subjectsCoveredThisMonth": "מקצועות שנמדדו (החודש)",
+      "avgAccuracyThisMonth": "דיוק ממוצע (החודש)",
+      "focusLostToday": "{{count}} איבודי פוקוס היום"
+    },
+
+    "panels": {
+      "avgPerformance": "ביצוע ממוצע של תלמידים",
+      "juniorHigh": "חטיבת ביניים",
+      "seniorHigh": "חטיבה עליונה",
+      "careerInterests": "התפלגות תחומי עניין",
+      "testParticipation": "השתתפות במבחנים",
+      "insights": "תובנות והמלצות",
+      "export": "ייצוא דוחות"
+    },
+
+    "months": {
+      "thisMonth": "החודש",
+      "lastMonth": "חודש שעבר"
+    },
+
+    "participation": {
+      "completed": "הושלם",
+      "inProgress": "בתהליך",
+      "abandoned": "ננטש"
+    },
+
+    "insightsBullets": {
+      "b1": "פוטנציאל גבוה ב-STEM",
+      "b2": "להתמקד במיומנויות שפה",
+      "b3": "אירועי הכוונה מקצועית"
+    },
+
+    "links": {
+      "viewDetailed": "צפייה בפרטים →"
+    },
+
+    "export": {
+      "downloadSchoolReport": "הורדת דוח בית ספר",
+      "downloadClassReports": "הורדת דוחות כיתות"
+    },
+
+    "quickActions": {
+      "title": "פעולות מהירות",
+      "manageStudents": "ניהול תלמידים",
+      "activities": "פעילויות",
+      "reports": "דוחות"
+    },
+
+    "footer": {
+      "loggedInAs": "מחובר/ת כ: {{email}}"
+    },
+
+    "alerts": {
+      "error": "שגיאה",
+      "failedLoadPrincipal": "טעינת נתוני מנהל נכשלה.",
+      "accessDenied": "אין הרשאה",
+      "notPrincipal": "החשבון שלך לא רשום כמנהל.",
+      "info": "מידע",
+      "laterInsights": "בהמשך: פתיחת מסך תובנות",
+      "export": "ייצוא",
+      "laterSchoolPdf": "בהמשך: יצירת PDF לדוח בית ספר",
+      "laterClassPdf": "בהמשך: יצירת PDF לדוחות כיתות",
+      "nextStep": "השלב הבא",
+      "createStudentsScreen": "יצירת מסך תלמידים למנהל",
+      "createReportsScreen": "יצירת מסך דוחות למנהל"
+    }
+  }
+}

@@ -7,25 +7,26 @@ export default function Navbar({ activeTab, onTabPress }) {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  // Show different tabs based on login status
+  const label = (key, fallback) => {
+    const v = t(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
   const tabs = user
     ? [
-        { id: 'home', label: 'الرئيسية', icon: 'home' },
-        { id: 'successStories', label: 'قصص النجاح', icon: 'star' }, // NEW
-        { id: 'activities', label: 'الأنشطة', icon: 'calendar-check-o' },
-        { id: 'accountant', label: 'الاختبار', icon: 'edit' },
-        { id: 'profile', label: 'حسابي', icon: 'user' },
+        { id: 'home', icon: 'home' },
+        { id: 'successStories', icon: 'star' },
+        { id: 'activities', icon: 'calendar-check-o' },
+        { id: 'test', icon: 'edit' }, // ✅ كان accountant — خليها test عشان تطابق keys
+        { id: 'profile', icon: 'user' },
       ]
     : [
-        { id: 'home', label: 'الرئيسية', icon: 'home' },
-        { id: 'successStories', label: 'قصص النجاح', icon: 'star' }, // NEW
-        { id: 'activities', label: 'الأنشطة', icon: 'calendar-check-o' },
-        { id: 'about', label: 'عن إعداد', icon: 'info-circle' },
-        { id: 'login', label: 'تسجيل الدخول', icon: 'sign-in' },
+        { id: 'home', icon: 'home' },
+        { id: 'successStories', icon: 'star' },
+        { id: 'activities', icon: 'calendar-check-o' },
+        { id: 'about', icon: 'info-circle' },
+        { id: 'login', icon: 'sign-in' },
       ];
-
-  // ... rest of the code remains the same
-
 
   return (
     <View style={styles.container}>
@@ -40,13 +41,8 @@ export default function Navbar({ activeTab, onTabPress }) {
             size={24}
             color={activeTab === tab.id ? '#27ae60' : '#94A3B8'}
           />
-          <Text
-            style={[
-              styles.label,
-              activeTab === tab.id && styles.activeLabel,
-            ]}
-          >
-            {tab.label}
+          <Text style={[styles.label, activeTab === tab.id && styles.activeLabel]}>
+            {label(`navigation:tabs.${tab.id}`, tab.id)}
           </Text>
         </TouchableOpacity>
       ))}

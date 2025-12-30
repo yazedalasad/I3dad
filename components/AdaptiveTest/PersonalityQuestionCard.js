@@ -1,12 +1,7 @@
 // components/AdaptiveTest/PersonalityQuestionCard.js
 import { useMemo } from 'react';
-import {
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 function safeNum(x, f = 0) {
   const n = Number(x);
@@ -27,13 +22,33 @@ export default function PersonalityQuestionCard({
   textValue,
   onTextChange,
 }) {
-  const isArabic = String(language).toLowerCase() !== 'he';
+  const { t: rawT, i18n } = useTranslation();
+
+  // key-safe t with fallback
+  const t = (key, fallback) => {
+    const v = rawT(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
+  // keep i18n synced with prop (optional but helpful if this component is used alone)
+  const isHebrewProp = String(language).toLowerCase() === 'he';
+  const uiLang = String(i18n.language).toLowerCase();
+  const shouldBe = isHebrewProp ? 'he' : 'ar';
+  if (uiLang !== shouldBe) {
+    // avoid async effect here; changeLanguage is safe to call but we keep it best-effort
+    i18n.changeLanguage(shouldBe).catch(() => {});
+  }
+
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
 
   const qText = useMemo(() => {
     if (!question) return '';
-    return (isArabic ? question.question_text_ar : question.question_text_he)
-      || question.question_text_en
-      || '';
+    // ✅ each question already has Hebrew + Arabic + maybe English
+    return (
+      (isArabic ? question.question_text_ar : question.question_text_he) ||
+      question.question_text_en ||
+      ''
+    );
   }, [question, isArabic]);
 
   const options = useMemo(() => {
@@ -63,9 +78,7 @@ export default function PersonalityQuestionCard({
                 pressed && !active && styles.scaleBtnPressed,
               ]}
             >
-              <Text style={[styles.scaleText, active && styles.scaleTextActive]}>
-                {v}
-              </Text>
+              <Text style={[styles.scaleText, active && styles.scaleTextActive]}>{v}</Text>
             </Pressable>
           );
         })}
@@ -77,7 +90,7 @@ export default function PersonalityQuestionCard({
     if (!options.length) {
       return (
         <Text style={styles.muted}>
-          {isArabic ? 'لا توجد خيارات.' : 'אין אפשרויות.'}
+          {t('personalityTest.noOptions', isArabic ? 'لا توجد خيارات.' : 'אין אפשרויות.')}
         </Text>
       );
     }
@@ -85,9 +98,7 @@ export default function PersonalityQuestionCard({
     return (
       <View style={styles.choiceList}>
         {options.map((opt, idx) => {
-          const label =
-            (isArabic ? opt.ar : opt.he) ?? opt.en ?? `Option ${idx + 1}`;
-
+          const label = (isArabic ? opt.ar : opt.he) ?? opt.en ?? `Option ${idx + 1}`;
           const active = choiceIndex === idx;
 
           return (
@@ -101,9 +112,7 @@ export default function PersonalityQuestionCard({
               ]}
             >
               <View style={[styles.radio, active && styles.radioActive]} />
-              <Text style={[styles.choiceText, active && styles.choiceTextActive]}>
-                {label}
-              </Text>
+              <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text>
             </Pressable>
           );
         })}
@@ -117,12 +126,13 @@ export default function PersonalityQuestionCard({
         <TextInput
           value={textValue}
           onChangeText={onTextChange}
-          placeholder={
+          placeholder={t(
+            'personalityTest.openPlaceholder',
             isArabic ? 'اكتب إجابتك هنا...' : 'כתוב/כתבי כאן...'
-          }
+          )}
           placeholderTextColor="#94A3B8"
           multiline
-          style={styles.textArea}
+          style={[styles.textArea, isArabic ? styles.rtl : styles.ltr]}
           textAlignVertical="top"
         />
       </View>
@@ -138,25 +148,26 @@ export default function PersonalityQuestionCard({
       case 'open_ended':
         return renderOpenEnded();
 
-      /* 🚀 FUTURE TYPES */
-      case 'forced_choice':
+      // keep your DB naming in mind:
+      // forced_choice_pair / ranking_10 are the ones you used elsewhere
+      case 'forced_choice_pair':
+      case 'ranking_10':
         return (
           <Text style={styles.muted}>
-            Forced choice type (A vs B) — UI coming soon
-          </Text>
-        );
-
-      case 'ranking':
-        return (
-          <Text style={styles.muted}>
-            Ranking type — UI coming soon
+            {t(
+              'personalityTest.typeComingSoon',
+              isArabic ? 'هذا النوع قيد التطوير.' : 'הסוג הזה בפיתוח.'
+            )}
           </Text>
         );
 
       default:
         return (
           <Text style={styles.muted}>
-            {isArabic ? 'نوع سؤال غير مدعوم.' : 'סוג שאלה לא נתמך.'}
+            {t(
+              'personalityTest.unsupportedType',
+              isArabic ? 'نوع سؤال غير مدعوم.' : 'סוג שאלה לא נתמך.'
+            )}
           </Text>
         );
     }
@@ -166,7 +177,9 @@ export default function PersonalityQuestionCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.questionText}>{qText}</Text>
+      <Text style={[styles.questionText, isArabic ? styles.rtlText : styles.ltrText]}>
+        {qText}
+      </Text>
       <View style={styles.body}>{renderByType()}</View>
     </View>
   );
@@ -189,6 +202,11 @@ const styles = StyleSheet.create({
   body: {
     marginTop: 14,
   },
+
+  rtl: { textAlign: 'right' },
+  ltr: { textAlign: 'left' },
+  rtlText: { textAlign: 'right' },
+  ltrText: { textAlign: 'left' },
 
   /* ---------- scale ---------- */
 

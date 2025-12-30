@@ -1,0 +1,48 @@
+{
+  "navbar": {
+    "home": "דף הבית",
+    "successStories": "סיפורי הצלחה",
+    "activities": "פעילויות",
+    "test": "מבחן",
+    "profile": "החשבון שלי",
+    "about": "אודות איעדאד",
+    "login": "התחברות"
+  },
+
+  "footer": {
+    "tagline": "העצמת תלמידים ערבים בישראל מאז 2024",
+    "about": "אודות",
+    "privacy": "מדיניות פרטיות",
+    "contact": "צור קשר",
+    "support": "תמיכה",
+    "copyright": "© 2024 I3dad. כל הזכויות שמורות.",
+    "madeWith": "נוצר באהבה ❤️ לתלמידים ערבים בישראל"
+  },
+
+  "language": {
+    "arabic": "العربية",
+    "hebrew": "עברית"
+  },
+
+  "picker": {
+    "select": "בחר/י",
+    "placeholder": "בחר/י..."
+  },
+
+  "datePicker": {
+    "placeholder": "בחר/י תאריך",
+    "confirm": "אישור",
+    "ageBetween": "הגיל חייב להיות בין {{min}} ל־{{max}} שנים",
+    "minAge": "הגיל חייב להיות לפחות {{min}} שנים",
+    "maxAge": "הגיל חייב להיות לכל היותר {{max}} שנים",
+    "year": "שנה",
+    "month": "חודש",
+    "day": "יום",
+    "currentAge": "הגיל הנוכחי:",
+    "selectedDate": "התאריך שנבחר:"
+  },
+
+  "featureCard": {
+    "readMore": "קרא/י עוד"
+  }
+}

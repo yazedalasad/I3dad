@@ -8,6 +8,7 @@
 
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { thetaToPercentage } from '../../utils/irt/irtCalculations';
 
@@ -36,6 +37,15 @@ export default function ProgressIndicator({
 
   subjectName,
 }) {
+  const { t: rawT, i18n } = useTranslation();
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
+
+  // key-safe t with fallback
+  const t = (key, fallback) => {
+    const v = rawT(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
   const progress = useMemo(() => {
     if (!total) return 0;
     return clamp(current / total, 0, 1);
@@ -69,13 +79,17 @@ export default function ProgressIndicator({
   const attempted = correctCount + incorrectCount + skippedCount;
   const accuracy = attempted > 0 ? Math.round((correctCount / attempted) * 100) : 0;
 
+  const titleText = subjectName
+    ? subjectName
+    : t('adaptiveTestScreen.progressTitle', isArabic ? 'التقدّم' : 'התקדמות');
+
   return (
     <View style={styles.wrap}>
       {/* Row 1: Subject + count + ability chip */}
       <View style={styles.row1}>
         <View style={styles.left}>
           <Text style={styles.title} numberOfLines={1}>
-            {subjectName ? subjectName : 'Progress'}
+            {titleText}
           </Text>
           <Text style={styles.sub}>
             {current}/{total}
@@ -88,7 +102,10 @@ export default function ProgressIndicator({
             {Math.round(abilityPercentage)}%
           </Text>
           {standardError != null && (
-            <Text style={styles.chipSub}>SE {Number(standardError).toFixed(2)}</Text>
+            <Text style={styles.chipSub}>
+              {t('adaptiveTestScreen.standardErrorShort', 'SE')}{' '}
+              {Number(standardError).toFixed(2)}
+            </Text>
           )}
         </View>
       </View>
@@ -103,7 +120,7 @@ export default function ProgressIndicator({
         <View style={styles.miniStat}>
           <FontAwesome name="bullseye" size={12} color="#38bdf8" />
           <Text style={styles.miniText}>
-            {accuracy}% <Text style={styles.miniMuted}>Acc</Text>
+            {accuracy}% <Text style={styles.miniMuted}>{t('results.accuracyShort', isArabic ? 'دقّة' : 'דיוק')}</Text>
           </Text>
         </View>
 
@@ -112,7 +129,8 @@ export default function ProgressIndicator({
         <View style={styles.miniStat}>
           <FontAwesome name="forward" size={12} color="#a78bfa" />
           <Text style={styles.miniText}>
-            {skippedCount} <Text style={styles.miniMuted}>Skip</Text>
+            {skippedCount}{' '}
+            <Text style={styles.miniMuted}>{t('adaptiveTestScreen.skipShort', isArabic ? 'تخطي' : 'דילוג')}</Text>
           </Text>
         </View>
 
@@ -121,7 +139,8 @@ export default function ProgressIndicator({
         <View style={styles.miniStat}>
           <FontAwesome name="times-circle" size={12} color="#fb7185" />
           <Text style={styles.miniText}>
-            {incorrectCount} <Text style={styles.miniMuted}>Wrong</Text>
+            {incorrectCount}{' '}
+            <Text style={styles.miniMuted}>{t('results.wrongShort', isArabic ? 'خطأ' : 'שגוי')}</Text>
           </Text>
         </View>
       </View>

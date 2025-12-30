@@ -1,19 +1,19 @@
+// screens/AdaptiveTest/TotalExamScreen.js
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native';
 
 import adaptiveTestService from '../../services/adaptiveTestService';
 import { getAllSubjects } from '../../services/questionService';
-
-const AR = 'ar';
 
 function StatChip({ icon, label }) {
   return (
@@ -24,24 +24,36 @@ function StatChip({ icon, label }) {
   );
 }
 
-function SubjectTile({ subject }) {
-  const nameAr = subject?.name_ar || subject?.name_en || 'مادة';
+function SubjectTile({ subject, t, isArabic }) {
+  const name =
+    (isArabic ? subject?.name_ar : subject?.name_he) ||
+    subject?.name_en ||
+    subject?.name_he ||
+    subject?.name_ar ||
+    t('totalExam.subjectFallback', isArabic ? 'مادة' : 'מקצוע');
+
   return (
     <View style={styles.tile}>
       <View style={styles.tileTopRow}>
         <View style={styles.tileBadge}>
           <Ionicons name="checkmark" size={14} color="#fff" />
-          <Text style={styles.tileBadgeText}>مُضمن</Text>
+          <Text style={styles.tileBadgeText}>
+            {t('totalExam.included', isArabic ? 'مُضمن' : 'כלול')}
+          </Text>
         </View>
+
         <Text style={styles.tileTitle} numberOfLines={1}>
-          {nameAr}
+          {name}
         </Text>
       </View>
 
       <View style={styles.tileMetaRow}>
         <Ionicons name="albums-outline" size={14} color="#546A99" />
         <Text style={styles.tileMetaText} numberOfLines={1}>
-          ضمن الاختبار الشامل
+          {t(
+            'totalExam.inTotalExam',
+            isArabic ? 'ضمن الاختبار الشامل' : 'כלול במבחן המלא'
+          )}
         </Text>
       </View>
     </View>
@@ -51,8 +63,32 @@ function SubjectTile({ subject }) {
 export default function TotalExamScreen({
   navigateTo,
   studentId,
-  studentName = 'طالب'
+  studentName,
+  language = 'ar',
 }) {
+  const { t: rawT, i18n } = useTranslation();
+
+  // small helper: return fallback if key missing
+  const t = (key, fallback) => {
+    const v = rawT(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
+  // keep i18n in sync with prop
+  useEffect(() => {
+    const nextLang = String(language).toLowerCase() === 'he' ? 'he' : 'ar';
+    if (i18n.language !== nextLang) {
+      i18n.changeLanguage(nextLang).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
+
+  const displayStudentName =
+    studentName ||
+    t('totalExam.studentFallback', isArabic ? 'طالب' : 'תלמיד/ה');
+
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
 
@@ -110,7 +146,9 @@ export default function TotalExamScreen({
     }
 
     const subjectIdsToUse =
-      selectedIds.length > 0 ? selectedIds : (subjects || []).map((s) => String(s.id));
+      selectedIds.length > 0
+        ? selectedIds
+        : (subjects || []).map((s) => String(s.id));
 
     if (!subjectIdsToUse.length) {
       console.log('No subjects available to start exam');
@@ -123,14 +161,14 @@ export default function TotalExamScreen({
       const res = await adaptiveTestService.startComprehensiveAssessment({
         studentId,
         subjectIds: subjectIdsToUse,
-        language: AR,
+        language: isArabic ? 'ar' : 'he',
 
-        // ✅ NEW: stronger exam length
+        // stronger exam length
         minQuestionsPerSubject: 5,
         maxQuestionsPerSubject: 7,
 
-        // (legacy field kept for compatibility; can be removed if you no longer use it)
-        questionsPerSubject: 5
+        // legacy field kept for compatibility
+        questionsPerSubject: 5,
       });
 
       if (!res?.success) {
@@ -143,8 +181,8 @@ export default function TotalExamScreen({
         studentId: res.studentId,
         subjectStates: res.subjectStates,
         subjectIds: res.subjectIds || subjectIdsToUse,
-        language: AR,
-        isComprehensive: true
+        language: isArabic ? 'ar' : 'he',
+        isComprehensive: true,
       });
     } finally {
       setStarting(false);
@@ -164,10 +202,25 @@ export default function TotalExamScreen({
             >
               <View style={styles.heroTopRow}>
                 <View style={styles.heroTextBlock}>
-                  <Text style={styles.heroTitle}>اختبار شامل</Text>
-                  <Text style={styles.heroSubtitle}>أهلاً {studentName} 👋</Text>
+                  <Text style={styles.heroTitle}>
+                    {t(
+                      'totalExam.title',
+                      isArabic ? 'الامتحان الشامل' : 'מבחן מלא'
+                    )}
+                  </Text>
+
+                  <Text style={styles.heroSubtitle}>
+                    {t('totalExam.hello', isArabic ? 'أهلاً' : 'שלום')}{' '}
+                    {displayStudentName} 👋
+                  </Text>
+
                   <Text style={styles.heroDesc}>
-                    الاختبار يشمل جميع المواد. عدد الأسئلة لكل مادة من 5 إلى 7 لقياس أدق للقدرات.
+                    {t(
+                      'totalExam.desc',
+                      isArabic
+                        ? 'الاختبار يشمل جميع المواد. عدد الأسئلة لكل مادة من 5 إلى 7 لقياس أدق للقدرات.'
+                        : 'המבחן כולל את כל המקצועות. 5–7 שאלות לכל מקצוע למדידה מדויקת יותר.'
+                    )}
                   </Text>
                 </View>
 
@@ -178,26 +231,80 @@ export default function TotalExamScreen({
               </View>
 
               <View style={styles.heroStatsRow}>
-                <StatChip icon="time-outline" label="نبض كل 15 ثانية" />
-                <StatChip icon="language-outline" label="اللغة: العربية" />
-                <StatChip icon="help-circle-outline" label="5–7 أسئلة لكل مادة" />
-                <StatChip icon="albums-outline" label={`المواد: ${subjects.length}`} />
+                <StatChip
+                  icon="time-outline"
+                  label={t(
+                    'totalExam.heartbeat',
+                    isArabic ? 'نبض كل 15 ثانية' : 'דופק כל 15 שניות'
+                  )}
+                />
+                <StatChip
+                  icon="language-outline"
+                  label={t(
+                    'totalExam.languageLabel',
+                    isArabic ? 'اللغة: العربية' : 'שפה: עברית'
+                  )}
+                />
+                <StatChip
+                  icon="help-circle-outline"
+                  label={t(
+                    'totalExam.qPerSubject',
+                    isArabic ? '5–7 أسئلة لكل مادة' : '5–7 שאלות למקצוע'
+                  )}
+                />
+                <StatChip
+                  icon="albums-outline"
+                  label={`${t(
+                    'totalExam.subjectsCount',
+                    isArabic ? 'المواد' : 'מקצועות'
+                  )}: ${subjects.length}`}
+                />
               </View>
             </LinearGradient>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>المواد المتاحة</Text>
-              <Text style={styles.sectionHint}>جميع المواد مُدرجة تلقائياً في الاختبار.</Text>
+              <Text style={styles.sectionTitle}>
+                {t(
+                  'totalExam.availableSubjects',
+                  isArabic ? 'المواد المتاحة' : 'מקצועות זמינים'
+                )}
+              </Text>
+              <Text style={styles.sectionHint}>
+                {t(
+                  'totalExam.autoIncludedHint',
+                  isArabic
+                    ? 'جميع المواد مُدرجة تلقائياً في الاختبار.'
+                    : 'כל המקצועות כלולים אוטומטית במבחן.'
+                )}
+              </Text>
 
               {loading ? (
                 <View style={styles.centerBox}>
                   <ActivityIndicator />
-                  <Text style={styles.loadingText}>جاري تحميل المواد...</Text>
+                  <Text style={styles.loadingText}>
+                    {t(
+                      'totalExam.loadingSubjects',
+                      isArabic
+                        ? 'جاري تحميل المواد...'
+                        : 'טוען מקצועות...'
+                    )}
+                  </Text>
                 </View>
               ) : subjects.length === 0 ? (
                 <View style={styles.centerBox}>
-                  <Ionicons name="alert-circle-outline" size={22} color="#B42318" />
-                  <Text style={styles.warnText}>لا توجد مواد متاحة حالياً.</Text>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={22}
+                    color="#B42318"
+                  />
+                  <Text style={styles.warnText}>
+                    {t(
+                      'totalExam.noSubjects',
+                      isArabic
+                        ? 'لا توجد مواد متاحة حالياً.'
+                        : 'אין מקצועות זמינים כרגע.'
+                    )}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -208,16 +315,23 @@ export default function TotalExamScreen({
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => <SubjectTile subject={item} />}
+        renderItem={({ item }) => (
+          <SubjectTile subject={item} t={t} isArabic={isArabic} />
+        )}
         ListFooterComponent={
           <View style={styles.footer}>
             <Pressable
               onPress={startTotalExam}
-              disabled={starting || loading || subjects.length === 0 || !studentId}
+              disabled={
+                starting || loading || subjects.length === 0 || !studentId
+              }
               style={({ pressed }) => [
                 styles.startBtn,
-                (starting || loading || subjects.length === 0 || !studentId) && styles.startBtnDisabled,
-                pressed && !starting && !loading && studentId ? styles.startBtnPressed : null
+                (starting || loading || subjects.length === 0 || !studentId) &&
+                  styles.startBtnDisabled,
+                pressed && !starting && !loading && studentId
+                  ? styles.startBtnPressed
+                  : null,
               ]}
             >
               {starting ? (
@@ -225,14 +339,24 @@ export default function TotalExamScreen({
               ) : (
                 <>
                   <Ionicons name="play" size={18} color="#fff" />
-                  <Text style={styles.startBtnText}>ابدأ الاختبار</Text>
+                  <Text style={styles.startBtnText}>
+                    {t(
+                      'totalExam.start',
+                      isArabic ? 'ابدأ الامتحان' : 'התחל מבחן'
+                    )}
+                  </Text>
                 </>
               )}
             </Pressable>
 
             {!studentId && (
               <Text style={styles.warnText}>
-                ⚠️ لا يمكن البدء بدون studentId (تأكد من ManualNavigator + AuthContext)
+                {t(
+                  'totalExam.missingStudentId',
+                  isArabic
+                    ? '⚠️ لا يمكن البدء بدون studentId (تأكد من ManualNavigator + AuthContext)'
+                    : '⚠️ אי אפשר להתחיל בלי studentId (בדוק/י ManualNavigator + AuthContext)'
+                )}
               </Text>
             )}
           </View>
@@ -247,7 +371,11 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 22 },
 
   hero: { padding: 18, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
-  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   heroTextBlock: { flex: 1, paddingRight: 10 },
   heroTitle: { color: '#fff', fontWeight: '900', fontSize: 22 },
   heroSubtitle: { color: '#EAF0FF', marginTop: 6, fontWeight: '800' },
@@ -259,7 +387,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.16)',
     position: 'relative',
-    overflow: 'hidden'
+    overflow: 'hidden',
   },
   abstractInner: {
     position: 'absolute',
@@ -268,7 +396,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.25)'
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   abstractCircle: {
     position: 'absolute',
@@ -277,7 +405,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.18)'
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
 
   heroStatsRow: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
@@ -288,7 +416,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.16)'
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   statChipText: { color: '#EAF0FF', fontWeight: '800' },
 
@@ -299,7 +427,6 @@ const styles = StyleSheet.create({
   centerBox: { paddingVertical: 16, alignItems: 'center', gap: 8 },
   loadingText: { color: '#546A99', fontWeight: '800' },
 
-  // ✅ tighter grid
   gridRow: { paddingHorizontal: 16, gap: 10 },
   tile: {
     flex: 1,
@@ -308,7 +435,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#E5ECFF',
-    minHeight: 88
+    minHeight: 88,
   },
   tileTopRow: { flexDirection: 'column', gap: 8 },
   tileTitle: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 14 },
@@ -321,7 +448,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E4FBF',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999
+    borderRadius: 999,
   },
   tileBadgeText: { color: '#fff', fontWeight: '900', fontSize: 12 },
 
@@ -336,11 +463,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8
+    gap: 8,
   },
   startBtnDisabled: { opacity: 0.6 },
   startBtnPressed: { transform: [{ scale: 0.99 }] },
   startBtnText: { color: '#fff', fontWeight: '900' },
 
-  warnText: { color: '#B42318', fontWeight: '800', textAlign: 'center' }
+  warnText: { color: '#B42318', fontWeight: '800', textAlign: 'center' },
 });

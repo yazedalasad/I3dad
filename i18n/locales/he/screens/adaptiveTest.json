@@ -1,0 +1,82 @@
+{
+  "common": {
+    "loading": "טוען…",
+    "back": "חזרה",
+    "next": "הבא",
+    "finish": "סיום",
+    "close": "סגור",
+    "continue": "המשך",
+    "save": "שמור",
+    "cancel": "ביטול",
+    "yes": "כן",
+    "no": "לא"
+  },
+
+  "errors": {
+    "title": "שגיאה",
+    "warning": "אזהרה",
+    "somethingWrong": "אירעה שגיאה לא צפויה.",
+    "tryAgain": "נסה/י שוב."
+  },
+
+  "adaptiveTestScreen": {
+    "title": "מבחן אדפטיבי",
+    "loadingQuestion": "טוען שאלה…",
+    "timeLeft": "זמן שנותר",
+    "question": "שאלה",
+    "of": "מתוך",
+    "submit": "שליחת תשובה",
+    "skip": "דלג/י",
+    "review": "סקירה"
+  },
+
+  "navigator": {
+    "title": "שאלות",
+    "viewOnly": "צפייה בלבד",
+    "pending": "ממתין — אפשר לענות",
+    "hint": "לחץ/י על מספר כדי לחזור. בשאלות ממתינות אפשר לענות והזמן ממשיך מאיפה שעצרת."
+  },
+
+  "results": {
+    "title": "תוצאות המבחן",
+    "yourLevel": "הרמה שלך",
+    "recommendations": "המלצות",
+    "strengths": "חוזקות",
+    "needsWork": "נקודות לשיפור",
+    "share": "שיתוף",
+    "download": "הורדה"
+  },
+
+  "totalExam": {
+    "title": "מבחן מקיף",
+    "start": "התחל מבחן",
+    "continue": "המשך מבחן",
+    "done": "המבחן הסתיים",
+    "score": "ציון",
+    "showResults": "הצג תוצאות"
+  },
+
+  "personalityTest": {
+    "title": "מבחן אישיות",
+    "start": "התחל מבחן",
+    "submit": "שלח/י",
+    "question": "שאלה",
+    "chooseOne": "בחר/י תשובה אחת"
+  },
+
+  "personalityResults": {
+    "title": "תוצאות אישיות",
+    "yourType": "סוג האישיות שלך",
+    "summary": "סיכום",
+    "traits": "מאפיינים",
+    "careers": "תחומים מתאימים",
+    "backHome": "חזרה לדף הבית",
+
+    "chartTitle": "תרשים",
+    "chartHint": "תמונה כללית של התפלגות התכונות.",
+    "fullTestResults": "תוצאות המבחן המלא",
+    "noResultsYet": "אין תוצאות עדיין",
+    "headlineWithConfidence": "תוצאות אישיות (ביטחון {{conf}}%)",
+    "defaultDescription": "התוצאות משקפות דפוס כללי לפי התשובות שלך."
+  }
+}

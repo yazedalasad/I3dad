@@ -1,24 +1,20 @@
 /**
  * QUESTION CARD COMPONENT (TotalExam-style UI)
  *
- * Supports 2 modes:
- * 1) Exam mode (default): showFeedback = false
- *    - ✅ NO correct/incorrect colors
- *    - ✅ NO correct/incorrect icons
- *    - ✅ Can still highlight selected option (optional UX)
- *    - ✅ No explanation shown
+ * Exam mode (showFeedback=false):
+ * - no correctness reveal
  *
- * 2) Review mode: showFeedback = true
- *    - ✅ Shows correct option + student selected option
- *    - ✅ Shows explanation if exists
+ * Review mode (showFeedback=true):
+ * - shows correct/incorrect + explanation
  *
- * Notes:
- * - Stable random option order per question (shuffle once per question.id)
- * - Still submits original letter (A/B/C/D)
+ * i18n:
+ * - UI labels come from i18next (ar/he)
+ * - question/options/explanations come from DB (ar/he) based on current language
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated,
   Easing,
@@ -36,18 +32,15 @@ import {
 function seededShuffle(list, seedStr) {
   const arr = [...list];
 
-  // Build numeric seed
   let seed = 0;
   const s = String(seedStr || 'seed');
   for (let i = 0; i < s.length; i++) seed = (seed * 31 + s.charCodeAt(i)) >>> 0;
 
-  // Deterministic PRNG
   function rand() {
     seed = (1664525 * seed + 1013904223) >>> 0;
     return seed / 4294967296;
   }
 
-  // Fisher–Yates
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -56,43 +49,67 @@ function seededShuffle(list, seedStr) {
   return arr;
 }
 
+function isHe(lang) {
+  return String(lang || '').toLowerCase().startsWith('he');
+}
+
 export default function QuestionCard({
   question,
   selectedAnswer,
   onAnswerSelect,
   onSkipQuestion,
 
-  // ✅ Mode flag:
-  // - false => exam mode (NO correctness revealed)
-  // - true  => review mode (show correct/incorrect)
   showFeedback = false,
-
-  // only meaningful when showFeedback=true
   isCorrect = false,
 
-  language,
+  language, // optional: if you pass it, it should match i18n.language
   disabled,
 
-  // Timer (optional): pass null/undefined to hide
   timeRemaining,
   maxTime = 120,
 }) {
-  const isRTL = useMemo(() => {
-    return language === 'ar' || language === 'he' || I18nManager.isRTL;
-  }, [language]);
+  // ✅ IMPORTANT: use your component namespace
+  const { t: rawT, i18n } = useTranslation('componentsAdaptiveTest');
 
+  // prefer explicit prop, otherwise i18n current language
+  const lang = language ?? i18n.language;
+  const isArabic = String(lang).toLowerCase() === 'ar';
+  const isRTL = useMemo(
+    () => isHe(lang) || isArabic || I18nManager.isRTL,
+    [lang, isArabic]
+  );
+
+  // ✅ safer translator: supports ns:key too, and fallback
+  const t = (key, fallback) => {
+    const v = rawT(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
+  /* ------------------ DB text (AR/HE) ------------------ */
   const questionText = useMemo(() => {
     const ar = question?.question_text_ar;
     const he = question?.question_text_he;
-    if (language === 'ar') return ar || he || '';
-    return he || ar || '';
-  }, [question, language]);
+
+    if (isArabic) return ar || he || '';
+    if (isHe(lang)) return he || ar || '';
+    return ar || he || '';
+  }, [question, lang, isArabic]);
+
+  const explanationText = useMemo(() => {
+    const ar = question?.explanation_ar;
+    const he = question?.explanation_he;
+
+    if (isArabic) return ar || he || '';
+    if (isHe(lang)) return he || ar || '';
+    return ar || he || '';
+  }, [question, lang, isArabic]);
 
   // ✅ Options randomized ONCE per question id, but still submit original letter (A/B/C/D)
   const options = useMemo(() => {
     const pick = (ar, he) => {
-      if (language === 'ar') return ar ?? he ?? '';
-      return he ?? ar ?? '';
+      if (isArabic) return ar ?? he ?? '';
+      if (isHe(lang)) return he ?? ar ?? '';
+      return ar ?? he ?? '';
     };
 
     const base = [
@@ -102,7 +119,6 @@ export default function QuestionCard({
       { letter: 'D', text: pick(question?.option_d_ar, question?.option_d_he) },
     ].filter((o) => String(o.text || '').trim().length > 0);
 
-    // Stable per question (won't reshuffle on re-render)
     const seed =
       question?.id ||
       question?.question_text_ar ||
@@ -122,10 +138,11 @@ export default function QuestionCard({
     question?.option_d_he,
     question?.question_text_ar,
     question?.question_text_he,
-    language,
+    lang,
+    isArabic,
   ]);
 
-  // ---------- Entrance animations ----------
+  /* ------------------ Entrance animations ------------------ */
   const mountAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     mountAnim.setValue(0);
@@ -143,7 +160,7 @@ export default function QuestionCard({
   });
   const cardOpacity = mountAnim;
 
-  // ---------- Timer bar (optional, inside card) ----------
+  /* ------------------ Timer bar (optional) ------------------ */
   const progressAnim = useRef(new Animated.Value(1)).current;
   const [timerColor, setTimerColor] = useState('#1B3A8A');
 
@@ -160,7 +177,6 @@ export default function QuestionCard({
       useNativeDriver: false,
     }).start();
 
-    // blue -> yellow -> red
     if (timeRemaining <= Math.floor(safeMax * 0.25)) setTimerColor('#E74C3C');
     else if (timeRemaining <= Math.floor(safeMax * 0.5)) setTimerColor('#F5B301');
     else setTimerColor('#1B3A8A');
@@ -176,8 +192,8 @@ export default function QuestionCard({
 
   /**
    * Option state rules:
-   * - Exam mode (showFeedback=false): ONLY "selected" highlight (no correctness)
-   * - Review mode (showFeedback=true): show correct + incorrect selection
+   * - Exam mode: only selected highlight
+   * - Review mode: correct + incorrect selection
    */
   const getOptionState = (letter) => {
     if (!showFeedback) {
@@ -209,6 +225,18 @@ export default function QuestionCard({
     ]).start();
   };
 
+  // ✅ FIXED KEYS (from componentsAdaptiveTest.json)
+  const questionLabel = t('question.questionLabel', isArabic ? 'سؤال' : 'שאלה');
+
+  const skipThisQuestion = t(
+    'question.skip',
+    isArabic ? 'تخطي هذا السؤال' : 'דלג/י על השאלה'
+  );
+
+  const explanationTitle = isCorrect
+    ? t('explanation.correctTitle', isArabic ? 'توضيح' : 'הסבר')
+    : t('explanation.wrongTitle', isArabic ? 'تصحيح' : 'תיקון');
+
   return (
     <View style={styles.page}>
       {/* Question card */}
@@ -220,7 +248,7 @@ export default function QuestionCard({
       >
         <View style={styles.topRow}>
           <Text style={[styles.questionNumber, { textAlign: isRTL ? 'right' : 'left' }]}>
-            {language === 'ar' ? 'السؤال' : 'שאלה'} {question?.question_order || '?'}
+            {questionLabel} {question?.question_order || '?'}
           </Text>
 
           {typeof timeRemaining === 'number' && (
@@ -256,15 +284,9 @@ export default function QuestionCard({
 
         {/* Skip only during exam mode */}
         {!showFeedback && !disabled && onSkipQuestion && (
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            activeOpacity={0.88}
-          >
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip} activeOpacity={0.88}>
             <Ionicons name="play-forward-outline" size={18} color="#F5B301" />
-            <Text style={styles.skipText}>
-              {language === 'ar' ? 'تخطي هذا السؤال' : 'דלג/י על השאלה'}
-            </Text>
+            <Text style={styles.skipText}>{skipThisQuestion}</Text>
           </TouchableOpacity>
         )}
       </Animated.View>
@@ -284,9 +306,7 @@ export default function QuestionCard({
             outputRange: [10, 0],
           });
 
-          // ✅ Icon rules:
-          // - Exam mode: show checkmark ONLY for selected
-          // - Review mode: show correct/incorrect markers
+          // Icon rules:
           let rightIcon = null;
           if (!showFeedback) {
             rightIcon =
@@ -336,7 +356,6 @@ export default function QuestionCard({
                   >
                     {option.text}
                   </Text>
-
                   {rightIcon}
                 </View>
               </Pressable>
@@ -346,7 +365,7 @@ export default function QuestionCard({
       </View>
 
       {/* Explanation shown ONLY in review mode */}
-      {showFeedback && (question?.explanation_ar || question?.explanation_he) && (
+      {showFeedback && !!String(explanationText || '').trim() && (
         <Animated.View
           style={[
             styles.explainCard,
@@ -360,13 +379,11 @@ export default function QuestionCard({
               size={18}
               color={isCorrect ? '#27AE60' : '#E74C3C'}
             />
-            <Text style={styles.explainTitle}>{isCorrect ? 'توضيح' : 'تصحيح'}</Text>
+            <Text style={styles.explainTitle}>{explanationTitle}</Text>
           </View>
 
           <Text style={[styles.explainText, { textAlign: isRTL ? 'right' : 'left' }]}>
-            {language === 'ar'
-              ? question?.explanation_ar || question?.explanation_he || ''
-              : question?.explanation_he || question?.explanation_ar || ''}
+            {explanationText}
           </Text>
         </Animated.View>
       )}

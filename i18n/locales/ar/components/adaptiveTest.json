@@ -1,0 +1,54 @@
+{
+  "generic": {
+    "loading": "جارٍ التحميل...",
+    "back": "رجوع",
+    "backToResults": "رجوع للنتائج",
+    "error": "خطأ",
+    "unknownError": "حدث خطأ غير متوقع"
+  },
+
+  "question": {
+    "questionLabel": "السؤال",
+    "skip": "تخطي هذا السؤال",
+    "unsupported": "نوع سؤال غير مدعوم.",
+    "noOptions": "لا توجد خيارات."
+  },
+
+  "openEnded": {
+    "placeholder": "اكتب إجابتك هنا..."
+  },
+
+  "review": {
+    "title": "مراجعة الإجابات",
+    "loading": "جارٍ تحميل مراجعة الإجابات...",
+    "empty": "لا توجد إجابات لهذه الجلسة.",
+    "hint": "هنا يمكنك رؤية إجابتك والإجابة الصحيحة بعد إنهاء الاختبار.",
+    "correct": "صحيح",
+    "wrong": "خطأ",
+    "total": "المجموع"
+  },
+
+  "progress": {
+    "progress": "التقدم",
+    "accuracy": "دقة",
+    "skipped": "تخطي",
+    "wrong": "خطأ"
+  },
+
+  "radar": {
+    "title": "خريطة القدرات حسب المواد",
+    "top": "أفضل {{count}}",
+    "empty": "لا توجد بيانات كافية لعرض الرسم.",
+    "legendPoints": "نقاط الأداء",
+    "legendLevels": "مستويات (20–100)"
+  },
+
+  "explanation": {
+    "correctTitle": "توضيح",
+    "wrongTitle": "تصحيح"
+  },
+
+  "time": {
+    "seconds": "{{value}} ثانية"
+  }
+}

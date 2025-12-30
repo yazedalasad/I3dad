@@ -1,14 +1,15 @@
 // screens/AdaptiveTest/PersonalityResultsScreen.js
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import RadarChart from '../../components/AdaptiveTest/RadarChart';
@@ -30,7 +31,25 @@ export default function PersonalityResultsScreen({
   studentId,
   language = 'ar',
 }) {
-  const isArabic = String(language).toLowerCase() !== 'he';
+  const { t, i18n } = useTranslation();
+
+  // Keep i18n synced with prop
+  useEffect(() => {
+    const nextLang = String(language).toLowerCase() === 'he' ? 'he' : 'ar';
+    if (i18n.language !== nextLang) {
+      i18n.changeLanguage(nextLang).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
+  const isArabic = String(i18n.language).toLowerCase() !== 'he';
+
+  // Safe translator with fallback (language-aware)
+  const tt = (key, fallbackAr, fallbackHe) => {
+    const v = t(key);
+    if (typeof v === 'string' && v !== key) return v;
+    return isArabic ? fallbackAr : fallbackHe;
+  };
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -42,7 +61,10 @@ export default function PersonalityResultsScreen({
     (async () => {
       try {
         if (!studentId) {
-          Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'لا يوجد studentId.' : 'אין studentId.');
+          Alert.alert(
+            tt('errors.title', 'خطأ', 'שגיאה'),
+            tt('errors.somethingWrong', 'لا يوجد studentId.', 'אין studentId.')
+          );
           return;
         }
 
@@ -52,7 +74,11 @@ export default function PersonalityResultsScreen({
         if (!mounted) return;
 
         if (!res?.success) {
-          Alert.alert(isArabic ? 'خطأ' : 'שגיאה', res?.error || (isArabic ? 'فشل تحميل النتائج.' : 'כשל בטעינת תוצאות.'));
+          Alert.alert(
+            tt('errors.title', 'خطأ', 'שגיאה'),
+            res?.error ||
+              tt('errors.tryAgain', 'فشل تحميل النتائج.', 'טעינת התוצאות נכשלה.')
+          );
           setProfile(null);
           setInsights(null);
           return;
@@ -62,7 +88,14 @@ export default function PersonalityResultsScreen({
         setInsights(res.insights || null);
       } catch (e) {
         console.log('PersonalityResultsScreen error:', e?.message || e);
-        Alert.alert(isArabic ? 'خطأ' : 'שגיאה', isArabic ? 'حدث خطأ أثناء تحميل النتائج.' : 'אירעה שגיאה בטעינת התוצאות.');
+        Alert.alert(
+          tt('errors.title', 'خطأ', 'שגיאה'),
+          tt(
+            'errors.somethingWrong',
+            'حدث خطأ أثناء تحميل النتائج.',
+            'אירעה שגיאה בעת טעינת התוצאות.'
+          )
+        );
       } finally {
         if (mounted) setLoading(false);
       }
@@ -71,10 +104,13 @@ export default function PersonalityResultsScreen({
     return () => {
       mounted = false;
     };
-  }, [studentId, isArabic]);
+    // NOTE: rerun when student changes OR language changes
+  }, [studentId, i18n.language]);
 
   const traits = useMemo(() => {
     const p = profile || {};
+
+    // If you want these in JSON later, you can add keys. For now, keep bilingual fallbacks.
     return [
       {
         key: 'O',
@@ -110,16 +146,28 @@ export default function PersonalityResultsScreen({
   }, [profile, isArabic]);
 
   const radarData = useMemo(() => {
-    // RadarChart formats differ; this version is flexible:
     // If your RadarChart expects { label, value } use this.
-    return traits.map((t) => ({ label: t.key, value: clamp(t.value, 0, 100) }));
+    return traits.map((tr) => ({ label: tr.key, value: clamp(tr.value, 0, 100) }));
   }, [traits]);
 
   const headline = useMemo(() => {
-    if (!profile) return isArabic ? 'لا توجد نتائج بعد' : 'אין תוצאות עדיין';
+    if (!profile) {
+      return tt(
+        'personalityResults.noResultsYet',
+        'لا توجد نتائج بعد',
+        'אין תוצאות עדיין'
+      );
+    }
+
     const conf = safeNum(profile.confidence_level, 0);
-    return isArabic ? `نتائج الشخصية (ثقة ${Math.round(conf)}%)` : `תוצאות אישיות (ביטחון ${Math.round(conf)}%)`;
-  }, [profile, isArabic]);
+
+    // Prefer translation key; fallback is language-aware
+    return tt(
+      'personalityResults.headlineWithConfidence',
+      `نتائج الشخصية (ثقة ${Math.round(conf)}%)`,
+      `תוצאות אישיות (ביטחון ${Math.round(conf)}%)`
+    );
+  }, [profile, tt]);
 
   const descriptionText = useMemo(() => {
     if (insights) {
@@ -128,16 +176,21 @@ export default function PersonalityResultsScreen({
         : (insights.personality_type_description_he || '');
     }
     if (!profile) return '';
-    return isArabic
-      ? 'هذه النتائج تعكس نمطًا عامًّا بناءً على إجاباتك.'
-      : 'התוצאות משקפות דפוס כללי לפי התשובות שלך.';
-  }, [insights, profile, isArabic]);
+
+    return tt(
+      'personalityResults.defaultDescription',
+      'هذه النتائج تعكس نمطًا عامًّا بناءً على إجاباتك.',
+      'התוצאות משקפות דפוס כללי לפי התשובות שלך.'
+    );
+  }, [insights, profile, isArabic, tt]);
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" />
-        <Text style={styles.centerText}>{isArabic ? 'جارٍ تحميل النتائج...' : 'טוען תוצאות...'}</Text>
+        <Text style={styles.centerText}>
+          {tt('common.loading', 'جاري التحميل…', 'טוען…')}
+        </Text>
       </View>
     );
   }
@@ -145,42 +198,49 @@ export default function PersonalityResultsScreen({
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
-        <Text style={styles.heroTitle}>{isArabic ? 'نتيجة اختبار الشخصية' : 'תוצאות מבחן אישיות'}</Text>
+        <Text style={styles.heroTitle}>
+          {tt('personalityResults.title', 'نتائج الشخصية', 'תוצאות אישיות')}
+        </Text>
         <Text style={styles.heroSubtitle}>{headline}</Text>
       </LinearGradient>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{isArabic ? 'الملخص' : 'סיכום'}</Text>
-        <Text style={styles.desc}>{descriptionText || (isArabic ? '—' : '—')}</Text>
+        <Text style={styles.sectionTitle}>
+          {tt('personalityResults.summary', 'الملخص', 'סיכום')}
+        </Text>
+        <Text style={styles.desc}>{descriptionText || '—'}</Text>
       </View>
 
       <View style={styles.card}>
         <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>{isArabic ? 'السمات' : 'תכונות'}</Text>
+          <Text style={styles.sectionTitle}>
+            {tt('personalityResults.traits', 'الصفات', 'מאפיינים')}
+          </Text>
           <View style={styles.pill}>
-            <Text style={styles.pillText}>{isArabic ? 'Big Five' : 'Big Five'}</Text>
+            <Text style={styles.pillText}>Big Five</Text>
           </View>
         </View>
 
         <View style={styles.traitsGrid}>
-          {traits.map((t) => (
-            <View key={t.key} style={styles.traitBox}>
-              <Text style={styles.traitTitle}>{t.title}</Text>
-              <Text style={styles.traitPct}>{toPct(t.value)}</Text>
-              <Text style={styles.traitSub}>{t.subtitle}</Text>
+          {traits.map((tr) => (
+            <View key={tr.key} style={styles.traitBox}>
+              <Text style={styles.traitTitle}>{tr.title}</Text>
+              <Text style={styles.traitPct}>{toPct(tr.value)}</Text>
+              <Text style={styles.traitSub}>{tr.subtitle}</Text>
             </View>
           ))}
         </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{isArabic ? 'الرسم البياني' : 'גרף'}</Text>
+        <Text style={styles.sectionTitle}>
+          {tt('personalityResults.chartTitle', 'الرسم البياني', 'תרשים')}
+        </Text>
         <Text style={styles.muted}>
-          {isArabic ? 'صورة عامة لتوزيع السمات.' : 'תמונה כללית של פיזור התכונות.'}
+          {tt('personalityResults.chartHint', 'صورة عامة لتوزيع السمات.', 'תמונה כללית של התפלגות התכונות.')}
         </Text>
 
         <View style={{ marginTop: 12 }}>
-          {/* If your RadarChart expects a different prop name, change data=... accordingly */}
           <RadarChart data={radarData} />
         </View>
       </View>
@@ -190,14 +250,18 @@ export default function PersonalityResultsScreen({
           onPress={() => navigateTo('home')}
           style={({ pressed }) => [styles.secondaryBtn, pressed ? styles.btnPressed : null]}
         >
-          <Text style={styles.secondaryBtnText}>{isArabic ? 'العودة للرئيسية' : 'חזרה לבית'}</Text>
+          <Text style={styles.secondaryBtnText}>
+            {tt('personalityResults.backHome', 'العودة للرئيسية', 'חזרה לדף הבית')}
+          </Text>
         </Pressable>
 
         <Pressable
           onPress={() => navigateTo('testResults')}
           style={({ pressed }) => [styles.primaryBtn, pressed ? styles.btnPressed : null]}
         >
-          <Text style={styles.primaryBtnText}>{isArabic ? 'نتائج الاختبار الكامل' : 'תוצאות מבחן מלא'}</Text>
+          <Text style={styles.primaryBtnText}>
+            {tt('personalityResults.fullTestResults', 'نتائج الاختبار الكامل', 'תוצאות המבחן המלא')}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>

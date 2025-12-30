@@ -5,9 +5,15 @@
  * 1) <RadarChart abilities={[{ ability_score, subjects:{name_ar/name_he/name_en} }]} />
  * 2) <RadarChart labels={['Math', ...]} values={[80, ...]} />
  *
+ * i18n:
+ * - UI strings (title/legend/empty) from i18next
+ * - Labels (subject names) from DB (name_ar/name_he) when "abilities" is used
+ *
  * Note: Pure React Native (no SVG).
  */
 
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -22,40 +28,71 @@ function safeNum(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function getSubjectName(ability, index) {
-  return (
-    ability?.subjects?.name_ar ||
-    ability?.subjects?.name_he ||
-    ability?.subjects?.name_en ||
-    ability?.subjectName ||
-    `المادة ${index + 1}`
-  );
+function isHe(lang) {
+  return String(lang || '').toLowerCase().startsWith('he');
+}
+
+function getSubjectNameByLang(ability, index, lang) {
+  const s = ability?.subjects;
+  const fallback = ability?.subjectName || `Subject ${index + 1}`;
+
+  if (String(lang).toLowerCase() === 'ar') {
+    return s?.name_ar || s?.name_en || s?.name_he || fallback;
+  }
+  if (isHe(lang)) {
+    return s?.name_he || s?.name_en || s?.name_ar || fallback;
+  }
+  return s?.name_en || s?.name_ar || s?.name_he || fallback;
 }
 
 export default function RadarChart({ abilities, labels, values }) {
+  const { t: rawT, i18n } = useTranslation();
+  const lang = i18n.language;
+
+  const t = (key, fallback) => {
+    const v = rawT(key);
+    return typeof v === 'string' && v !== key ? v : fallback;
+  };
+
   // Build a unified list of abilities either from:
-  // - "abilities" (original format)
-  // - OR (labels + values) format used elsewhere
-  const computedAbilities =
-    Array.isArray(abilities) && abilities.length
-      ? abilities
-      : Array.isArray(labels) && Array.isArray(values) && labels.length && values.length
-      ? labels
-          .map((name, i) => ({
-            ability_score: safeNum(values[i]),
-            subjects: {
-              name_ar: String(name || '').trim(),
-              name_he: String(name || '').trim(),
-              name_en: String(name || '').trim(),
-            },
-          }))
-          .filter((x) => String(getSubjectName(x, 0) || '').trim().length > 0)
-      : [];
+  // - "abilities" (original format, DB subject names)
+  // - OR (labels + values) format
+  const computedAbilities = useMemo(() => {
+    if (Array.isArray(abilities) && abilities.length) return abilities;
+
+    if (
+      Array.isArray(labels) &&
+      Array.isArray(values) &&
+      labels.length &&
+      values.length
+    ) {
+      return labels
+        .map((name, i) => ({
+          ability_score: safeNum(values[i]),
+          // keep labels as all languages for safety
+          subjects: {
+            name_ar: String(name || '').trim(),
+            name_he: String(name || '').trim(),
+            name_en: String(name || '').trim(),
+          },
+        }))
+        .filter((x, idx) => String(getSubjectNameByLang(x, idx, lang) || '').trim().length > 0);
+    }
+
+    return [];
+  }, [abilities, labels, values, lang]);
 
   if (!computedAbilities.length) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>لا توجد بيانات كافية لعرض الرسم.</Text>
+        <Text style={styles.emptyText}>
+          {t(
+            'results.noRadarData',
+            String(lang).toLowerCase() === 'ar'
+              ? 'لا توجد بيانات كافية لعرض الرسم.'
+              : 'אין מספיק נתונים כדי להציג את התרשים.'
+          )}
+        </Text>
       </View>
     );
   }
@@ -77,12 +114,34 @@ export default function RadarChart({ abilities, labels, values }) {
     };
   };
 
+  const title = t(
+    'results.radarTitle',
+    String(lang).toLowerCase() === 'ar'
+      ? 'خريطة القدرات حسب المواد'
+      : 'מפת יכולות לפי מקצועות'
+  );
+
+  const topN = t(
+    'results.topN',
+    String(lang).toLowerCase() === 'ar' ? 'أفضل {{n}}' : 'מובילים {{n}}'
+  ).replace('{{n}}', String(displayAbilities.length));
+
+  const legendPoints = t(
+    'results.legendPoints',
+    String(lang).toLowerCase() === 'ar' ? 'نقاط الأداء' : 'נקודות ביצוע'
+  );
+
+  const legendLevels = t(
+    'results.legendLevels',
+    String(lang).toLowerCase() === 'ar' ? 'مستويات (20–100)' : 'רמות (20–100)'
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>خريطة القدرات حسب المواد</Text>
+        <Text style={styles.title}>{title}</Text>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>أفضل {displayAbilities.length}</Text>
+          <Text style={styles.badgeText}>{topN}</Text>
         </View>
       </View>
 
@@ -165,9 +224,8 @@ export default function RadarChart({ abilities, labels, values }) {
         {displayAbilities.map((ability, index) => {
           const score = safeNum(ability.ability_score);
           const labelPoint = getPoint(index, 112); // slightly outside
-          const name = getSubjectName(ability, index);
+          const name = getSubjectNameByLang(ability, index, lang);
 
-          // text alignment based on angle
           let textAlign = 'center';
           if (Math.cos(labelPoint.angle) > 0.3) textAlign = 'left';
           if (Math.cos(labelPoint.angle) < -0.3) textAlign = 'right';
@@ -200,12 +258,12 @@ export default function RadarChart({ abilities, labels, values }) {
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={styles.legendDot} />
-          <Text style={styles.legendText}>نقاط الأداء</Text>
+          <Text style={styles.legendText}>{legendPoints}</Text>
         </View>
 
         <View style={styles.legendItem}>
           <View style={styles.legendLine} />
-          <Text style={styles.legendText}>مستويات (20–100)</Text>
+          <Text style={styles.legendText}>{legendLevels}</Text>
         </View>
       </View>
     </View>
@@ -213,10 +271,7 @@ export default function RadarChart({ abilities, labels, values }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    gap: 12,
-  },
+  container: { alignItems: 'center', gap: 12 },
 
   headerRow: {
     width: '100%',
@@ -237,21 +292,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  badgeText: {
-    color: '#1B3A8A',
-    fontWeight: '900',
-    fontSize: 11,
-  },
+  badgeText: { color: '#1B3A8A', fontWeight: '900', fontSize: 11 },
 
-  emptyContainer: {
-    height: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: '#6B7FAE',
-    fontWeight: '800',
-  },
+  emptyContainer: { height: 220, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { color: '#6B7FAE', fontWeight: '800' },
 
   chartContainer: {
     position: 'relative',
@@ -265,16 +309,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 
-  gridCircle: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderColor: '#D6E0FF',
-  },
-
-  axisLine: {
-    height: 1,
-    backgroundColor: '#D6E0FF',
-  },
+  gridCircle: { position: 'absolute', borderWidth: 1, borderColor: '#D6E0FF' },
+  axisLine: { height: 1, backgroundColor: '#D6E0FF' },
 
   levelText: {
     position: 'absolute',
@@ -288,25 +324,14 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#F5B301', // yellow
+    backgroundColor: '#F5B301',
     borderWidth: 2,
-    borderColor: '#1B3A8A', // blue ring
+    borderColor: '#1B3A8A',
   },
 
-  label: {
-    position: 'absolute',
-  },
-  labelText: {
-    fontSize: 11,
-    color: '#142B63',
-    fontWeight: '900',
-  },
-  labelScore: {
-    marginTop: 2,
-    fontSize: 10,
-    color: '#1B3A8A',
-    fontWeight: '900',
-  },
+  label: { position: 'absolute' },
+  labelText: { fontSize: 11, color: '#142B63', fontWeight: '900' },
+  labelScore: { marginTop: 2, fontSize: 10, color: '#1B3A8A', fontWeight: '900' },
 
   centerPoint: {
     position: 'absolute',
@@ -324,11 +349,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  legendItem: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
+  legendItem: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   legendDot: {
     width: 12,
     height: 12,
@@ -337,15 +358,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#1B3A8A',
   },
-  legendLine: {
-    width: 18,
-    height: 2,
-    backgroundColor: '#D6E0FF',
-    borderRadius: 2,
-  },
-  legendText: {
-    color: '#6B7FAE',
-    fontWeight: '800',
-    fontSize: 12,
-  },
+  legendLine: { width: 18, height: 2, backgroundColor: '#D6E0FF', borderRadius: 2 },
+  legendText: { color: '#6B7FAE', fontWeight: '800', fontSize: 12 },
 });

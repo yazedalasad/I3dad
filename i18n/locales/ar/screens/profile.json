@@ -1,0 +1,89 @@
+{
+  "titles": {
+    "profile": "الملف الشخصي",
+    "editProfile": "تعديل الملف الشخصي",
+    "examHistory": "سجل الاختبارات",
+    "recommendations": "التوصيات الأكاديمية"
+  },
+
+  "tabs": {
+    "about": "حول",
+    "contact": "تواصل"
+  },
+
+  "stats": {
+    "points": "النقاط",
+    "completed": "مكتمل",
+    "level": "المستوى"
+  },
+
+  "actions": {
+    "continue": "متابعة",
+    "edit": "تعديل",
+    "save": "حفظ التغييرات",
+    "saving": "جاري الحفظ…",
+    "changePassword": "تغيير كلمة المرور",
+    "logout": "تسجيل الخروج"
+  },
+
+  "fields": {
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "phone": "رقم الهاتف",
+    "email": "البريد الإلكتروني",
+    "studentId": "رقم الطالب",
+    "school": "المدرسة",
+    "schoolSelect": "اختر المدرسة",
+    "grade": "الصف",
+    "birthDate": "تاريخ الميلاد",
+    "gender": "الجنس",
+    "address": "العنوان",
+    "track": "المسار"
+  },
+
+  "avatar": {
+    "title": "صورة الملف الشخصي",
+    "hintWeb": "اختر صورة من جهازك",
+    "hintMobile": "اختر صورة من هاتفك",
+    "change": "تغيير",
+    "uploading": "جاري الرفع…",
+    "success": "تم تحديث صورة الملف الشخصي",
+    "failed": "فشل رفع الصورة"
+  },
+
+  "sections": {
+    "account": "الحساب",
+    "details": "معلوماتك",
+    "personal": "معلومات شخصية",
+    "school": "المدرسة",
+    "contact": "التواصل"
+  },
+
+  "validation": {
+    "fixDataTitle": "تحقق من البيانات",
+    "fixDataMessage": "يرجى تعبئة جميع الحقول المطلوبة بشكل صحيح (تاريخ الميلاد يجب أن يكون YYYY-MM-DD)."
+  },
+
+  "alerts": {
+    "error": "خطأ",
+    "saved": "تم الحفظ",
+    "savedMessage": "تم تحديث ملفك الشخصي بنجاح!",
+    "loadFailed": "فشل تحميل البيانات"
+  },
+
+  "examHistory": {
+    "title": "سجل الاختبارات",
+    "loading": "جارٍ تحميل السجل…",
+    "empty": "لا يوجد اختبارات مكتملة بعد.",
+    "openResults": "عرض النتائج",
+    "exam": "اختبار #{{number}}"
+  },
+
+  "recommendations": {
+    "title": "التوصيات الأكاديمية",
+    "loading": "جاري تحليل النتائج…",
+    "empty": "لا توجد توصيات حالياً. أكمل الاختبارات أولاً.",
+    "compatibility": "نسبة التوافق",
+    "reasonTitle": "سبب التوصية"
+  }
+}

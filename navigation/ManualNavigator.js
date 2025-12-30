@@ -1,6 +1,7 @@
 // File: navigation/ManualNavigator.js
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import FloatingLanguageSwitcher from '../components/FloatingLanguageSwitcher';
@@ -40,8 +41,14 @@ import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendati
 import PersonalityResultsScreen from '../screens/AdaptiveTest/PersonalityResultsScreen';
 import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
 
+function normalizeLang(lng) {
+  const s = String(lng || '').toLowerCase();
+  return s.startsWith('he') ? 'he' : 'ar';
+}
+
 export default function ManualNavigator() {
   const { user, loading, studentData } = useAuth();
+  const { i18n } = useTranslation(); // ✅ read current app language
 
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
@@ -55,8 +62,17 @@ export default function ManualNavigator() {
   }, [user, currentScreen]);
 
   const navigateTo = (screen, params = {}) => {
+    // ✅ ALWAYS carry language forward unless explicitly overridden
+    const currentLang = normalizeLang(i18n.language);
+    const nextParams = { ...params };
+    if (!nextParams.language) {
+      nextParams.language = currentLang;
+    } else {
+      nextParams.language = normalizeLang(nextParams.language);
+    }
+
     setCurrentScreen(screen);
-    setScreenParams(params);
+    setScreenParams(nextParams);
 
     if (['home', 'adaptiveTest', 'profile', 'about'].includes(screen)) {
       setActiveTab(screen);
@@ -126,6 +142,8 @@ export default function ManualNavigator() {
                 ? `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()
                 : 'طالب'
             }
+            // ✅ pass language consistently (in case TotalExam uses it)
+            language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
 
@@ -139,7 +157,7 @@ export default function ManualNavigator() {
             studentId={screenParams.studentId}
             subjectStates={screenParams.subjectStates}
             subjectIds={screenParams.subjectIds}
-            language={screenParams.language}
+            language={screenParams.language || normalizeLang(i18n.language)}
             isComprehensive={screenParams.isComprehensive}
             subjectNames={screenParams.subjectNames}
           />
@@ -155,7 +173,7 @@ export default function ManualNavigator() {
             subjectId={screenParams.subjectId}
             personalitySessionId={screenParams.personalitySessionId || null}
             studentId={screenParams.studentId || studentData?.id}
-            language={screenParams.language || 'ar'}
+            language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
 
@@ -166,7 +184,7 @@ export default function ManualNavigator() {
           <PersonalityTestScreen
             navigateTo={navigateTo}
             studentId={screenParams.studentId || studentData?.id}
-            language={screenParams.language || 'ar'}
+            language={screenParams.language || normalizeLang(i18n.language)}
             abilitySessionId={screenParams.abilitySessionId || null}
             existingPersonalitySessionId={screenParams.existingPersonalitySessionId || null}
           />
@@ -180,7 +198,7 @@ export default function ManualNavigator() {
             navigateTo={navigateTo}
             // ✅ PersonalityResultsScreen expects studentId (NOT profiles)
             studentId={screenParams.studentId || studentData?.id}
-            language={screenParams.language || 'ar'}
+            language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
 

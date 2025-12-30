@@ -1,0 +1,89 @@
+{
+  "titles": {
+    "profile": "פרופיל",
+    "editProfile": "עריכת פרופיל",
+    "examHistory": "היסטוריית מבחנים",
+    "recommendations": "המלצות אקדמיות"
+  },
+
+  "tabs": {
+    "about": "אודות",
+    "contact": "צור קשר"
+  },
+
+  "stats": {
+    "points": "נקודות",
+    "completed": "הושלם",
+    "level": "רמה"
+  },
+
+  "actions": {
+    "continue": "המשך",
+    "edit": "עריכה",
+    "save": "שמירת שינויים",
+    "saving": "שומר…",
+    "changePassword": "שינוי סיסמה",
+    "logout": "התנתקות"
+  },
+
+  "fields": {
+    "firstName": "שם פרטי",
+    "lastName": "שם משפחה",
+    "phone": "טלפון",
+    "email": "אימייל",
+    "studentId": "מספר תלמיד",
+    "school": "בית ספר",
+    "schoolSelect": "בחר/י בית ספר",
+    "grade": "כיתה",
+    "birthDate": "תאריך לידה",
+    "gender": "מגדר",
+    "address": "כתובת",
+    "track": "מסלול"
+  },
+
+  "avatar": {
+    "title": "תמונת פרופיל",
+    "hintWeb": "בחר/י תמונה מהמחשב",
+    "hintMobile": "בחר/י תמונה מהטלפון",
+    "change": "שינוי",
+    "uploading": "מעלה…",
+    "success": "תמונת הפרופיל עודכנה",
+    "failed": "העלאת התמונה נכשלה"
+  },
+
+  "sections": {
+    "account": "חשבון",
+    "details": "הפרטים שלך",
+    "personal": "פרטים אישיים",
+    "school": "בית ספר",
+    "contact": "פרטי קשר"
+  },
+
+  "validation": {
+    "fixDataTitle": "בדוק נתונים",
+    "fixDataMessage": "נא למלא את כל השדות הנדרשים (תאריך לידה בפורמט YYYY-MM-DD)."
+  },
+
+  "alerts": {
+    "error": "שגיאה",
+    "saved": "נשמר",
+    "savedMessage": "הפרופיל עודכן בהצלחה!",
+    "loadFailed": "טעינת הנתונים נכשלה"
+  },
+
+  "examHistory": {
+    "title": "היסטוריית מבחנים",
+    "loading": "טוען היסטוריה…",
+    "empty": "אין מבחנים שהושלמו עדיין.",
+    "openResults": "צפייה בתוצאות",
+    "exam": "מבחן #{{number}}"
+  },
+
+  "recommendations": {
+    "title": "המלצות אקדמיות",
+    "loading": "מנתח תוצאות…",
+    "empty": "אין המלצות כרגע. השלם/י מבחנים תחילה.",
+    "compatibility": "אחוז התאמה",
+    "reasonTitle": "סיבת ההמלצה"
+  }
+}
