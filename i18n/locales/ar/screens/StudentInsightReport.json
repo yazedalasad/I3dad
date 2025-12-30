@@ -1,0 +1,82 @@
+{
+  "heroEyebrow": "تقرير شامل للطالب",
+  "heroSubtitle": "الشخصية • القدرات • الاهتمامات • المسارات المقترحة",
+  "downloadPdf": "تحميل PDF",
+  "exporting": "جاري التصدير…",
+  "exportFailed": "فشل تصدير الملف PDF.",
+  "generatedAt": "تاريخ الإنشاء",
+  "pdfTitle": "تقرير الطالب",
+  "pdfSubtitle": "ملخص الشخصية والقدرات والتوصيات",
+  "pdfFooter": "تم إنشاء هذا التقرير تلقائيًا من بيانات النظام.",
+
+  "student": "الطالب",
+  "unknownStudent": "طالب",
+
+  "personalityConfidence": "ثقة الشخصية",
+  "abilityConfidence": "ثقة القدرات",
+  "topMatch": "أفضل تطابق",
+
+  "personalitySection": "من أنت؟ (الشخصية)",
+  "personalitySectionSub": "Big Five — صورة عامة عن أسلوب التفكير والتصرف",
+  "personalityRadar": "خريطة السمات",
+  "personalitySummary": "ملخص سريع",
+  "personalityInsight": "ماذا يعني ذلك؟",
+  "personalityNote": "ملاحظة: النتائج تقديرية.",
+  "noPersonalityYet": "لا توجد نتائج شخصية بعد. أكمل اختبار الشخصية أولاً.",
+  "personalityDefaultText": "هذه النتائج تقديرية وتساعد على فهم أسلوبك العام. استخدمها كدليل، وليس كحكم.",
+
+  "traitO": "الانفتاح",
+  "traitC": "الانضباط",
+  "traitE": "الانبساط",
+  "traitA": "التوافق",
+  "traitN": "القلق",
+
+  "traitOHint": "فضول وأفكار جديدة",
+  "traitCHint": "تنظيم والتزام",
+  "traitEHint": "طاقة اجتماعية",
+  "traitAHint": "تعاون وتعاطف",
+  "traitNHint": "حساسية للضغط",
+
+  "abilitySection": "ماذا تتقن؟ (القدرات)",
+  "abilitySectionSub": "مستوى القدرة لكل مادة بناءً على نتائج الاختبار",
+  "abilityRadar": "أفضل 8 مواد",
+  "abilityTopList": "تفصيل سريع",
+  "abilityTop": "أقوى القدرات",
+  "abilityNote": "تم حسابها من إجابات الاختبار.",
+  "noAbilityYet": "لا توجد قدرات بعد. أكمل الاختبار الشامل (Total Exam) أولاً.",
+  "abilityRefreshed": "تم تحديث القدرات بناءً على جلسة الاختبار.",
+
+  "abilityTableTitle": "جدول القدرات",
+  "colSubject": "المادة",
+  "colAbility": "القدرة",
+  "colAccuracy": "الدقة",
+  "colConfidence": "الثقة",
+  "confShort": "ثقة",
+
+  "interestSection": "ما الذي يجذبك؟ (الاهتمامات)",
+  "interestSectionSub": "يتم استنتاج الاهتمام من الوقت والدقة والسلوك داخل الجلسة",
+  "topInterests": "أعلى الاهتمامات",
+  "interestNotes": "ملاحظات تفسيرية",
+  "noInterestsYet": "لا توجد بيانات اهتمام بعد.",
+
+  "noteFastGuess": "سرعة عالية مع دقة منخفضة قد تعني تخمينًا وليس اهتمامًا.",
+  "noteBalanced": "الزمن المتوازن مع دقة جيدة غالبًا يشير إلى تفاعل صحي.",
+  "noteEngagement": "يتم تعزيز قياس الاهتمام باستخدام مؤشر المشاركة في الجلسة.",
+
+  "pathsSection": "المسار الأنسب لك",
+  "pathsSectionSub": "توصيات مبنية على القدرات والاهتمامات",
+  "recommendations": "المسارات المقترحة",
+  "noRecommendations": "لا توجد توصيات حالياً. تأكد من إكمال الاختبارات أولاً.",
+  "compatibility": "نسبة التوافق",
+  "whyRecommended": "سبب التوصية",
+
+  "backHome": "العودة للرئيسية",
+  "footnote": "هذا التقرير تعليمي وإرشادي ولا يُعتبر تشخيصًا أو قرارًا نهائيًا.",
+
+  "loadFailed": "فشل تحميل تقرير الطالب.",
+  "missingStudentId": "لا يوجد studentId.",
+  "popupBlocked": "يبدو أن المتصفح منع النافذة الجديدة. فعّل Popups ثم حاول مرة أخرى.",
+  "printNotInstalled": "ميزة PDF غير متوفرة. ثبّت expo-print أولاً.",
+  "pdfReady": "تم إنشاء ملف PDF"
+
+}

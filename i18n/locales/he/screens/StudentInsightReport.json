@@ -1,0 +1,83 @@
+{
+  "heroEyebrow": "דו\"ח תלמיד מקיף",
+  "heroSubtitle": "אישיות • יכולות • תחומי עניין • מסלולים מומלצים",
+  "downloadPdf": "הורדת PDF",
+  "exporting": "מייצא…",
+  "exportFailed": "ייצוא ה-PDF נכשל.",
+  "generatedAt": "נוצר בתאריך",
+  "pdfTitle": "דו\"ח תלמיד",
+  "pdfSubtitle": "סיכום אישיות, יכולות והמלצות",
+  "pdfFooter": "דוח זה נוצר אוטומטית מנתוני המערכת.",
+
+  "student": "תלמיד",
+  "unknownStudent": "תלמיד",
+
+  "personalityConfidence": "ביטחון אישיות",
+  "abilityConfidence": "ביטחון יכולות",
+  "topMatch": "התאמה מובילה",
+
+  "personalitySection": "מי אתה? (אישיות)",
+  "personalitySectionSub": "Big Five — תמונה כללית על דפוסי התנהגות",
+  "personalityRadar": "מפת תכונות",
+  "personalitySummary": "סיכום מהיר",
+  "personalityInsight": "מה זה אומר?",
+  "personalityNote": "הערה: התוצאות משוערות.",
+  "noPersonalityYet": "אין תוצאות אישיות עדיין. יש להשלים מבחן אישיות.",
+  "personalityDefaultText": "התוצאות משוערות ומסייעות להבין את הסגנון הכללי. השתמש/י בהן כהכוונה בלבד.",
+
+  "traitO": "פתיחות",
+  "traitC": "מצפוניות",
+  "traitE": "מוחצנות",
+  "traitA": "נעימות",
+  "traitN": "נוירוטיות",
+
+  "traitOHint": "סקרנות וחדשנות",
+  "traitCHint": "ארגון והתמדה",
+  "traitEHint": "אנרגיה חברתית",
+  "traitAHint": "שיתופיות ואמפתיה",
+  "traitNHint": "רגישות ללחץ",
+
+  "abilitySection": "מה אתה יודע? (יכולות)",
+  "abilitySectionSub": "רמת יכולת לכל מקצוע לפי תוצאות המבחן",
+  "abilityRadar": "8 מקצועות מובילים",
+  "abilityTopList": "פירוט מהיר",
+  "abilityTop": "יכולות חזקות",
+  "abilityNote": "חושב על בסיס תשובות המבחן.",
+  "noAbilityYet": "אין יכולות עדיין. יש להשלים מבחן מלא (Total Exam).",
+  "abilityRefreshed": "היכולות עודכנו לפי סשן המבחן.",
+
+  "abilityTableTitle": "טבלת יכולות",
+  "colSubject": "מקצוע",
+  "colAbility": "יכולת",
+  "colAccuracy": "דיוק",
+  "colConfidence": "ביטחון",
+  "confShort": "ביטחון",
+
+  "interestSection": "מה מושך אותך? (תחומי עניין)",
+  "interestSectionSub": "תחומי העניין נגזרים מזמן, דיוק והתנהגות בסשן",
+  "topInterests": "תחומי עניין מובילים",
+  "interestNotes": "הערות פרשנות",
+  "noInterestsYet": "אין נתוני עניין עדיין.",
+
+  "noteFastGuess": "מהירות גבוהה עם דיוק נמוך עשויה להעיד על ניחוש ולא על עניין.",
+  "noteBalanced": "זמן מאוזן עם דיוק טוב מעיד לרוב על מעורבות בריאה.",
+  "noteEngagement": "מדידת העניין מתחזקת באמצעות מדד המעורבות בסשן.",
+
+  "pathsSection": "המסלול המתאים לך",
+  "pathsSectionSub": "המלצות על בסיס יכולות ותחומי עניין",
+  "recommendations": "מסלולים מומלצים",
+  "noRecommendations": "אין המלצות כרגע. יש להשלים את המבחנים.",
+  "compatibility": "אחוז התאמה",
+  "whyRecommended": "למה מומלץ",
+
+  "backHome": "חזרה לדף הבית",
+  "footnote": "דוח זה חינוכי והכוונתי ואינו אבחון או החלטה סופית.",
+
+  "loadFailed": "טעינת הדוח נכשלה.",
+  "missingStudentId": "אין studentId.",
+  "popupBlocked": "נראה שהדפדפן חסם חלון חדש. אפשר/י Popups ונסה/י שוב.",
+  "printNotInstalled": "אפשרות PDF לא זמינה. יש להתקין קודם expo-print.",
+  "pdfReady": "נוצר קובץ PDF"
+
+}
+

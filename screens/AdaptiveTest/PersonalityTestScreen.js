@@ -30,6 +30,7 @@ export default function PersonalityTestScreen({
   studentId,
   language = 'ar',
   abilitySessionId = null, // pass from ability exam if exists
+  abilityJustFinished = false, // ✅ NEW: trust flag from ability flow
   existingPersonalitySessionId = null, // optional resume
 }) {
   // ✅ IMPORTANT: personalityTest keys are inside adaptiveTest namespace (adaptiveTest.json)
@@ -151,30 +152,51 @@ export default function PersonalityTestScreen({
     return Math.max(0, Math.floor((Date.now() - questionStartRef.current) / 1000));
   }
 
-  // ✅ finish and go to personality results fast
+  // ✅ finish: go to Insight ONLY if this personality flow came right after ability finish
   async function finishPersonality(sid) {
-    try {
-      const done = await completePersonalityTest(sid);
+    const finalSid = sid || sessionId;
 
-      // go directly to PersonalityResultsScreen
+    try {
+      const done = await completePersonalityTest(finalSid);
+
+      // ✅ Insight report ONLY when ability part just finished in same flow
+      if (abilitySessionId && abilityJustFinished) {
+        navigateTo('studentInsightReport', {
+          studentId,
+          language,
+          abilitySessionId,
+          personalitySessionId: finalSid,
+        });
+        return;
+      }
+
+      // otherwise: go to personality results
       navigateTo('personalityResults', {
         studentId,
         language,
-        // optional: keep ability session id so user can open full exam results later
         abilitySessionId,
-        personalitySessionId: sid,
-        // optional: if service returns the profile, pass it too (not required)
+        personalitySessionId: finalSid,
         profile: done?.profile || null,
       });
     } catch (e) {
       console.log('finishPersonality error:', e?.message || e);
 
-      // even if complete fails, still go to results screen (it can fetch latest profile by studentId)
+      // even if complete fails:
+      if (abilitySessionId && abilityJustFinished) {
+        navigateTo('studentInsightReport', {
+          studentId,
+          language,
+          abilitySessionId,
+          personalitySessionId: finalSid,
+        });
+        return;
+      }
+
       navigateTo('personalityResults', {
         studentId,
         language,
         abilitySessionId,
-        personalitySessionId: sid,
+        personalitySessionId: finalSid,
       });
     }
   }
@@ -529,7 +551,6 @@ export default function PersonalityTestScreen({
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content}>
         <LinearGradient colors={['#1E4FBF', '#274B9F']} style={styles.hero}>
-          {/* ✅ FIXED: pulls from adaptiveTest.json -> personalityTest.title */}
           <Text style={styles.heroTitle}>
             {tt('personalityTest.title', isArabic ? 'اختبار الشخصية' : 'מבחן אישיות')}
           </Text>

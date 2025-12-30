@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   AppState,
+  Platform, // ✅ ADD
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 
 import ProgressIndicator from '../../components/AdaptiveTest/ProgressIndicator';
@@ -305,9 +305,6 @@ export default function AdaptiveTestScreen({
     setSubmitting(true);
     stopTimer();
 
-    // time taken depends on where we started the timer:
-    // - current question uses QUESTION_TIME_LIMIT
-    // - pending question started at its timeLeftWhenLeft
     const limitForThisAttempt =
       isViewingHistory && isViewingPending
         ? safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT)
@@ -332,7 +329,6 @@ export default function AdaptiveTestScreen({
     if (!result?.success) {
       setSubmitting(false);
 
-      // Resume timer from where user was
       if (isViewingHistory && isViewingPending) {
         startTimer(safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT));
       } else {
@@ -341,9 +337,6 @@ export default function AdaptiveTestScreen({
       return;
     }
 
-    // ✅ Update history:
-    // - if answering current question => append answered item
-    // - if answering pending history => update that item to answered
     if (isViewingHistory && isViewingPending) {
       setHistory((prev) => {
         const copy = [...prev];
@@ -358,7 +351,6 @@ export default function AdaptiveTestScreen({
         return copy;
       });
 
-      // after answering pending: go back to current question and resume from paused time (if any)
       setSubmitting(false);
       setSubjectStates(result.subjectStates);
 
@@ -370,7 +362,6 @@ export default function AdaptiveTestScreen({
       return;
     }
 
-    // answering the current question
     setHistory((prev) => [
       ...prev,
       {
@@ -387,18 +378,16 @@ export default function AdaptiveTestScreen({
     await loadNextQuestion(result.subjectStates);
   }
 
-  // ✅ OPTION A: Skip means "leave unanswered" (pending) and move on WITHOUT DB submit
   async function handleSkipQuestion() {
     if (submitting || fetchingQuestion) return;
     if (!question) return;
-    if (isViewingHistory) return; // skip only makes sense on current
+    if (isViewingHistory) return;
 
     setSubmitting(true);
     stopTimer();
 
     const remaining = safeNum(timeLeft, QUESTION_TIME_LIMIT);
 
-    // store pending question with remaining time
     setHistory((prev) => [
       ...prev,
       {
@@ -406,19 +395,16 @@ export default function AdaptiveTestScreen({
         selectedAnswer: null,
         timeTakenSeconds: null,
         status: 'pending',
-        timeLeftWhenLeft: remaining, // ✅ resume from here
+        timeLeftWhenLeft: remaining,
       },
     ]);
 
     setSkippedCount((c) => c + 1);
 
     setSubmitting(false);
-
-    // move forward to next question WITHOUT submit
     await loadNextQuestion(subjectStates);
   }
 
-  // ✅ OPTION A: Timeout also becomes pending (timeLeftWhenLeft = 0)
   async function handleAutoTimeout() {
     if (submitting || fetchingQuestion) return;
     if (!question) return;
@@ -434,7 +420,7 @@ export default function AdaptiveTestScreen({
         selectedAnswer: null,
         timeTakenSeconds: null,
         status: 'pending',
-        timeLeftWhenLeft: 0, // resume from 0 => effectively no time, but rule is respected
+        timeLeftWhenLeft: 0,
       },
     ]);
 
@@ -448,19 +434,15 @@ export default function AdaptiveTestScreen({
   function jumpToQuestion(item) {
     if (submitting || fetchingQuestion) return;
 
-    // Jump to current question
     if (item.type === 'current') {
       setViewingHistoryIndex(null);
 
-      // Resume current timer if it was paused
       const paused = pausedCurrentTimeLeftRef.current;
       startTimer(paused != null ? paused : QUESTION_TIME_LIMIT);
 
       return;
     }
 
-    // Jump to history item
-    // If leaving current question (unanswered), pause its remaining time
     if (!isViewingHistory) {
       pausedCurrentTimeLeftRef.current = safeNum(timeLeft, QUESTION_TIME_LIMIT);
     }
@@ -468,7 +450,6 @@ export default function AdaptiveTestScreen({
     stopTimer();
     setViewingHistoryIndex(item.index);
 
-    // If opening a pending question, start timer from saved remaining
     const target = history[item.index];
     if (target?.status === 'pending') {
       const remain = safeNum(target.timeLeftWhenLeft, 0);
@@ -501,6 +482,7 @@ export default function AdaptiveTestScreen({
       studentId,
       language,
       abilitySessionId: sessionId,
+      abilityJustFinished: true,
       subjectNames,
       skippedCount,
       totalTimeSpent: totalTimeSpentSeconds,
@@ -533,7 +515,6 @@ export default function AdaptiveTestScreen({
         skippedCount={skippedCount}
       />
 
-      {/* ✅ Question Navigator (small squares) */}
       {(history.length > 0 || question) && (
         <View style={styles.navigatorWrap}>
           <View style={styles.navigatorHeader}>
@@ -558,11 +539,8 @@ export default function AdaptiveTestScreen({
             )}
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.navigatorRow}
-          >
+          {/* ✅ CHANGED: wrap down instead of horizontal scroll */}
+          <View style={styles.navigatorGrid}>
             {navItems.map((it) => {
               const isActive =
                 (it.type === 'current' && !isViewingHistory) ||
@@ -587,7 +565,7 @@ export default function AdaptiveTestScreen({
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
 
           <Text style={styles.navigatorHint}>
             {tt(
@@ -602,11 +580,8 @@ export default function AdaptiveTestScreen({
       <QuestionCard
         question={shownQuestion}
         selectedAnswer={shownSelectedAnswer}
-        // ✅ allow answering ONLY if:
-        // - not viewing history, OR viewing a pending question
         disabled={submitting || (isViewingHistory && isViewingAnswered)}
         onAnswerSelect={handleAnswer}
-        // ✅ allow skip only on current question (not while viewing history)
         onSkipQuestion={isViewingHistory ? null : handleSkipQuestion}
         language={language}
         timeRemaining={timeLeft}
@@ -641,6 +616,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E5ECFF',
+
+    // ✅ sticky only on web
+    ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 50 } : {}),
   },
   navigatorHeader: {
     flexDirection: 'row-reverse',
@@ -681,11 +659,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 12,
   },
-  navigatorRow: {
+
+  // ✅ NEW: grid wrap
+  navigatorGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
     gap: 8,
-    paddingVertical: 2,
-    paddingRight: 4,
   },
+
   navigatorHint: {
     marginTop: 8,
     color: '#546A99',
@@ -707,7 +688,6 @@ const styles = StyleSheet.create({
   },
   navSquarePressed: { transform: [{ scale: 0.98 }] },
 
-  // states (NO correctness!)
   navSquareAnswered: {
     borderColor: '#1E4FBF',
     backgroundColor: '#EEF2FF',

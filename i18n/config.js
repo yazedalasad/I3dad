@@ -75,6 +75,12 @@ import arSuccessStories from './locales/ar/screens/successStories.json';
 import heSuccessStories from './locales/he/screens/successStories.json';
 
 /**
+ * ✅ StudentInsightReport (new)
+ */
+import arStudentInsightReport from './locales/ar/screens/StudentInsightReport.json';
+import heStudentInsightReport from './locales/he/screens/StudentInsightReport.json';
+
+/**
  * Components
  */
 import arComponents from './locales/ar/components/components.json';
@@ -84,10 +90,7 @@ import arComponentsAdaptiveTest from './locales/ar/components/adaptiveTest.json'
 import heComponentsAdaptiveTest from './locales/he/components/adaptiveTest.json';
 
 /**
- * ✅ Components / Navigation (tabs)
- * Make sure these files exist:
- * - ./locales/ar/components/navigation.json
- * - ./locales/he/components/navigation.json
+ * Navigation
  */
 import arNavigation from './locales/ar/components/navigation.json';
 import heNavigation from './locales/he/components/navigation.json';
@@ -101,7 +104,6 @@ const setRTL = (language) => {
   if (Platform.OS !== 'web') {
     if (I18nManager.isRTL !== isRTL) {
       I18nManager.forceRTL(isRTL);
-      // NOTE: On native, a full reload may be needed for perfect RTL layout.
     }
   } else if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
@@ -113,7 +115,7 @@ const normalizeLanguage = (lng) =>
   String(lng).toLowerCase() === 'he' ? 'he' : 'ar';
 
 /**
- * Init i18n once (prevents double-press + avoids re-init issues)
+ * Init i18n once
  */
 export const initI18n = async () => {
   try {
@@ -139,9 +141,10 @@ export const initI18n = async () => {
         'dashboard',
         'profile',
         'successStories',
+        'StudentInsightReport', // ✅ added
         'components',
         'componentsAdaptiveTest',
-        'navigation', // ✅ add
+        'navigation',
       ],
       defaultNS: 'translation',
 
@@ -156,9 +159,10 @@ export const initI18n = async () => {
           dashboard: arDashboard,
           profile: arProfile,
           successStories: arSuccessStories,
+          StudentInsightReport: arStudentInsightReport, // ✅
           components: arComponents,
           componentsAdaptiveTest: arComponentsAdaptiveTest,
-          navigation: arNavigation, // ✅ add
+          navigation: arNavigation,
         },
         he: {
           translation: heLegacy,
@@ -170,26 +174,23 @@ export const initI18n = async () => {
           dashboard: heDashboard,
           profile: heProfile,
           successStories: heSuccessStories,
+          StudentInsightReport: heStudentInsightReport, // ✅
           components: heComponents,
           componentsAdaptiveTest: heComponentsAdaptiveTest,
-          navigation: heNavigation, // ✅ add
+          navigation: heNavigation,
         },
       },
 
       lng: savedLanguage,
       fallbackLng: 'ar',
-
       interpolation: { escapeValue: false },
       react: { useSuspense: false },
     });
 
-    // Apply RTL on initial language
     setRTL(i18n.language);
 
-    // Add listeners once (avoid duplicates with hot reload)
     if (!i18n.__rtl_listener_added__) {
       i18n.__rtl_listener_added__ = true;
-
       i18n.on('languageChanged', (lng) => {
         const normalized = normalizeLanguage(lng);
         setRTL(normalized);
@@ -204,5 +205,4 @@ export const initI18n = async () => {
   }
 };
 
-// ✅ Default export so i18n/index.js can import it
 export default i18n;

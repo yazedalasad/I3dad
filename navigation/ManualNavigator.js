@@ -41,6 +41,9 @@ import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendati
 import PersonalityResultsScreen from '../screens/AdaptiveTest/PersonalityResultsScreen';
 import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
 
+// ✅ Student Insight Report (hidden route for now)
+import StudentInsightReportScreen from '../screens/StudentInsightReport/StudentInsightReportScreen';
+
 function normalizeLang(lng) {
   const s = String(lng || '').toLowerCase();
   return s.startsWith('he') ? 'he' : 'ar';
@@ -186,6 +189,7 @@ export default function ManualNavigator() {
             studentId={screenParams.studentId || studentData?.id}
             language={screenParams.language || normalizeLang(i18n.language)}
             abilitySessionId={screenParams.abilitySessionId || null}
+            abilityJustFinished={!!screenParams.abilityJustFinished}
             existingPersonalitySessionId={screenParams.existingPersonalitySessionId || null}
           />
         );
@@ -198,6 +202,23 @@ export default function ManualNavigator() {
             navigateTo={navigateTo}
             // ✅ PersonalityResultsScreen expects studentId (NOT profiles)
             studentId={screenParams.studentId || studentData?.id}
+            language={screenParams.language || normalizeLang(i18n.language)}
+          />
+        );
+
+      // ✅ STUDENT INSIGHT REPORT (hidden route for now — not in navbar)
+      case 'studentInsightReport':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <StudentInsightReportScreen
+            navigateTo={navigateTo}
+            studentId={screenParams.studentId || studentData?.id}
+            abilitySessionId={
+              screenParams.abilitySessionId ||
+              screenParams.sessionId || // fallback from TotalExam/TestResults flows
+              null
+            }
+            personalitySessionId={screenParams.personalitySessionId || null}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
@@ -260,6 +281,8 @@ export default function ManualNavigator() {
     'personalityTest',
     'personalityResults',
     'testResults',
+    // NOTE: studentInsightReport is NOT a tab and not shown in navbar anyway,
+    // so no need to add it here unless you explicitly want to hide navbar on it.
   ];
 
   return (
