@@ -71,7 +71,11 @@ export default function PersonalityTestScreen({
   const [rankingOrder, setRankingOrder] = useState([]); // ordered items
 
   const questionStartRef = useRef(Date.now());
-  const isArabic = String(i18n.language).toLowerCase() !== 'he';
+
+  // ✅ FIX: RTL should be true for BOTH Arabic + Hebrew
+  const lang = String(i18n.language).toLowerCase();
+  const isArabic = lang !== 'he'; // keep your old variable (used in strings)
+  const isRTL = lang === 'ar' || lang === 'he';
 
   const qText = useMemo(() => {
     if (!question) return '';
@@ -241,10 +245,7 @@ export default function PersonalityTestScreen({
       startQuestionTimer();
     } catch (e) {
       console.log('loadNextQuestion error:', e?.message || e);
-      Alert.alert(
-        tt('errors.title', 'خطأ'),
-        tt('errors.tryAgain', 'فشل تحميل سؤال الشخصية.')
-      );
+      Alert.alert(tt('errors.title', 'خطأ'), tt('errors.tryAgain', 'فشل تحميل سؤال الشخصية.'));
     } finally {
       setLoadingQuestion(false);
     }
@@ -263,7 +264,10 @@ export default function PersonalityTestScreen({
 
     if (type === 'multiple_choice') {
       if (choiceIndex == null)
-        return { ok: false, message: tt('personalityTest.chooseOne', isArabic ? 'اختر إجابة واحدة' : 'בחר/י תשובה אחת') };
+        return {
+          ok: false,
+          message: tt('personalityTest.chooseOne', isArabic ? 'اختر إجابة واحدة' : 'בחר/י תשובה אחת'),
+        };
       return { ok: true };
     }
 
@@ -338,10 +342,7 @@ export default function PersonalityTestScreen({
       const res = await submitPersonalityAnswer(sessionId, question.id, ans, seconds);
 
       if (!res?.success) {
-        Alert.alert(
-          tt('errors.title', 'خطأ'),
-          res?.error || tt('errors.tryAgain', 'فشل إرسال الإجابة.')
-        );
+        Alert.alert(tt('errors.title', 'خطأ'), res?.error || tt('errors.tryAgain', 'فشل إرسال الإجابة.'));
         return;
       }
 
@@ -424,8 +425,8 @@ export default function PersonalityTestScreen({
           )}
           placeholderTextColor="#94A3B8"
           multiline
-          style={styles.textArea}
-          textAlign={isArabic ? 'right' : 'left'}
+          style={[styles.textArea, { writingDirection: isRTL ? 'rtl' : 'ltr' }]}
+          textAlign={isRTL ? 'right' : 'left'}
         />
       </View>
     );
@@ -573,7 +574,10 @@ export default function PersonalityTestScreen({
             </View>
           )}
 
-          <Text style={styles.qText}>{qText}</Text>
+          {/* ✅ FIX: don’t force Hebrew to left; RTL for both ar+he */}
+          <Text style={[styles.qText, { textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }]}>
+            {qText}
+          </Text>
 
           <View style={styles.body}>
             {loadingQuestion ? (
@@ -598,23 +602,10 @@ export default function PersonalityTestScreen({
                 pressed ? styles.submitBtnPressed : null,
               ]}
             >
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitBtnText}>
-                  {tt('common.next', isArabic ? 'التالي' : 'הבא')}
-                </Text>
-              )}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{tt('common.next', isArabic ? 'التالي' : 'הבא')}</Text>}
             </Pressable>
 
-            <Pressable
-              onPress={() => finishPersonality(sessionId)}
-              style={({ pressed }) => [styles.skipBtn, pressed ? styles.skipBtnPressed : null]}
-            >
-              <Text style={styles.skipBtnText}>
-                {tt('common.finish', isArabic ? 'إنهاء' : 'סיום')}
-              </Text>
-            </Pressable>
+            {/* ❌ Finish/End button removed */}
           </View>
         </View>
       </ScrollView>
@@ -682,10 +673,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scaleBtnActive: {
-    borderColor: '#1E4FBF',
-    backgroundColor: '#EEF2FF',
-  },
+  scaleBtnActive: { borderColor: '#1E4FBF', backgroundColor: '#EEF2FF' },
   scaleBtnPressed: { transform: [{ scale: 0.98 }] },
   scaleBtnText: { fontWeight: '800', color: '#0F172A' },
   scaleBtnTextActive: { color: '#1E40AF' },
@@ -765,18 +753,6 @@ const styles = StyleSheet.create({
   },
   submitBtnPressed: { transform: [{ scale: 0.99 }] },
   submitBtnText: { color: '#fff', fontWeight: '900' },
-
-  skipBtn: {
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skipBtnPressed: { transform: [{ scale: 0.99 }] },
-  skipBtnText: { color: '#0F172A', fontWeight: '900' },
 
   btnDisabled: { opacity: 0.7 },
 });
