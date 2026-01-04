@@ -1,10 +1,12 @@
+// screens/AdaptiveTest/AdaptiveTestScreen.test.js
 import { act, render, waitFor } from '@testing-library/react-native';
-import AdaptiveTestScreen from './AdaptiveTestScreen';
 
-// Works even when jest.useFakeTimers() is enabled
-const flushMicrotasks = () => Promise.resolve();
-
-/* -------------------- AppState mock -------------------- */
+/**
+ * ✅ LOCAL-ONLY FIX (do NOT touch jest.setup.js):
+ * AdaptiveTestScreen imports { AppState } from 'react-native'.
+ * In THIS Jest run, AppState.addEventListener is missing -> crash on mount.
+ * We patch AppState only for this test file.
+ */
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
   return {
@@ -15,6 +17,47 @@ jest.mock('react-native', () => {
       removeEventListener: jest.fn(),
     },
   };
+});
+
+/**
+ * ✅ AdaptiveTestScreen uses i18n.language + i18n.changeLanguage(...)
+ * Your global mock returns only t(), so we patch it here.
+ */
+jest.mock('react-i18next', () => ({
+  __esModule: true,
+  useTranslation: () => ({
+    t: (key) => key,
+    i18n: {
+      language: 'ar',
+      changeLanguage: jest.fn(() => Promise.resolve()),
+    },
+  }),
+}));
+
+/** ⛔️ Important: require AFTER mocks */
+const AdaptiveTestScreen = require('./AdaptiveTestScreen').default;
+
+// Works even when jest.useFakeTimers() is enabled
+const flushMicrotasks = () => Promise.resolve();
+
+/* -------------------- Optional: silence RN prop-type removal warnings -------------------- */
+const ORIGINAL_ERROR = console.error;
+beforeAll(() => {
+  console.error = (...args) => {
+    const msg = String(args?.[0] ?? '');
+    if (
+      msg.includes('ColorPropType will be removed') ||
+      msg.includes('EdgeInsetsPropType will be removed') ||
+      msg.includes('PointPropType will be removed') ||
+      msg.includes('ViewPropTypes will be removed')
+    ) {
+      return;
+    }
+    ORIGINAL_ERROR(...args);
+  };
+});
+afterAll(() => {
+  console.error = ORIGINAL_ERROR;
 });
 
 /* -------------------- UI mocks -------------------- */
@@ -58,11 +101,13 @@ jest.mock('../../components/AdaptiveTest/QuestionCard', () => {
   };
 });
 
-/* -------------------- Service mocks (names must start with mock*) -------------------- */
+/* -------------------- Service mocks -------------------- */
 const mockRecordHeartbeat = jest.fn().mockResolvedValue({ success: true });
 const mockGetNextQuestion = jest.fn();
 const mockSubmitComprehensiveAnswer = jest.fn();
-const mockCompleteComprehensiveAssessment = jest.fn().mockResolvedValue({ success: true });
+const mockCompleteComprehensiveAssessment = jest
+  .fn()
+  .mockResolvedValue({ success: true });
 
 jest.mock('../../services/adaptiveTestService', () => ({
   __esModule: true,
@@ -70,11 +115,15 @@ jest.mock('../../services/adaptiveTestService', () => ({
     recordHeartbeat: (...args) => mockRecordHeartbeat(...args),
     getNextQuestion: (...args) => mockGetNextQuestion(...args),
     submitComprehensiveAnswer: (...args) => mockSubmitComprehensiveAnswer(...args),
-    completeComprehensiveAssessment: (...args) => mockCompleteComprehensiveAssessment(...args),
+    completeComprehensiveAssessment: (...args) =>
+      mockCompleteComprehensiveAssessment(...args),
   },
 }));
 
-const mockUpdateAbilitiesFromSession = jest.fn().mockResolvedValue({ success: true });
+const mockUpdateAbilitiesFromSession = jest
+  .fn()
+  .mockResolvedValue({ success: true });
+
 jest.mock('../../services/abilityService', () => ({
   __esModule: true,
   default: {
@@ -82,7 +131,10 @@ jest.mock('../../services/abilityService', () => ({
   },
 }));
 
-const mockUpdateInterestsFromSession = jest.fn().mockResolvedValue({ success: true });
+const mockUpdateInterestsFromSession = jest
+  .fn()
+  .mockResolvedValue({ success: true });
+
 jest.mock('../../services/interestService', () => ({
   __esModule: true,
   default: {
@@ -121,7 +173,6 @@ describe('AdaptiveTestScreen', () => {
   });
 
   afterEach(async () => {
-    // prevent any interval/timer from leaking between tests
     jest.clearAllTimers();
     await act(async () => {
       await flushMicrotasks();
@@ -139,15 +190,15 @@ describe('AdaptiveTestScreen', () => {
       question: { id: 'q1', question_text_ar: 'سؤال تجريبي' },
     });
 
-    const { getByText, findByTestId } = render(<AdaptiveTestScreen {...baseProps()} />);
+    const { getByText, findByTestId } = render(
+      <AdaptiveTestScreen {...baseProps()} />
+    );
 
-    // ⚠️ Must match your screen text EXACTLY.
-    // If your screen uses "جارٍ تحميل السؤال." then change this line.
-    expect(getByText('جارٍ تحميل السؤال...')).toBeTruthy();
+    // component fallback text
+    expect(getByText('جاري تحميل السؤال…')).toBeTruthy();
 
     const q = await findByTestId('question-text');
     expect(q.props.children).toBe('سؤال تجريبي');
-
     expect(mockGetNextQuestion).toHaveBeenCalledTimes(1);
   });
 
@@ -211,7 +262,9 @@ describe('AdaptiveTestScreen', () => {
         question: { id: 'q2', question_text_ar: 'سؤال 2' },
       });
 
-    const { findByTestId, getByTestId } = render(<AdaptiveTestScreen {...baseProps()} />);
+    const { findByTestId, getByTestId } = render(
+      <AdaptiveTestScreen {...baseProps()} />
+    );
 
     const q1 = await findByTestId('question-text');
     expect(q1.props.children).toBe('سؤال 1');

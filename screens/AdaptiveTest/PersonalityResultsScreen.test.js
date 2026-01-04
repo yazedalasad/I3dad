@@ -1,5 +1,40 @@
+// screens/AdaptiveTest/PersonalityResultsScreen.test.js
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import PersonalityResultsScreen from './PersonalityResultsScreen';
+
+/**
+ * ✅ LOCAL i18n FIX (do NOT touch jest.setup.js):
+ * PersonalityResultsScreen uses:
+ *   const { t, i18n } = useTranslation();
+ *   i18n.language + i18n.changeLanguage()
+ * Your global mock may not include i18n for this run, so we ensure it here.
+ */
+jest.mock('react-i18next', () => ({
+  __esModule: true,
+  useTranslation: () => ({
+    // return key (so component will use its built-in fallbacks)
+    t: (key) => key,
+    i18n: {
+      language: 'ar',
+      changeLanguage: jest.fn(() => Promise.resolve()),
+    },
+  }),
+}));
+
+/**
+ * ✅ Alert mock: component calls Alert.alert on errors/missing studentId
+ */
+jest.mock('react-native', () => {
+  const RN = jest.requireActual('react-native');
+  return {
+    ...RN,
+    Alert: {
+      ...RN.Alert,
+      alert: jest.fn(),
+    },
+  };
+});
+
+const PersonalityResultsScreen = require('./PersonalityResultsScreen').default;
 
 /* -------------------- UI mocks -------------------- */
 jest.mock('../../components/AdaptiveTest/RadarChart', () => {
@@ -17,9 +52,6 @@ const mockGetStudentPersonalityProfile = jest.fn();
 jest.mock('../../services/personalityTestService', () => ({
   __esModule: true,
   getStudentPersonalityProfile: (...args) => mockGetStudentPersonalityProfile(...args),
-  default: {
-    getStudentPersonalityProfile: (...args) => mockGetStudentPersonalityProfile(...args),
-  },
 }));
 
 /* -------------------- Shared data -------------------- */
@@ -44,22 +76,38 @@ describe('PersonalityResultsScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('shows loading then renders traits and buttons (smoke success UI)', async () => {
+  it('shows loading then renders traits, chart, and buttons (success UI)', async () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
 
     const navigateTo = jest.fn();
 
-    const { getByText, queryByText } = render(
+    const { getByText, queryByText, getByTestId } = render(
       <PersonalityResultsScreen navigateTo={navigateTo} studentId="stu-1" language="ar" />
     );
 
-    expect(getByText('جارٍ تحميل النتائج...')).toBeTruthy();
+    // ✅ loading text in the component is common.loading fallback:
+    // "جاري التحميل…"
+    expect(getByText('جاري التحميل…')).toBeTruthy();
 
     await waitFor(() => {
-      expect(queryByText('جارٍ تحميل النتائج...')).toBeNull();
-      expect(getByText('نتيجة اختبار الشخصية')).toBeTruthy();
+      expect(queryByText('جاري التحميل…')).toBeNull();
+
+      // ✅ Title is: "نتائج الشخصية"
+      expect(getByText('نتائج الشخصية')).toBeTruthy();
+
+      // ✅ Traits section + one trait label
+      expect(getByText('الصفات')).toBeTruthy();
       expect(getByText('الانفتاح')).toBeTruthy();
+
+      // ✅ Insights description
       expect(getByText('وصف عربي')).toBeTruthy();
+
+      // ✅ Chart is rendered
+      expect(getByTestId('radar-chart')).toBeTruthy();
+
+      // ✅ Buttons exist
+      expect(getByText('العودة للرئيسية')).toBeTruthy();
+      expect(getByText('نتائج الاختبار الكامل')).toBeTruthy();
     });
 
     fireEvent.press(getByText('العودة للرئيسية'));
@@ -71,10 +119,8 @@ describe('PersonalityResultsScreen', () => {
 
   /* =========================================================
      getStudentPersonalityProfile — 2 positive + 2 negative
-     Real call detected: getStudentPersonalityProfile(studentId)  (1 arg)
      ========================================================= */
 
-  // ✅ Positive #1: called with correct studentId
   it('getStudentPersonalityProfile (positive): called with correct studentId', async () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
 
@@ -90,8 +136,7 @@ describe('PersonalityResultsScreen', () => {
     expect(args[0]).toBe('stu-999');
   });
 
-  // ✅ Positive #2: called with exactly one argument (studentId)
-  it('getStudentPersonalityProfile (positive): called with exactly 1 argument', async () => {
+  it('getStudentPersonalityProfile (positive): called with exactly 1 argument (studentId)', async () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
 
     render(
@@ -103,21 +148,22 @@ describe('PersonalityResultsScreen', () => {
     });
 
     const args = mockGetStudentPersonalityProfile.mock.calls[0];
-    expect(args).toHaveLength(1); // ✅ proves language is not passed as param
+    expect(args).toHaveLength(1);
     expect(args[0]).toBe('stu-1');
   });
 
-  // ❌ Negative #1: not called when studentId missing
-  it('getStudentPersonalityProfile (negative): NOT called when studentId is missing', () => {
+  it('getStudentPersonalityProfile (negative): NOT called when studentId is missing', async () => {
     render(
       <PersonalityResultsScreen navigateTo={jest.fn()} studentId={null} language="ar" />
     );
 
-    expect(mockGetStudentPersonalityProfile).not.toHaveBeenCalled();
+    // effect runs, but should early-return before service call
+    await waitFor(() => {
+      expect(mockGetStudentPersonalityProfile).not.toHaveBeenCalled();
+    });
   });
 
-  // ❌ Negative #2: handles service failure (success:false) without crashing
-  it('getStudentPersonalityProfile (negative): handles failure response gracefully', async () => {
+  it('getStudentPersonalityProfile (negative): handles failure response gracefully (no crash)', async () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce({
       success: false,
       error: 'FAILED',
@@ -128,7 +174,10 @@ describe('PersonalityResultsScreen', () => {
     );
 
     await waitFor(() => {
-      expect(queryByText('جارٍ تحميل النتائج...')).toBeNull();
+      // loading should disappear eventually
+      expect(queryByText('جاري التحميل…')).toBeNull();
     });
+
+    // No assertion on Alert text needed — just ensuring it doesn't crash.
   });
 });

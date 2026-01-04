@@ -1,24 +1,45 @@
+// screens/AdaptiveTest/TestResultsScreen.test.js
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import TestResultsScreen from './TestResultsScreen';
+import { Alert } from 'react-native';
 
-/* -------------------- UI child mocks (NO out-of-scope vars) -------------------- */
+/**
+ * =========================================================
+ * LOCAL FIXES ONLY (do NOT touch jest.setup.js)
+ * =========================================================
+ */
+
+// ---------- i18n ----------
+jest.mock('react-i18next', () => ({
+  __esModule: true,
+  useTranslation: () => ({
+    t: (key) => key, // force fallback strings
+    i18n: {
+      language: 'ar',
+      changeLanguage: jest.fn(() => Promise.resolve()),
+    },
+  }),
+}));
+
+// ---------- RadarChart ----------
 jest.mock('../../components/AdaptiveTest/RadarChart', () => {
   const React = require('react');
   const { View } = require('react-native');
-
   return function RadarChartMock() {
     return React.createElement(View, { testID: 'radar-chart' });
   };
 });
 
-/* -------------------- AuthContext mock -------------------- */
+// ---------- AuthContext ----------
+const mockUseAuth = jest.fn();
 jest.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ studentData: { id: 'stu-1' } }),
+  __esModule: true,
+  useAuth: () => mockUseAuth(),
 }));
 
-/* -------------------- Supabase chain mocks (chainable eq/other) -------------------- */
+// ---------- Supabase ----------
 const mockSupabaseFrom = jest.fn();
 jest.mock('../../config/supabase', () => ({
+  __esModule: true,
   supabase: {
     from: (...args) => mockSupabaseFrom(...args),
   },
@@ -32,8 +53,7 @@ function mockSupabaseReturn({ data, error }) {
     eq: jest.fn(() => chain),
     order: jest.fn(() => chain),
     limit: jest.fn(() => chain),
-    single: jest.fn(() => Promise.resolve(response)),
-    maybeSingle: jest.fn(() => Promise.resolve(response)),
+
     then: (resolve) => Promise.resolve(response).then(resolve),
     catch: (reject) => Promise.resolve(response).catch(reject),
   };
@@ -42,88 +62,185 @@ function mockSupabaseReturn({ data, error }) {
   return chain;
 }
 
+// ⛔ IMPORTANT: import AFTER mocks
+const TestResultsScreen = require('./TestResultsScreen').default;
+
 describe('TestResultsScreen', () => {
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const originalConsoleLog = console.log;
+
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // default auth
+    mockUseAuth.mockReturnValue({
+      studentData: { id: 'student-1' },
+    });
+
+    // default DB response
     mockSupabaseReturn({
       data: [
         {
-          subject_id: 's1',
+          subject_id: 'math',
           questions_answered: 10,
           correct_answers: 7,
-          subjects: { id: 's1', name_ar: 'رياضيات' },
+          is_complete: true,
+          metadata: {},
+          subjects: {
+            name_ar: 'رياضيات',
+            name_en: 'Math',
+            name_he: 'מתמטיקה',
+          },
         },
       ],
       error: null,
     });
+
+    // silence noisy logs
+    console.log = (...args) => {
+      const msg = String(args?.[0] ?? '');
+      if (
+        msg.includes('Results query error') ||
+        msg.includes('TestResultsScreen error')
+      ) {
+        return;
+      }
+      originalConsoleLog(...args);
+    };
   });
 
-  it('renders results (positive): shows title, subject name, and percentage', async () => {
+  afterEach(() => {
+    console.log = originalConsoleLog;
+  });
+
+  it('renders title, subject name and percentage', async () => {
     const navigateTo = jest.fn();
 
-    const { getByText, getAllByText } = render(
-      <TestResultsScreen navigateTo={navigateTo} sessionId="sess-1" language="ar" />
+    const { getByText, getAllByText, getByTestId } = render(
+      <TestResultsScreen
+        navigateTo={navigateTo}
+        sessionId="sess-1"
+        language="ar"
+      />
     );
 
     await waitFor(() => {
       expect(getByText('نتائج الاختبار')).toBeTruthy();
       expect(getByText('رياضيات')).toBeTruthy();
-
-      // could appear more than once in the UI
-      const pct = getAllByText(/70%/);
-      expect(pct.length).toBeGreaterThan(0);
+      expect(getAllByText(/70%/).length).toBeGreaterThan(0);
+      expect(getByTestId('radar-chart')).toBeTruthy();
     });
   });
 
-  it('navigation (positive): pressing review answers navigates with sessionId', async () => {
+  it('pressing "مراجعة" navigates to reviewAnswers with sessionId + language', async () => {
     const navigateTo = jest.fn();
 
     const { getByText } = render(
-      <TestResultsScreen navigateTo={navigateTo} sessionId="sess-1" language="ar" />
+      <TestResultsScreen
+        navigateTo={navigateTo}
+        sessionId="sess-1"
+        language="ar"
+      />
     );
 
-    await waitFor(() => {
-      expect(getByText('مراجعة الإجابات')).toBeTruthy();
-    });
+    await waitFor(() => getByText('نتائج الاختبار'));
 
-    fireEvent.press(getByText('مراجعة الإجابات'));
-    expect(navigateTo).toHaveBeenCalledWith('reviewAnswers', { sessionId: 'sess-1' });
+    fireEvent.press(getByText('مراجعة'));
+
+    expect(navigateTo).toHaveBeenCalledWith('reviewAnswers', {
+      sessionId: 'sess-1',
+      language: 'ar',
+    });
   });
 
-  it('supabase (negative): if query returns error, screen still renders (no crash)', async () => {
+  it('pressing "رجوع" navigates back to adaptiveTest', async () => {
+    const navigateTo = jest.fn();
+
+    const { getByText } = render(
+      <TestResultsScreen
+        navigateTo={navigateTo}
+        sessionId="sess-1"
+        language="ar"
+      />
+    );
+
+    await waitFor(() => getByText('نتائج الاختبار'));
+
+    fireEvent.press(getByText('رجوع'));
+
+    expect(navigateTo).toHaveBeenCalledWith('adaptiveTest');
+  });
+
+  it('shows alert if Supabase returns error', async () => {
     mockSupabaseReturn({
       data: null,
       error: { message: 'DB error' },
     });
 
-    const navigateTo = jest.fn();
-
-    const { getByText } = render(
-      <TestResultsScreen navigateTo={navigateTo} sessionId="sess-1" language="ar" />
+    render(
+      <TestResultsScreen
+        navigateTo={jest.fn()}
+        sessionId="sess-1"
+        language="ar"
+      />
     );
 
     await waitFor(() => {
-      expect(getByText('نتائج الاختبار')).toBeTruthy();
+      expect(alertSpy).toHaveBeenCalled();
     });
   });
 
-  it('data (negative): if data is empty array, screen still renders (no crash)', async () => {
+  it('renders empty state when no subject data', async () => {
     mockSupabaseReturn({
       data: [],
       error: null,
     });
 
-    const navigateTo = jest.fn();
-
     const { getByText, queryByText } = render(
-      <TestResultsScreen navigateTo={navigateTo} sessionId="sess-1" language="ar" />
+      <TestResultsScreen
+        navigateTo={jest.fn()}
+        sessionId="sess-1"
+        language="ar"
+      />
+    );
+
+    await waitFor(() => getByText('نتائج الاختبار'));
+
+    expect(queryByText('رياضيات')).toBeNull();
+    expect(getByText('لا توجد نتائج مواد لهذه الجلسة.')).toBeTruthy();
+  });
+
+  it('guards: missing studentId shows alert and does not query DB', async () => {
+    mockUseAuth.mockReturnValue({ studentData: null });
+
+    render(
+      <TestResultsScreen
+        navigateTo={jest.fn()}
+        sessionId="sess-1"
+        language="ar"
+      />
     );
 
     await waitFor(() => {
-      expect(getByText('نتائج الاختبار')).toBeTruthy();
+      expect(alertSpy).toHaveBeenCalled();
     });
 
-    expect(queryByText('رياضيات')).toBeNull();
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
+
+  it('guards: missing sessionId shows alert and does not query DB', async () => {
+    render(
+      <TestResultsScreen
+        navigateTo={jest.fn()}
+        sessionId={null}
+        language="ar"
+      />
+    );
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalled();
+    });
+
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
   });
 });

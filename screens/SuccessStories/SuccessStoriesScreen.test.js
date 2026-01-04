@@ -1,26 +1,22 @@
+// screens/SuccessStories/SuccessStoriesScreen.test.js
+
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import SuccessStoriesScreen from './SuccessStoriesScreen';
 
-/* ------------------------------------------------
-   GLOBAL alert MOCK (CRITICAL FIX)
------------------------------------------------- */
-beforeAll(() => {
-  global.alert = jest.fn();
-});
+/* =========================================================
+   Alert mock (REAL one, not global)
+========================================================= */
+jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
-afterAll(() => {
-  delete global.alert;
-});
-
-/* ------------------------------------------------
-   Supabase mock (INLINE, Jest-safe)
------------------------------------------------- */
+/* =========================================================
+   Supabase mock – FULL chain, stable
+========================================================= */
 jest.mock('../../config/supabase', () => {
   const chain = {
     select: jest.fn(() => chain),
     eq: jest.fn(() => chain),
-    order: jest.fn(() => chain),
-    limit: jest.fn().mockResolvedValue({
+    order: jest.fn().mockResolvedValue({
       data: [],
       error: null,
     }),
@@ -33,23 +29,32 @@ jest.mock('../../config/supabase', () => {
   };
 });
 
-/* ------------------------------------------------
-   Auth + i18n mocks
------------------------------------------------- */
+/* =========================================================
+   Auth mock
+========================================================= */
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
+/* =========================================================
+   i18n mock – RETURNS KEYS (important!)
+========================================================= */
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (k) => k,
+    i18n: { language: 'ar' },
   }),
 }));
 
+/* =========================================================
+   Icons mock
+========================================================= */
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
-  return { FontAwesome: ({ name }) => <Text>{name}</Text> };
+  return {
+    FontAwesome: ({ name }) => <Text>{name}</Text>,
+  };
 });
 
 const { useAuth } = require('../../contexts/AuthContext');
@@ -61,23 +66,24 @@ describe('SuccessStoriesScreen', () => {
     jest.clearAllMocks();
   });
 
-  /* --------------------------------
+  /* -------------------------------------------------------
      LOADING STATE
-  -------------------------------- */
-  test('renders loading state initially', () => {
+  -------------------------------------------------------- */
+  it('renders loading state initially', () => {
     useAuth.mockReturnValue({ user: null });
 
     const { getByText } = render(
       <SuccessStoriesScreen navigateTo={navigateTo} />
     );
 
-    expect(getByText('جاري تحميل القصص...')).toBeTruthy();
+    // because t(k) === k
+    expect(getByText('loading.title')).toBeTruthy();
   });
 
-  /* --------------------------------
+  /* -------------------------------------------------------
      EMPTY STATE
-  -------------------------------- */
-  test('renders empty stories state after load', async () => {
+  -------------------------------------------------------- */
+  it('renders empty state after stories load', async () => {
     useAuth.mockReturnValue({ user: null });
 
     const { getByText } = render(
@@ -85,14 +91,15 @@ describe('SuccessStoriesScreen', () => {
     );
 
     await waitFor(() => {
-      expect(getByText('لا توجد قصص')).toBeTruthy();
+      expect(getByText('empty.title')).toBeTruthy();
+      expect(getByText('empty.text')).toBeTruthy();
     });
   });
 
-  /* --------------------------------
-     CTA NAVIGATION (GUEST)
-  -------------------------------- */
-  test('CTA button navigates to signup when user is not logged in', async () => {
+  /* -------------------------------------------------------
+     CTA – guest user
+  -------------------------------------------------------- */
+  it('CTA navigates to signup when user is not logged in', async () => {
     useAuth.mockReturnValue({ user: null });
 
     const { getByText } = render(
@@ -100,16 +107,16 @@ describe('SuccessStoriesScreen', () => {
     );
 
     await waitFor(() => {
-      fireEvent.press(getByText('سجل لحسابك'));
+      fireEvent.press(getByText('hero.buttonGuest'));
     });
 
     expect(navigateTo).toHaveBeenCalledWith('signup');
   });
 
-  /* --------------------------------
-     CTA NAVIGATION (LOGGED IN)
-  -------------------------------- */
-  test('CTA button navigates to submitStory when user is logged in', async () => {
+  /* -------------------------------------------------------
+     CTA – logged in user
+  -------------------------------------------------------- */
+  it('CTA navigates to submitStory when user is logged in', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1' } });
 
     const { getByText } = render(
@@ -117,7 +124,7 @@ describe('SuccessStoriesScreen', () => {
     );
 
     await waitFor(() => {
-      fireEvent.press(getByText('شارك قصتك'));
+      fireEvent.press(getByText('hero.buttonLoggedIn'));
     });
 
     expect(navigateTo).toHaveBeenCalledWith('submitStory');

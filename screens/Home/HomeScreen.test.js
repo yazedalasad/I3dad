@@ -1,3 +1,4 @@
+// screens/Home/HomeScreen.test.js
 import { fireEvent, render } from '@testing-library/react-native';
 
 import HomeScreen from './HomeScreen';
@@ -6,18 +7,25 @@ import HomeScreen from './HomeScreen';
    Mocks
 -------------------------------------------------- */
 
-// i18n → return key as text
+// i18n → return key as text + support welcome {name}
 jest.mock('react-i18next', () => ({
+  __esModule: true,
   useTranslation: () => ({
+    // HomeScreen uses t('welcome', { name: studentData.first_name })
     t: (key, opts) => {
-      if (opts?.name) return `welcome ${opts.name}`;
+      if (key === 'welcome' && opts?.name) return `welcome ${opts.name}`;
       return key;
+    },
+    i18n: {
+      language: 'ar',
+      changeLanguage: jest.fn(() => Promise.resolve()),
     },
   }),
 }));
 
 // Auth
 jest.mock('../../contexts/AuthContext', () => ({
+  __esModule: true,
   useAuth: jest.fn(),
 }));
 
@@ -35,11 +43,25 @@ jest.mock('expo-linear-gradient', () => {
   const React = require('react');
   const { View } = require('react-native');
   return {
-    LinearGradient: ({ children }) => <View>{children}</View>,
+    LinearGradient: ({ children, ...props }) => <View {...props}>{children}</View>,
   };
 });
 
-// Image assets
+// FeatureCard (render minimal to avoid deep tree)
+jest.mock('../../components/FeatureCard', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return function FeatureCardMock({ feature }) {
+    return (
+      <View>
+        <Text>{feature?.title}</Text>
+        <Text>{feature?.description}</Text>
+      </View>
+    );
+  };
+});
+
+// Image assets (if bundler tries to resolve them somewhere)
 jest.mock('../../assets/images/home/Jerusalem University College.jpeg', () => 1);
 jest.mock('../../assets/images/home/Minute Media Offices - Tel Aviv _ Office Snapshots.jpeg', () => 1);
 
@@ -64,11 +86,12 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
-    expect(getByText('home.title')).toBeTruthy();
-    expect(getByText('home.subtitle')).toBeTruthy();
+    // HomeScreen renders t('title') and t('subtitle')
+    expect(getByText('title')).toBeTruthy();
+    expect(getByText('subtitle')).toBeTruthy();
   });
 
-  test('logged out user → Get Started navigates to signup', () => {
+  test('logged out user → primary button shows getStarted and navigates to signup', () => {
     useAuth.mockReturnValue({
       user: null,
       studentData: null,
@@ -76,12 +99,13 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
-    fireEvent.press(getByText('home.getStarted'));
+    // Primary button label is user ? t('startAssessment') : t('getStarted')
+    fireEvent.press(getByText('getStarted'));
 
     expect(navigateTo).toHaveBeenCalledWith('signup');
   });
 
-  test('logged out user → Login button navigates to login', () => {
+  test('logged out user → secondary login button navigates to login', () => {
     useAuth.mockReturnValue({
       user: null,
       studentData: null,
@@ -89,12 +113,13 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
-    fireEvent.press(getByText('home.login'));
+    // Secondary button label is t('login')
+    fireEvent.press(getByText('login'));
 
     expect(navigateTo).toHaveBeenCalledWith('login');
   });
 
-  test('logged in user → Start Assessment navigates to accountant', () => {
+  test('logged in user → primary button shows startAssessment and navigates to adaptiveTest', () => {
     useAuth.mockReturnValue({
       user: { id: 'u1' },
       studentData: null,
@@ -102,7 +127,7 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
-    fireEvent.press(getByText('home.startAssessment'));
+    fireEvent.press(getByText('startAssessment'));
 
     expect(navigateTo).toHaveBeenCalledWith('adaptiveTest');
   });
@@ -115,7 +140,62 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
+    // welcome text is t('welcome', { name })
     expect(getByText('welcome Ahmad')).toBeTruthy();
+  });
+
+  test('CTA button navigates correctly when logged out', () => {
+    useAuth.mockReturnValue({
+      user: null,
+      studentData: null,
+    });
+
+    const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
+
+    // CTA button text is t('cta.button')
+    fireEvent.press(getByText('cta.button'));
+
+    expect(navigateTo).toHaveBeenCalledWith('signup');
+  });
+
+  test('CTA button navigates correctly when logged in', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u1' },
+      studentData: { first_name: 'Ahmad' },
+    });
+
+    const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
+
+    fireEvent.press(getByText('cta.button'));
+
+    expect(navigateTo).toHaveBeenCalledWith('adaptiveTest');
+  });
+
+  test('tryPersonality link navigates to signup when logged out', () => {
+    useAuth.mockReturnValue({
+      user: null,
+      studentData: null,
+    });
+
+    const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
+
+    // Small link text is t('tryPersonality')
+    fireEvent.press(getByText('tryPersonality'));
+
+    expect(navigateTo).toHaveBeenCalledWith('signup');
+  });
+
+  test('tryPersonality link navigates to personalityTest when logged in', () => {
+    useAuth.mockReturnValue({
+      user: { id: 'u1' },
+      studentData: { first_name: 'Ahmad' },
+    });
+
+    const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
+
+    fireEvent.press(getByText('tryPersonality'));
+
+    expect(navigateTo).toHaveBeenCalledWith('personalityTest');
   });
 
   /* -------------------------------------------------
@@ -130,37 +210,10 @@ describe('HomeScreen', () => {
 
     const { queryByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
-    expect(queryByText('home.login')).toBeNull();
+    expect(queryByText('login')).toBeNull();
   });
 
-  test('CTA button navigates correctly when logged out', () => {
-    useAuth.mockReturnValue({
-      user: null,
-      studentData: null,
-    });
-
-    const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
-
-    fireEvent.press(getByText('home.cta.button'));
-
-    expect(navigateTo).toHaveBeenCalledWith('signup');
-  });
-
-  test('CTA button navigates correctly when logged in', () => {
-  useAuth.mockReturnValue({
-    user: { id: 'u1' },
-    studentData: { first_name: 'Ahmad' },
-  });
-
-  const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
-
-  fireEvent.press(getByText('home.cta.button'));
-
-  expect(navigateTo).toHaveBeenCalledWith('adaptiveTest');
-});
-
-
-  test('renders safely without navigateTo prop', () => {
+  test('renders safely without navigateTo prop (no crash on initial render)', () => {
     useAuth.mockReturnValue({
       user: null,
       studentData: null,
@@ -168,6 +221,6 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen />);
 
-    expect(getByText('home.title')).toBeTruthy();
+    expect(getByText('title')).toBeTruthy();
   });
 });

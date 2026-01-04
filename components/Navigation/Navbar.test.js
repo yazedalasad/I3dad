@@ -1,3 +1,4 @@
+// components/Navigation/Navbar.test.js
 import { fireEvent, render } from '@testing-library/react-native';
 import Navbar from './Navbar';
 
@@ -7,13 +8,37 @@ import Navbar from './Navbar';
 
 // Auth
 jest.mock('../../contexts/AuthContext', () => ({
+  __esModule: true,
   useAuth: jest.fn(),
 }));
 
-// i18n
+/**
+ * i18n
+ * Navbar calls:
+ *   t(`navigation:tabs.${tab.id}`)
+ * and if t returns the key, it falls back to tab.id.
+ *
+ * Our test expects Arabic labels, so we MUST return Arabic values here.
+ */
 jest.mock('react-i18next', () => ({
+  __esModule: true,
   useTranslation: () => ({
-    t: (k) => k,
+    t: (k) => {
+      const map = {
+        'navigation:tabs.home': 'الرئيسية',
+        'navigation:tabs.successStories': 'قصص النجاح',
+        'navigation:tabs.activities': 'الأنشطة',
+        'navigation:tabs.about': 'عن إعداد',
+        'navigation:tabs.login': 'تسجيل الدخول',
+        'navigation:tabs.test': 'الاختبار',
+        'navigation:tabs.profile': 'حسابي',
+      };
+      return map[k] ?? k;
+    },
+    i18n: {
+      language: 'ar',
+      changeLanguage: jest.fn(() => Promise.resolve()),
+    },
   }),
 }));
 
@@ -45,7 +70,7 @@ describe('Navbar', () => {
       <Navbar activeTab="home" onTabPress={onTabPress} />
     );
 
-    // Common
+    // Common (logged out)
     expect(getByText('الرئيسية')).toBeTruthy();
     expect(getByText('قصص النجاح')).toBeTruthy();
     expect(getByText('الأنشطة')).toBeTruthy();
@@ -69,7 +94,7 @@ describe('Navbar', () => {
       <Navbar activeTab="home" onTabPress={onTabPress} />
     );
 
-    // Common
+    // Common (logged in)
     expect(getByText('الرئيسية')).toBeTruthy();
     expect(getByText('قصص النجاح')).toBeTruthy();
     expect(getByText('الأنشطة')).toBeTruthy();
@@ -116,4 +141,3 @@ describe('Navbar', () => {
     expect(getByText('حسابي')).toBeTruthy();
   });
 });
-

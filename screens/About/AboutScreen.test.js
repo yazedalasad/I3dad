@@ -1,47 +1,64 @@
+// screens/About/AboutScreen.test.js
 import { fireEvent, render } from '@testing-library/react-native';
+import { TouchableOpacity } from 'react-native';
 import AboutScreen from './AboutScreen';
 
 describe('AboutScreen (unit/component tests)', () => {
-  // ✅ Positive 1: renders main title (fallback Arabic)
   it('renders the main title "عن إعداد"', () => {
     const { getAllByText } = render(<AboutScreen navigateTo={() => {}} />);
-    const titles = getAllByText('عن إعداد');
-    expect(titles.length).toBeGreaterThan(0);
+
+    // Title can appear more than once. Ensure at least one exists.
+    expect(getAllByText('عن إعداد').length).toBeGreaterThan(0);
   });
 
-  // ✅ Positive 2: back press triggers navigateTo("home")
-  it('calls navigateTo("home") when back button is pressed', () => {
-    const navigateTo = jest.fn();
-    const { getByText } = render(<AboutScreen navigateTo={navigateTo} />);
-
-    // uses our FontAwesome mock in jest.setup.js => "icon:arrow-left"
-    fireEvent.press(getByText('icon:arrow-left'));
-
-    expect(navigateTo).toHaveBeenCalledTimes(1);
-    expect(navigateTo).toHaveBeenCalledWith('home');
-  });
-
-  // ✅ Positive 3: renders a real section title
   it('renders the section header "رؤيتنا"', () => {
     const { getByText } = render(<AboutScreen navigateTo={() => {}} />);
     expect(getByText('رؤيتنا')).toBeTruthy();
   });
 
-  // ✅ Positive 4: renders a real contact value
   it('renders the contact email "info@i3dad.com"', () => {
     const { getByText } = render(<AboutScreen navigateTo={() => {}} />);
     expect(getByText('info@i3dad.com')).toBeTruthy();
   });
 
-  // ❌ Negative 1: should not crash if navigateTo is missing (because you used navigateTo?.)
-  it('does not crash when navigateTo prop is missing and back is pressed', () => {
-    const { getByText } = render(<AboutScreen />);
-    expect(() => fireEvent.press(getByText('icon:arrow-left'))).not.toThrow();
+  it('calls navigateTo("home") when back button is pressed', () => {
+    const navigateTo = jest.fn();
+
+    const { UNSAFE_getAllByType } = render(<AboutScreen navigateTo={navigateTo} />);
+
+    // The back button is the first TouchableOpacity in the navbar.
+    const touchables = UNSAFE_getAllByType(TouchableOpacity);
+    expect(touchables.length).toBeGreaterThan(0);
+
+    const backBtn = touchables[0];
+    fireEvent.press(backBtn);
+
+    expect(navigateTo).toHaveBeenCalledTimes(1);
+    expect(navigateTo).toHaveBeenCalledWith('home');
   });
 
-  // ❌ Negative 2: wrong navigateTo type should throw (catches misuse)
+  it('does not crash when navigateTo prop is missing and back is pressed', () => {
+    const { UNSAFE_getAllByType } = render(<AboutScreen />);
+
+    const touchables = UNSAFE_getAllByType(TouchableOpacity);
+    expect(touchables.length).toBeGreaterThan(0);
+
+    const backBtn = touchables[0];
+
+    // navigateTo?.('home') is safe when navigateTo is undefined/null
+    expect(() => fireEvent.press(backBtn)).not.toThrow();
+  });
+
   it('throws if navigateTo is not a function (e.g., string)', () => {
-    const { getByText } = render(<AboutScreen navigateTo={'home'} />);
-    expect(() => fireEvent.press(getByText('icon:arrow-left'))).toThrow();
+    const { UNSAFE_getAllByType } = render(<AboutScreen navigateTo={'home'} />);
+
+    const touchables = UNSAFE_getAllByType(TouchableOpacity);
+    expect(touchables.length).toBeGreaterThan(0);
+
+    const backBtn = touchables[0];
+
+    // Optional chaining does NOT protect against non-function values.
+    // If navigateTo is a string, calling it will throw TypeError.
+    expect(() => fireEvent.press(backBtn)).toThrow();
   });
 });
