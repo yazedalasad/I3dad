@@ -1,12 +1,20 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function CustomTextInput({
   label,
+  labelKey, // ✅ NEW: i18n key for label (optional)
+  labelParams, // ✅ NEW: params for label (optional)
+
   value,
   onChangeText,
+
   placeholder,
+  placeholderKey, // ✅ NEW: i18n key for placeholder (optional)
+  placeholderParams, // ✅ NEW: params for placeholder (optional)
+
   error,
   icon,
   secureTextEntry,
@@ -15,18 +23,37 @@ export default function CustomTextInput({
   editable = true,
   maxLength,
 }) {
+  const { t } = useTranslation();
+
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
+  const resolvedLabel =
+    typeof label === 'string' && label.length > 0
+      ? label
+      : labelKey
+        ? t(labelKey, labelParams)
+        : '';
+
+  const resolvedPlaceholder =
+    typeof placeholder === 'string' && placeholder.length > 0
+      ? placeholder
+      : placeholderKey
+        ? t(placeholderKey, placeholderParams)
+        : '';
+
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[
-        styles.inputContainer,
-        isFocused && styles.inputContainerFocused,
-        error && styles.inputContainerError,
-        !editable && styles.inputContainerDisabled,
-      ]}>
+      {(resolvedLabel || label) ? <Text style={styles.label}>{resolvedLabel || label}</Text> : null}
+
+      <View
+        style={[
+          styles.inputContainer,
+          isFocused && styles.inputContainerFocused,
+          error && styles.inputContainerError,
+          !editable && styles.inputContainerDisabled,
+        ]}
+      >
         {icon && (
           <FontAwesome
             name={icon}
@@ -35,6 +62,7 @@ export default function CustomTextInput({
             style={styles.icon}
           />
         )}
+
         <TextInput
           style={[
             styles.input,
@@ -43,7 +71,7 @@ export default function CustomTextInput({
           ]}
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           placeholderTextColor="#94A3B8"
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
@@ -54,10 +82,13 @@ export default function CustomTextInput({
           onBlur={() => setIsFocused(false)}
           textAlign="right"
         />
+
         {secureTextEntry && (
           <TouchableOpacity
             onPress={() => setIsPasswordVisible(!isPasswordVisible)}
             style={styles.eyeIcon}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.togglePasswordVisibility', { defaultValue: 'הצג/הסתר סיסמה' })}
           >
             <FontAwesome
               name={isPasswordVisible ? 'eye' : 'eye-slash'}
@@ -67,6 +98,7 @@ export default function CustomTextInput({
           </TouchableOpacity>
         )}
       </View>
+
       {error && (
         <View style={styles.errorContainer}>
           <FontAwesome name="exclamation-circle" size={14} color="#e74c3c" />

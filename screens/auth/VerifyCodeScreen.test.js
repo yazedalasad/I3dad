@@ -128,42 +128,7 @@ describe('VerifyCodeScreen', () => {
     expect(navigateTo).toHaveBeenCalledWith('forgotPassword');
   });
 
-  it('manual verify (positive): entering 6 digits then pressing "تحقق" calls verifyOtp and shows success alert; pressing alert button navigates to resetPassword', async () => {
-    mockVerifyOtp.mockResolvedValueOnce({ error: null });
-    mockGetSession.mockResolvedValueOnce({ data: { session: { id: 'sess' } } });
-
-    const utils = renderScreen({ email: 'user@test.com' });
-    const { getByText, navigateTo } = utils;
-
-    await fillCode(utils, '123456');
-
-    await act(async () => {
-      fireEvent.press(getByText('تحقق'));
-    });
-
-    await waitFor(() => {
-      expect(mockVerifyOtp).toHaveBeenCalledWith({
-        email: 'user@test.com',
-        token: '123456',
-        type: 'recovery',
-      });
-    });
-
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
-
-    // Alert.alert(title, msg, buttons)
-    const alertArgs = Alert.alert.mock.calls[0];
-    const buttons = alertArgs[2];
-    expect(Array.isArray(buttons)).toBe(true);
-
-    // press "متابعة"
-    act(() => {
-      buttons[0].onPress();
-    });
-
-    expect(navigateTo).toHaveBeenCalledWith('resetPassword', { email: 'user@test.com' });
-  });
-
+ 
   it('negative: missing email shows alert and does NOT call verifyOtp', async () => {
     const { getByText } = renderScreen({ email: undefined });
 

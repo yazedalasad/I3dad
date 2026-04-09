@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -17,11 +17,16 @@ import CustomTextInput from '../../components/Form/CustomTextInput';
 import { supabase } from '../../config/supabase';
 import { validateEmail } from '../../utils/validation';
 
-export default function ForgotPasswordScreen({ navigateTo }) {
+export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail || '');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialEmail && !email) setEmail(initialEmail);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialEmail]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -40,36 +45,30 @@ export default function ForgotPasswordScreen({ navigateTo }) {
     const code = err?.code ?? 'N/A';
     const message = err?.message ?? 'Unknown error';
 
-    // Console (for dev)
     console.log('FORGOT PASSWORD ERROR:', err);
-
-    // Popup (fast)
     Alert.alert('حدث خطأ', `Status: ${status}\nCode: ${code}\n\n${message}`);
   };
 
   const handleSendRecoveryCode = async () => {
-    if (loading) return; // يمنع الضغط المتكرر (سبب 429 غالباً)
+    if (loading) return;
     if (!validateForm()) return;
 
     const cleanEmail = email.trim().toLowerCase();
     setLoading(true);
 
     try {
-      // ✅ هذا الصحيح لاسترجاع كلمة المرور (Reset password template في Supabase)
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
       if (error) throw error;
 
       setLoading(false);
 
+      // ✅ IMPORTANT: navigate immediately (don’t depend on Alert button)
+      navigateTo('verifyCode', { email: cleanEmail });
+
+      // optional info alert (won’t block navigation anymore)
       Alert.alert(
         'تم الإرسال ✅',
-        'تم إرسال رمز مكوّن من 6 أرقام إلى بريدك الإلكتروني لإعادة تعيين كلمة المرور.\nافتح الرسالة وأدخل الرمز في الصفحة التالية.',
-        [
-          {
-            text: 'متابعة',
-            onPress: () => navigateTo('verifyCode', { email: cleanEmail }),
-          },
-        ]
+        'تم إرسال رمز مكوّن من 6 أرقام إلى بريدك الإلكتروني لإعادة تعيين كلمة المرور.\nافتح الرسالة وأدخل الرمز.'
       );
     } catch (err) {
       setLoading(false);
@@ -108,7 +107,9 @@ export default function ForgotPasswordScreen({ navigateTo }) {
           </View>
 
           <Text style={styles.title}>نسيت كلمة المرور؟</Text>
-          <Text style={styles.subtitle}>أدخل بريدك الإلكتروني لإرسال رمز إعادة التعيين</Text>
+          <Text style={styles.subtitle}>
+            {t?.('common.enterEmailReset') || 'أدخل بريدك الإلكتروني لإرسال رمز إعادة التعيين'}
+          </Text>
         </LinearGradient>
 
         <View style={styles.formContainer}>
@@ -124,7 +125,7 @@ export default function ForgotPasswordScreen({ navigateTo }) {
             value={email}
             onChangeText={(text) => {
               setEmail(text);
-              if (errors.email) setErrors({ ...errors, email: null });
+              setErrors((prev) => ({ ...prev, email: null }));
             }}
             placeholder="example@gmail.com"
             icon="envelope"

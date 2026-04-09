@@ -1,23 +1,46 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomButton from './CustomButton';
 
 export default function DatePicker({
   label,
+  labelKey, // ✅ NEW (optional)
+  labelParams, // ✅ NEW (optional)
+
   value,
   onValueChange,
   error,
   icon,
-  placeholder = 'اختر التاريخ',
-  minAge = 14,  // Minimum age allowed
-  maxAge = 20,  // Maximum age allowed
+
+  placeholder,
+  placeholderKey = 'datePicker.placeholder', // ✅ NEW default key
+  placeholderParams, // ✅ NEW (optional)
+
+  minAge = 14, // Minimum age allowed
+  maxAge = 20, // Maximum age allowed
 }) {
+  const { t } = useTranslation();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : new Date());
   const [dateError, setDateError] = useState('');
 
-  // Calculate min and max dates based on age restrictions
+  const resolvedLabel =
+    typeof label === 'string' && label.length > 0
+      ? label
+      : labelKey
+        ? t(labelKey, labelParams)
+        : '';
+
+  const resolvedPlaceholder =
+    typeof placeholder === 'string' && placeholder.length > 0
+      ? placeholder
+      : placeholderKey
+        ? t(placeholderKey, { ...placeholderParams, defaultValue: 'בחר/י תאריך' })
+        : 'בחר/י תאריך';
+
   const getMinDate = () => {
     const today = new Date();
     const minDate = new Date(today);
@@ -33,7 +56,7 @@ export default function DatePicker({
   };
 
   const formatDate = (date) => {
-    if (!date) return placeholder;
+    if (!date) return resolvedPlaceholder;
     const d = new Date(date);
     const day = d.getDate().toString().padStart(2, '0');
     const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -41,30 +64,30 @@ export default function DatePicker({
     return `${day}/${month}/${year}`;
   };
 
-  // Function to calculate age from date
   const calculateAge = (date) => {
     const today = new Date();
     const birthDate = new Date(date);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
   };
 
-  // Validate date against age restrictions
   const validateDate = (date) => {
     const age = calculateAge(date);
+
     if (age < minAge) {
-      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
+      setDateError(t('datePicker.validation.minAge', { min: minAge, defaultValue: `הגיל חייב להיות לפחות ${minAge} שנים` }));
       return false;
     } else if (age > maxAge) {
-      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
+      setDateError(t('datePicker.validation.maxAge', { max: maxAge, defaultValue: `הגיל חייב להיות לכל היותר ${maxAge} שנים` }));
       return false;
     }
+
     setDateError('');
     return true;
   };
@@ -76,73 +99,56 @@ export default function DatePicker({
     }
   };
 
+  const clampToRange = (newDate) => {
+    const minDate = getMinDate();
+    const maxDate = getMaxDate();
+
+    if (newDate > maxDate) {
+      setSelectedDate(maxDate);
+      setDateError(t('datePicker.validation.minAge', { min: minAge, defaultValue: `הגיל חייב להיות לפחות ${minAge} שנים` }));
+      return;
+    }
+
+    if (newDate < minDate) {
+      setSelectedDate(minDate);
+      setDateError(t('datePicker.validation.maxAge', { max: maxAge, defaultValue: `הגיל חייב להיות לכל היותר ${maxAge} שנים` }));
+      return;
+    }
+
+    setSelectedDate(newDate);
+    validateDate(newDate);
+  };
+
   const changeYear = (increment) => {
     const newDate = new Date(selectedDate);
     newDate.setFullYear(newDate.getFullYear() + increment);
-    
-    // Check if the new year is within allowed range
-    const minDate = getMinDate();
-    const maxDate = getMaxDate();
-    
-    if (newDate > maxDate) {
-      setSelectedDate(maxDate);
-      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
-    } else if (newDate < minDate) {
-      setSelectedDate(minDate);
-      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
-    } else {
-      setSelectedDate(newDate);
-      validateDate(newDate);
-    }
+    clampToRange(newDate);
   };
 
   const changeMonth = (increment) => {
     const newDate = new Date(selectedDate);
     newDate.setMonth(newDate.getMonth() + increment);
-    
-    // Check if the new date is within allowed range
-    const minDate = getMinDate();
-    const maxDate = getMaxDate();
-    
-    if (newDate > maxDate) {
-      setSelectedDate(maxDate);
-      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
-    } else if (newDate < minDate) {
-      setSelectedDate(minDate);
-      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
-    } else {
-      setSelectedDate(newDate);
-      validateDate(newDate);
-    }
+    clampToRange(newDate);
   };
 
   const changeDay = (increment) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + increment);
-    
-    // Check if the new date is within allowed range
-    const minDate = getMinDate();
-    const maxDate = getMaxDate();
-    
-    if (newDate > maxDate) {
-      setSelectedDate(maxDate);
-      setDateError(`يجب أن يكون العمر ${minAge} سنة على الأقل`);
-    } else if (newDate < minDate) {
-      setSelectedDate(minDate);
-      setDateError(`يجب أن يكون العمر ${maxAge} سنة على الأكثر`);
-    } else {
-      setSelectedDate(newDate);
-      validateDate(newDate);
-    }
+    clampToRange(newDate);
   };
 
-  // Show age range in placeholder when no date is selected
   const getPlaceholderText = () => {
     if (value) return formatDate(value);
-    return `${placeholder} (${minAge}-${maxAge} سنة)`;
+
+    const suffix = t('datePicker.ageRangeSuffix', {
+      min: minAge,
+      max: maxAge,
+      defaultValue: `(${minAge}-${maxAge} שנים)`,
+    });
+
+    return `${resolvedPlaceholder} ${suffix}`;
   };
 
-  // Initialize validation when component mounts or value changes
   useEffect(() => {
     if (value) {
       validateDate(new Date(value));
@@ -151,20 +157,16 @@ export default function DatePicker({
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      
+      {(resolvedLabel || label) ? <Text style={styles.label}>{resolvedLabel || label}</Text> : null}
+
       <TouchableOpacity
-        style={[
-          styles.dateButton,
-          (error || dateError) && styles.dateButtonError,
-        ]}
+        style={[styles.dateButton, (error || dateError) && styles.dateButtonError]}
         onPress={() => {
-          // Reset to current value or valid default when opening modal
           if (value) {
-            setSelectedDate(new Date(value));
-            validateDate(new Date(value));
+            const d = new Date(value);
+            setSelectedDate(d);
+            validateDate(d);
           } else {
-            // Set to middle of allowed range as default
             const today = new Date();
             const defaultDate = new Date(today);
             defaultDate.setFullYear(today.getFullYear() - Math.floor((minAge + maxAge) / 2));
@@ -182,18 +184,10 @@ export default function DatePicker({
             style={styles.icon}
           />
         )}
-        <Text style={[
-          styles.dateText,
-          !value && styles.placeholderText,
-        ]}>
-          {getPlaceholderText()}
-        </Text>
-        <FontAwesome
-          name="calendar"
-          size={16}
-          color="#94A3B8"
-          style={styles.calendarIcon}
-        />
+
+        <Text style={[styles.dateText, !value && styles.placeholderText]}>{getPlaceholderText()}</Text>
+
+        <FontAwesome name="calendar" size={16} color="#94A3B8" style={styles.calendarIcon} />
       </TouchableOpacity>
 
       {(error || dateError) && (
@@ -212,52 +206,47 @@ export default function DatePicker({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
                 <FontAwesome name="times" size={24} color="#2c3e50" />
               </TouchableOpacity>
+
               <Text style={styles.modalTitle}>
-                {label || 'اختر التاريخ'} ({minAge}-{maxAge} سنة)
+                {(resolvedLabel || t('datePicker.modalTitleFallback', { defaultValue: 'בחר/י תאריך' }))}{' '}
+                {t('datePicker.ageRangeSuffix', { min: minAge, max: maxAge, defaultValue: `(${minAge}-${maxAge} שנים)` })}
               </Text>
             </View>
 
-            {/* Age Range Info */}
             <View style={styles.ageRangeContainer}>
               <Text style={styles.ageRangeText}>
-                يجب أن يكون العمر بين {minAge} و {maxAge} سنة
+                {t('datePicker.ageRangeInfo', {
+                  min: minAge,
+                  max: maxAge,
+                  defaultValue: `הגיל חייב להיות בין ${minAge} ל-${maxAge} שנים`,
+                })}
               </Text>
             </View>
 
             <View style={styles.datePickerContainer}>
-              {/* Year Picker */}
               <View style={styles.pickerColumn}>
-                <Text style={styles.columnLabel}>السنة</Text>
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => changeYear(1)}
-                >
+                <Text style={styles.columnLabel}>
+                  {t('datePicker.labels.year', { defaultValue: 'שנה' })}
+                </Text>
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeYear(1)}>
                   <FontAwesome name="chevron-up" size={20} color="#27ae60" />
                 </TouchableOpacity>
                 <View style={styles.valueContainer}>
                   <Text style={styles.valueText}>{selectedDate.getFullYear()}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => changeYear(-1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeYear(-1)}>
                   <FontAwesome name="chevron-down" size={20} color="#27ae60" />
                 </TouchableOpacity>
               </View>
 
-              {/* Month Picker */}
               <View style={styles.pickerColumn}>
-                <Text style={styles.columnLabel}>الشهر</Text>
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => changeMonth(1)}
-                >
+                <Text style={styles.columnLabel}>
+                  {t('datePicker.labels.month', { defaultValue: 'חודש' })}
+                </Text>
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeMonth(1)}>
                   <FontAwesome name="chevron-up" size={20} color="#27ae60" />
                 </TouchableOpacity>
                 <View style={styles.valueContainer}>
@@ -265,57 +254,47 @@ export default function DatePicker({
                     {(selectedDate.getMonth() + 1).toString().padStart(2, '0')}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => changeMonth(-1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeMonth(-1)}>
                   <FontAwesome name="chevron-down" size={20} color="#27ae60" />
                 </TouchableOpacity>
               </View>
 
-              {/* Day Picker */}
               <View style={styles.pickerColumn}>
-                <Text style={styles.columnLabel}>اليوم</Text>
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => changeDay(1)}
-                >
+                <Text style={styles.columnLabel}>
+                  {t('datePicker.labels.day', { defaultValue: 'יום' })}
+                </Text>
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeDay(1)}>
                   <FontAwesome name="chevron-up" size={20} color="#27ae60" />
                 </TouchableOpacity>
                 <View style={styles.valueContainer}>
-                  <Text style={styles.valueText}>
-                    {selectedDate.getDate().toString().padStart(2, '0')}
-                  </Text>
+                  <Text style={styles.valueText}>{selectedDate.getDate().toString().padStart(2, '0')}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => changeDay(-1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeDay(-1)}>
                   <FontAwesome name="chevron-down" size={20} color="#27ae60" />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Age Display */}
             <View style={styles.ageContainer}>
               <View style={styles.ageDisplay}>
-                <Text style={styles.ageLabel}>العمر الحالي:</Text>
-                <Text style={[
-                  styles.ageValue,
-                  dateError ? styles.ageError : styles.ageValid
-                ]}>
-                  {calculateAge(selectedDate)} سنة
+                <Text style={styles.ageLabel}>
+                  {t('datePicker.labels.currentAge', { defaultValue: 'הגיל הנוכחי:' })}
+                </Text>
+
+                <Text style={[styles.ageValue, dateError ? styles.ageError : styles.ageValid]}>
+                  {calculateAge(selectedDate)}{' '}
+                  {t('datePicker.units.years', { defaultValue: 'שנים' })}
                 </Text>
               </View>
             </View>
 
             <View style={styles.selectedDateDisplay}>
               <Text style={styles.selectedDateText}>
-                التاريخ المختار: {formatDate(selectedDate)}
+                {t('datePicker.labels.selectedDate', { defaultValue: 'התאריך שנבחר:' })}{' '}
+                {formatDate(selectedDate)}
               </Text>
             </View>
 
-            {/* Error Message in Modal */}
             {dateError && (
               <View style={styles.modalErrorContainer}>
                 <FontAwesome name="exclamation-triangle" size={16} color="#e74c3c" />
@@ -325,7 +304,8 @@ export default function DatePicker({
 
             <View style={styles.modalButtons}>
               <CustomButton
-                title="تأكيد"
+                titleKey="datePicker.actions.confirm"
+                title="אישור"
                 onPress={handleConfirm}
                 icon="check"
                 disabled={!!dateError}

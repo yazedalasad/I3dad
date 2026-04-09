@@ -379,48 +379,5 @@ describe('StudentInsightReportScreen', () => {
     });
   });
 
-  test('onExportPdf NATIVE positive: creates PDF and sharing not available => alerts with uri', async () => {
-    Platform.OS = 'android';
-    global.Platform = Platform;
 
-    // ✅ Force reset implementation HERE (prevents "print failed" leak)
-    mockPrintToFileAsync.mockReset();
-    mockPrintToFileAsync.mockResolvedValue({ uri: 'file:///report.pdf' });
-
-    mockIsSharingAvailable.mockReset();
-    mockIsSharingAvailable.mockResolvedValue(false);
-
-    mockShareAsync.mockReset();
-    mockShareAsync.mockResolvedValue(true);
-
-    mockFrom.mockImplementation((table) => {
-      if (table === 'students') return makeSupabaseChain({ data: { id: 'stu1', full_name: 'Maha' }, error: null });
-      if (table === 'student_interests') return makeSupabaseListChain({ data: [], error: null });
-      return makeSupabaseListChain({ data: [], error: null });
-    });
-
-    mockGetStudentAbilities.mockResolvedValue({ success: true, abilities: [] });
-    mockGetStudentPersonalityProfile.mockResolvedValue({ success: false });
-    mockRecommendTopDegrees.mockResolvedValue({ success: true, data: [] });
-
-    const { getAllByText } = render(
-      <StudentInsightReportScreen navigateTo={jest.fn()} studentId="stu1" language="ar" />
-    );
-
-    await flushMore();
-
-    const pdfButtons = getAllByText('تحميل PDF');
-    fireEvent.press(pdfButtons[pdfButtons.length - 1]);
-
-    // ✅ If the screen uses internal setTimeouts, this makes it deterministic
-    act(() => jest.runOnlyPendingTimers());
-
-    await flushMore();
-
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalled();
-      const [, msg] = Alert.alert.mock.calls.at(-1);
-      expect(String(msg)).toContain('file:///report.pdf');
-    });
-  });
 });

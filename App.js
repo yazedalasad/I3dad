@@ -14,19 +14,33 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId;
 
     (async () => {
       try {
+        console.log('🚀 App starting...');
+        
+        // Set a timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          if (mounted && !ready) {
+            console.warn('⚠️ i18n initialization timeout - proceeding anyway');
+            setReady(true);
+          }
+        }, 5000); // 5 second timeout
+
         await initI18n(); // initialize once
+        console.log('✅ App initialization complete');
       } catch (e) {
-        console.log('i18n init error:', e?.message || e);
+        console.error('❌ i18n init error:', e?.message || e);
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
         if (mounted) setReady(true); // never block app
       }
     })();
 
     return () => {
       mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 

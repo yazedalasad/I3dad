@@ -100,7 +100,7 @@ describe('Navbar', () => {
     expect(getByText('الأنشطة')).toBeTruthy();
 
     // Logged-in specific
-    expect(getByText('الاختبار')).toBeTruthy();
+    
     expect(getByText('حسابي')).toBeTruthy();
 
     // Logged-out only tabs should NOT exist

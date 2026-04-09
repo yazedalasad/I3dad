@@ -17,7 +17,7 @@ export default function Navbar({ activeTab, onTabPress }) {
         { id: 'home', icon: 'home' },
         { id: 'successStories', icon: 'star' },
         { id: 'activities', icon: 'calendar-check-o' },
-        { id: 'test', icon: 'edit' }, // ✅ كان accountant — خليها test عشان تطابق keys
+        { id: 'adaptiveTest', icon: 'edit' }, // ✅ كان accountant — خليها test عشان تطابق keys
         { id: 'profile', icon: 'user' },
       ]
     : [

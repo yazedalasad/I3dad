@@ -25,28 +25,28 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
   const { width: screenWidth } = useWindowDimensions();
 
+  const cleanEmail = String(email || '').trim().toLowerCase();
+
   const token = useMemo(() => code.join(''), [code]);
-  const isComplete = useMemo(() => code.every((d) => d !== '') && token.length === 6, [code, token]);
+  const isComplete = useMemo(
+    () => code.every((d) => d !== '') && token.length === 6,
+    [code, token]
+  );
 
   // ✅ Small, consistent boxes
   const BOX_GAP = 8;
   const FORM_HORIZONTAL_PADDING = 24;
-  const ROW_SIDE_PADDING = 0; // inside formContainer already padded
+  const ROW_SIDE_PADDING = 0;
   const availableRowWidth =
     screenWidth - FORM_HORIZONTAL_PADDING * 2 - ROW_SIDE_PADDING * 2 - BOX_GAP * 5;
 
-  // clamp size (small on phones, never huge on tablets)
   const boxSize = Math.max(44, Math.min(52, Math.floor(availableRowWidth / 6)));
 
-  // Focus first input + timer
   useEffect(() => {
     setTimeout(() => inputRefs.current[0]?.focus?.(), 200);
 
     const interval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
+      setTimer((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(interval);
@@ -114,7 +114,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   const handleVerify = async () => {
     if (loading) return;
 
-    if (!email) {
+    if (!cleanEmail) {
       Alert.alert('خطأ', 'البريد الإلكتروني غير موجود. ارجع للصفحة السابقة.');
       return;
     }
@@ -126,16 +126,15 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
     setLoading(true);
     try {
-      // ✅ الأهم: recovery وليس email
       const { error } = await supabase.auth.verifyOtp({
-        email,
+        email: cleanEmail,
         token,
         type: 'recovery',
       });
 
       if (error) throw error;
 
-      // تأكيد وجود Session بعد التحقق
+      // confirm session exists
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session) {
         throw new Error('لم يتم إنشاء جلسة بعد التحقق. أعد المحاولة.');
@@ -143,11 +142,11 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
       setLoading(false);
 
-      Alert.alert(
-        'تم التحقق ✅',
-        'تم التحقق من الرمز بنجاح. الآن قم بتعيين كلمة مرور جديدة.',
-        [{ text: 'متابعة', onPress: () => navigateTo('resetPassword', { email }) }]
-      );
+      // ✅ IMPORTANT: navigate immediately (don’t depend on Alert button)
+      navigateTo('resetPassword', { email: cleanEmail });
+
+      // optional success alert (won’t block)
+      Alert.alert('تم التحقق ✅', 'تم التحقق من الرمز بنجاح. الآن قم بتعيين كلمة مرور جديدة.');
     } catch (err) {
       setLoading(false);
 
@@ -164,7 +163,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   const handleResend = async () => {
     if (resendLoading) return;
 
-    if (!email) {
+    if (!cleanEmail) {
       Alert.alert('خطأ', 'البريد الإلكتروني غير موجود.');
       return;
     }
@@ -173,8 +172,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
     setResendLoading(true);
     try {
-      // ✅ إعادة إرسال كود الاستعادة الصحيح
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
       if (error) throw error;
 
       setResendLoading(false);
@@ -200,14 +198,19 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <LinearGradient colors={['#27ae60', '#2ecc71']} style={styles.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient
+          colors={['#27ae60', '#2ecc71']}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <View style={styles.logoContainer}>
             <FontAwesome name="shield" size={60} color="#fff" />
           </View>
 
           <Text style={styles.title}>التحقق من الرمز</Text>
           <Text style={styles.subtitle}>أدخل الرمز المكوّن من 6 أرقام الذي تم إرساله إلى بريدك</Text>
-          <Text style={styles.email}>{email}</Text>
+          <Text style={styles.email}>{cleanEmail || email}</Text>
         </LinearGradient>
 
         <View style={styles.formContainer}>
@@ -225,7 +228,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
                 onChangeText={(text) => handleChange(text, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 keyboardType={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
-                maxLength={index === 0 ? 6 : 1} // ✅ paste allowed in first box, others single digit
+                maxLength={index === 0 ? 6 : 1}
                 selectTextOnFocus
                 returnKeyType="done"
                 textContentType="oneTimeCode"
@@ -241,7 +244,9 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
               <Text style={styles.timerText}>{`إعادة الإرسال بعد ${timer} ثانية`}</Text>
             ) : (
               <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
-                <Text style={styles.resendText}>{resendLoading ? 'جارٍ الإرسال...' : 'إعادة إرسال الرمز'}</Text>
+                <Text style={styles.resendText}>
+                  {resendLoading ? 'جارٍ الإرسال...' : 'إعادة إرسال الرمز'}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -307,12 +312,11 @@ const styles = StyleSheet.create({
 
   codeContainer: {
     flexDirection: 'row',
-    justifyContent: 'center', // ✅ keep row tight
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 26,
   },
   codeInput: {
-    // ❌ removed flex:1 so it won't expand
     borderWidth: 2,
     borderColor: '#e2e8f0',
     borderRadius: 14,

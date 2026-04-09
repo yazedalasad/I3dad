@@ -1,8 +1,11 @@
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export default function CustomButton({
   title,
+  titleKey, // ✅ NEW: i18n key (optional)
+  titleParams, // ✅ NEW: i18n interpolation params (optional)
   onPress,
   icon,
   variant = 'primary', // primary, secondary, outline
@@ -10,11 +13,21 @@ export default function CustomButton({
   disabled = false,
   fullWidth = true,
 }) {
+  const { t } = useTranslation();
+
+  // ✅ NEW: resolve title from i18n if titleKey is provided (or fallback to title)
+  const resolvedTitle =
+    typeof title === 'string' && title.length > 0
+      ? title
+      : titleKey
+        ? t(titleKey, titleParams)
+        : '';
+
   const getButtonStyle = () => {
     if (disabled || loading) {
       return [styles.button, styles.buttonDisabled];
     }
-    
+
     switch (variant) {
       case 'secondary':
         return [styles.button, styles.buttonSecondary];
@@ -40,6 +53,8 @@ export default function CustomButton({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={resolvedTitle}
     >
       {loading ? (
         <ActivityIndicator color="#fff" size="small" />
@@ -53,7 +68,7 @@ export default function CustomButton({
               style={styles.icon}
             />
           )}
-          <Text style={getTextStyle()}>{title}</Text>
+          <Text style={getTextStyle()}>{resolvedTitle}</Text>
         </>
       )}
     </TouchableOpacity>

@@ -119,14 +119,20 @@ const normalizeLanguage = (lng) =>
  */
 export const initI18n = async () => {
   try {
+    // Check if already initialized
     if (i18n.isInitialized) {
+      console.log('✅ i18n already initialized');
       setRTL(i18n.language);
       return i18n;
     }
 
+    console.log('🔄 Initializing i18n...');
+    
     const savedLanguage = normalizeLanguage(
       (await Storage.getItem(LANGUAGE_STORAGE_KEY)) || 'ar'
     );
+
+    console.log('📱 Saved language:', savedLanguage);
 
     await i18n.use(initReactI18next).init({
       compatibilityJSON: 'v3',
@@ -187,6 +193,7 @@ export const initI18n = async () => {
       react: { useSuspense: false },
     });
 
+    console.log('✅ i18n initialized successfully');
     setRTL(i18n.language);
 
     if (!i18n.__rtl_listener_added__) {
@@ -200,7 +207,9 @@ export const initI18n = async () => {
 
     return i18n;
   } catch (e) {
-    console.log('initI18n failed:', e?.message || e);
+    console.error('❌ initI18n failed:', e?.message || e);
+    console.error('Full error:', e);
+    // Return i18n anyway so app doesn't hang
     return i18n;
   }
 };

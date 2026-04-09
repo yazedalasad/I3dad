@@ -3,77 +3,76 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function RoleRouterScreen({ navigateTo }) {
-  const { user, loading } = useAuth();
+  const { user, loading, profile } = useAuth();
   const { t } = useTranslation();
 
-  const [statusText, setStatusText] = useState('Checking your account...');
-  const ranRef = useRef(false);
+  const navRef = useRef(navigateTo);
+  useEffect(() => {
+    navRef.current = navigateTo;
+  }, [navigateTo]);
+
+  const [statusText, setStatusText] = useState('Loading...');
+
+  const routedRef = useRef(false);
 
   useEffect(() => {
-    // If auth is still loading, wait
     if (loading) return;
 
-    // If not logged in -> go home
     if (!user) {
-      navigateTo('home');
+      navRef.current('home');
       return;
     }
 
-    // Prevent running twice on re-render
-    if (ranRef.current) return;
-    ranRef.current = true;
+    // Prevent multiple navigations
+    if (routedRef.current) return;
 
-    const run = async () => {
-      try {
-        setStatusText('Loading your dashboard...');
+    // If profile is still loading/null, wait a little then default to student
+    // (because user_profiles insert is service-only in your DB)
+    let timer = null;
 
-        // 1) Principal check (if exists in principals -> principal dashboard)
-        const { data: principalRow, error: principalErr } = await supabase
-          .from('principals')
-          .select('user_id, is_active')
-          .eq('user_id', user.id)
-          .maybeSingle();
+    const decide = () => {
+      if (routedRef.current) return;
+      routedRef.current = true;
 
-        // ignore "no rows" type behavior (maybeSingle returns null data without throwing in most cases)
-        if (principalErr && principalErr.code !== 'PGRST116') {
-          console.log('principal check error:', principalErr.message);
-        }
+      const role = profile?.role ?? 'student';
 
-        if (principalRow?.user_id && (principalRow.is_active ?? true)) {
-          navigateTo('principalDashboard');
-          return;
-        }
-
-        // 2) Admin check (user_profiles.role === 'admin')
-        const { data: profileRow, error: profileErr } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (profileErr && profileErr.code !== 'PGRST116') {
-          console.log('profile check error:', profileErr.message);
-        }
-
-        if (profileRow?.role === 'admin') {
-          navigateTo('adminDashboard');
-          return;
-        }
-
-        // 3) Default: student / normal user
-        navigateTo('home');
-      } catch (e) {
-        console.log('RoleRouter error:', e?.message || String(e));
-        navigateTo('home');
+      if (role === 'admin') {
+        setStatusText('Loading admin dashboard...');
+        navRef.current('adminDashboard');
+        return;
       }
+
+      if (role === 'principal') {
+        setStatusText('Loading principal dashboard...');
+        navRef.current('principalDashboard');
+        return;
+      }
+
+      setStatusText('Loading home...');
+      navRef.current('home');
     };
 
-    run();
-  }, [user, loading, navigateTo]);
+    // If profile exists -> route immediately
+    if (profile?.role) {
+      setStatusText('Checking role...');
+      decide();
+      return () => {};
+    }
+
+    // Otherwise, wait briefly for AuthContext refreshUserData to fill it
+    setStatusText('Checking role...');
+    timer = setTimeout(() => {
+      // still no profile -> treat as student
+      decide();
+    }, 900); // small delay to let AuthContext finish
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [user, loading, profile]);
 
   return (
     <View style={styles.container}>
@@ -92,9 +91,7 @@ export default function RoleRouterScreen({ navigateTo }) {
 
       <View style={styles.content}>
         <ActivityIndicator size="large" color="#27ae60" />
-        <Text style={styles.hint}>
-          {t?.('common.pleaseWait') || 'Redirecting you to the right dashboard...'}
-        </Text>
+        <Text style={styles.hint}>{t?.('common.pleaseWait') || 'Redirecting...'}</Text>
       </View>
     </View>
   );

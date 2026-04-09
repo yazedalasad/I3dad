@@ -1,6 +1,6 @@
 // File: navigation/ManualNavigator.js
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -27,21 +27,17 @@ import AdminDashboardScreen from '../screens/Dashboard/AdminDashboardScreen';
 import PrincipalDashboardScreen from '../screens/Dashboard/PrincipalDashboardScreen';
 
 import HomeScreen from '../screens/Home/HomeScreen';
-
 import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen';
 
 import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScreen';
 import ExamHistoryScreen from '../screens/Profile/ExamHistoryScreen';
 import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
 
-// ✅ Recommendations screen
 import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendationsScreen';
 
-// ✅ Personality screens
 import PersonalityResultsScreen from '../screens/AdaptiveTest/PersonalityResultsScreen';
 import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
 
-// ✅ Student Insight Report (hidden route for now)
 import StudentInsightReportScreen from '../screens/StudentInsightReport/StudentInsightReportScreen';
 
 function normalizeLang(lng) {
@@ -51,23 +47,36 @@ function normalizeLang(lng) {
 
 export default function ManualNavigator() {
   const { user, loading, studentData } = useAuth();
-  const { i18n } = useTranslation(); // ✅ read current app language
+  const { i18n } = useTranslation();
 
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
   const [screenParams, setScreenParams] = useState({});
 
+  // ✅ Prevent loops: only route to roleRouter ONCE after login/signup
+  const routedAfterLoginRef = useRef(false);
+
   useEffect(() => {
-    if (user && (currentScreen === 'login' || currentScreen === 'signup')) {
+    if (loading) return;
+
+    // If logged out, reset the ref so next login will route again
+    if (!user) {
+      routedAfterLoginRef.current = false;
+      return;
+    }
+
+    // Only if user is on login/signup, route one time
+    if ((currentScreen === 'login' || currentScreen === 'signup') && !routedAfterLoginRef.current) {
+      routedAfterLoginRef.current = true;
       navigateTo('roleRouter');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentScreen]);
+  }, [user, loading, currentScreen]);
 
   const navigateTo = (screen, params = {}) => {
-    // ✅ ALWAYS carry language forward unless explicitly overridden
     const currentLang = normalizeLang(i18n.language);
     const nextParams = { ...params };
+
     if (!nextParams.language) {
       nextParams.language = currentLang;
     } else {
@@ -82,11 +91,18 @@ export default function ManualNavigator() {
     }
   };
 
+  // ✅ MIN CHANGE: make navbar "adaptiveTest" behave like Home "Start Exam"
   const handleTabPress = (tabId) => {
-    if ((tabId === 'adaptiveTest' || tabId === 'profile') && !user) {
+    if (tabId === 'adaptiveTest') {
+      navigateTo(user ? 'adaptiveTest' : 'signup');
+      return;
+    }
+
+    if (tabId === 'profile' && !user) {
       navigateTo('login');
       return;
     }
+
     navigateTo(tabId);
   };
 
@@ -94,7 +110,11 @@ export default function ManualNavigator() {
     // Auth screens
     if (currentScreen === 'login') return <LoginScreen navigateTo={navigateTo} />;
     if (currentScreen === 'signup') return <SignupScreen navigateTo={navigateTo} />;
-    if (currentScreen === 'forgotPassword') return <ForgotPasswordScreen navigateTo={navigateTo} />;
+
+    // ✅ FIX: pass email so the screen can prefill and keep flow consistent
+    if (currentScreen === 'forgotPassword') {
+      return <ForgotPasswordScreen navigateTo={navigateTo} email={screenParams.email} />;
+    }
 
     if (currentScreen === 'verifyCode') {
       return <VerifyCodeScreen navigateTo={navigateTo} email={screenParams.email} />;
@@ -132,25 +152,21 @@ export default function ManualNavigator() {
       case 'successStories':
         return <SuccessStoriesScreen navigateTo={navigateTo} />;
 
-      // ✅ Total Exam entry screen
       case 'adaptiveTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
           <TotalExamScreen
             navigateTo={navigateTo}
-            // ✅ MUST be students.id (PK) not auth user id
             studentId={studentData?.id}
             studentName={
               studentData
                 ? `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()
                 : 'طالب'
             }
-            // ✅ pass language consistently (in case TotalExam uses it)
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
 
-      // ✅ Actual exam screen (ABILITY PART)
       case 'startAdaptiveTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -166,7 +182,6 @@ export default function ManualNavigator() {
           />
         );
 
-      // ✅ Combined results entry
       case 'testResults':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -180,7 +195,6 @@ export default function ManualNavigator() {
           />
         );
 
-      // ✅ PERSONALITY TEST
       case 'personalityTest':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
@@ -194,30 +208,23 @@ export default function ManualNavigator() {
           />
         );
 
-      // ✅ PERSONALITY RESULTS
       case 'personalityResults':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
           <PersonalityResultsScreen
             navigateTo={navigateTo}
-            // ✅ PersonalityResultsScreen expects studentId (NOT profiles)
             studentId={screenParams.studentId || studentData?.id}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
 
-      // ✅ STUDENT INSIGHT REPORT (hidden route for now — not in navbar)
       case 'studentInsightReport':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return (
           <StudentInsightReportScreen
             navigateTo={navigateTo}
             studentId={screenParams.studentId || studentData?.id}
-            abilitySessionId={
-              screenParams.abilitySessionId ||
-              screenParams.sessionId || // fallback from TotalExam/TestResults flows
-              null
-            }
+            abilitySessionId={screenParams.abilitySessionId || screenParams.sessionId || null}
             personalitySessionId={screenParams.personalitySessionId || null}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
@@ -276,13 +283,10 @@ export default function ManualNavigator() {
     'editProfile',
     'examHistory',
     'recommendations',
-    // ✅ hide navbar during exam parts
     'startAdaptiveTest',
     'personalityTest',
     'personalityResults',
     'testResults',
-    // NOTE: studentInsightReport is NOT a tab and not shown in navbar anyway,
-    // so no need to add it here unless you explicitly want to hide navbar on it.
   ];
 
   return (

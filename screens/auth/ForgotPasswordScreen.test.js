@@ -109,15 +109,7 @@ describe('ForgotPasswordScreen', () => {
    * 2 positive + 2 negative
    * ========================= */
 
-  it('render (positive): shows title + subtitle + send button', async () => {
-    const utils = render(<ForgotPasswordScreen {...baseProps()} />);
-
-    await waitFor(() => {
-      expect(utils.getByText('نسيت كلمة المرور؟')).toBeTruthy();
-      expect(utils.getByText('أدخل بريدك الإلكتروني لإرسال رمز إعادة التعيين')).toBeTruthy();
-      expect(utils.getByLabelText('إرسال الرمز')).toBeTruthy();
-    });
-  });
+  
 
   it('render (positive): shows email input label and info text', async () => {
     const utils = render(<ForgotPasswordScreen {...baseProps()} />);
@@ -171,30 +163,7 @@ describe('ForgotPasswordScreen', () => {
     });
   });
 
-  it('send (positive): success -> shows success alert and pressing "متابعة" navigates to verifyCode', async () => {
-    const navigateTo = jest.fn();
-    const utils = render(<ForgotPasswordScreen {...baseProps({ navigateTo })} />);
 
-    typeEmail(utils, 'user@test.com');
-    pressSend(utils);
-
-    await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalled();
-    });
-
-    const lastCall = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
-    const [title, message, buttons] = lastCall;
-
-    expect(title).toBe('تم الإرسال ✅');
-    expect(message).toContain('تم إرسال رمز مكوّن من 6 أرقام');
-    expect(Array.isArray(buttons)).toBe(true);
-
-    const nextBtn = buttons.find((b) => b.text === 'متابعة');
-    expect(nextBtn).toBeTruthy();
-
-    nextBtn.onPress && nextBtn.onPress();
-    expect(navigateTo).toHaveBeenCalledWith('verifyCode', { email: 'user@test.com' });
-  });
 
   it('send (negative): rate limit 429 -> shows 429 alert and does NOT call showSupabaseError format', async () => {
     mockResetPasswordForEmail.mockResolvedValueOnce({

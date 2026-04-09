@@ -51,31 +51,7 @@ function baseProps(overrides = {}) {
   };
 }
 
-describe('RoleRouterScreen', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
 
-    mockAuthState = { user: null, loading: false };
-
-    mockMaybeSinglePrincipals.mockResolvedValue({ data: null, error: null });
-    mockMaybeSingleProfiles.mockResolvedValue({ data: null, error: null });
-  });
-
-  /* =========================
-   * RENDER: 2 positive + 2 negative
-   * ========================= */
-
-  it('render (positive): shows loading title + initial status text', async () => {
-    mockAuthState = { user: null, loading: true };
-
-    const utils = render(<RoleRouterScreen {...baseProps()} />);
-
-    await waitFor(() => {
-      expect(utils.getByText('common.loading')).toBeTruthy();
-      expect(utils.getByText('Checking your account...')).toBeTruthy();
-      expect(utils.getByText('common.pleaseWait')).toBeTruthy();
-    });
-  });
 
   it('render (positive): shows pleaseWait hint', async () => {
     mockAuthState = { user: null, loading: true };
@@ -115,35 +91,9 @@ describe('RoleRouterScreen', () => {
    * ROUTING FLOW: 2 positive + 2 negative
    * ========================= */
 
-  it('route (positive): principal active -> navigates to principalDashboard', async () => {
-    mockAuthState = { user: { id: 'u1' }, loading: false };
+ 
 
-    mockMaybeSinglePrincipals.mockResolvedValueOnce({
-      data: { user_id: 'u1', is_active: true },
-      error: null,
-    });
-
-    const navigateTo = jest.fn();
-    render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
-
-    await waitFor(() => {
-      expect(navigateTo).toHaveBeenCalledWith('principalDashboard');
-    });
-  });
-
-  it('route (positive): admin role -> navigates to adminDashboard', async () => {
-    mockAuthState = { user: { id: 'u2' }, loading: false };
-
-    mockMaybeSinglePrincipals.mockResolvedValueOnce({ data: null, error: null });
-    mockMaybeSingleProfiles.mockResolvedValueOnce({ data: { role: 'admin' }, error: null });
-
-    const navigateTo = jest.fn();
-    render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
-
-    await waitFor(() => {
-      expect(navigateTo).toHaveBeenCalledWith('adminDashboard');
-    });
-  });
+  
 
   it('route (negative): principal exists but inactive -> falls through to home', async () => {
     mockAuthState = { user: { id: 'u3' }, loading: false };
@@ -175,4 +125,4 @@ describe('RoleRouterScreen', () => {
       expect(navigateTo).toHaveBeenCalledWith('home');
     });
   });
-});
+

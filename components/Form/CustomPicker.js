@@ -1,28 +1,66 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function CustomPicker({
   label,
+  labelKey, // ✅ NEW: i18n key for label (optional)
+  labelParams, // ✅ NEW: params for label (optional)
+
   value,
   onValueChange,
   items,
-  placeholder = 'اختر...',
+
+  placeholder,
+  placeholderKey = 'picker.placeholder', // ✅ NEW: default key
+  placeholderParams, // ✅ NEW: params (optional)
+
   error,
   icon,
   searchable = false,
+
+  modalTitle,
+  modalTitleKey = 'picker.titleFallback', // ✅ NEW: default key
+  modalTitleParams, // ✅ NEW: params (optional)
 }) {
+  const { t } = useTranslation();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const selectedItem = items.find(item => item.value === value);
-  const displayText = selectedItem ? selectedItem.label : placeholder;
+  const resolvedLabel =
+    typeof label === 'string' && label.length > 0
+      ? label
+      : labelKey
+        ? t(labelKey, labelParams)
+        : '';
 
-  const filteredItems = searchable && searchQuery
-    ? items.filter(item => 
-        item.label.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : items;
+  const resolvedPlaceholder =
+    typeof placeholder === 'string' && placeholder.length > 0
+      ? placeholder
+      : placeholderKey
+        ? t(placeholderKey, { ...placeholderParams, defaultValue: 'בחר/י...' })
+        : 'בחר/י...';
+
+  const resolvedModalTitle =
+    typeof modalTitle === 'string' && modalTitle.length > 0
+      ? modalTitle
+      : modalTitleKey
+        ? t(modalTitleKey, { ...modalTitleParams, defaultValue: 'בחר/י' })
+        : 'בחר/י';
+
+  const selectedItem = items.find((item) => item.value === value);
+  const displayText = selectedItem ? selectedItem.label : resolvedPlaceholder;
+
+  const filteredItems =
+    searchable && searchQuery
+      ? items.filter((item) =>
+          String(item.label || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+        )
+      : items;
 
   const handleSelect = (itemValue) => {
     onValueChange(itemValue);
@@ -32,14 +70,15 @@ export default function CustomPicker({
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      
+      {(resolvedLabel || label) ? (
+        <Text style={styles.label}>{resolvedLabel || label}</Text>
+      ) : null}
+
       <TouchableOpacity
-        style={[
-          styles.pickerButton,
-          error && styles.pickerButtonError,
-        ]}
+        style={[styles.pickerButton, error && styles.pickerButtonError]}
         onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel={displayText}
       >
         {icon && (
           <FontAwesome
@@ -49,18 +88,12 @@ export default function CustomPicker({
             style={styles.icon}
           />
         )}
-        <Text style={[
-          styles.pickerText,
-          !selectedItem && styles.placeholderText,
-        ]}>
+
+        <Text style={[styles.pickerText, !selectedItem && styles.placeholderText]}>
           {displayText}
         </Text>
-        <FontAwesome
-          name="chevron-down"
-          size={16}
-          color="#94A3B8"
-          style={styles.chevron}
-        />
+
+        <FontAwesome name="chevron-down" size={16} color="#94A3B8" style={styles.chevron} />
       </TouchableOpacity>
 
       {error && (
@@ -79,34 +112,27 @@ export default function CustomPicker({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
                 <FontAwesome name="times" size={24} color="#2c3e50" />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>{label || 'اختر'}</Text>
+
+              <Text style={styles.modalTitle}>
+                {resolvedLabel || resolvedModalTitle}
+              </Text>
             </View>
 
             <ScrollView style={styles.itemsList}>
               {filteredItems.map((item) => (
                 <TouchableOpacity
                   key={item.value}
-                  style={[
-                    styles.item,
-                    value === item.value && styles.itemSelected,
-                  ]}
+                  style={[styles.item, value === item.value && styles.itemSelected]}
                   onPress={() => handleSelect(item.value)}
                 >
-                  <Text style={[
-                    styles.itemText,
-                    value === item.value && styles.itemTextSelected,
-                  ]}>
+                  <Text style={[styles.itemText, value === item.value && styles.itemTextSelected]}>
                     {item.label}
                   </Text>
-                  {value === item.value && (
-                    <FontAwesome name="check" size={18} color="#27ae60" />
-                  )}
+
+                  {value === item.value && <FontAwesome name="check" size={18} color="#27ae60" />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
