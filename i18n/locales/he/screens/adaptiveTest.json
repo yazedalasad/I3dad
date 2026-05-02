@@ -53,7 +53,11 @@
     "continue": "המשך מבחן",
     "done": "המבחן הסתיים",
     "score": "ציון",
-    "showResults": "הצג תוצאות"
+    "showResults": "הצג תוצאות",
+    "resolvingStudent": "טוען את פרטי התלמיד/ה...",
+    "missingStudentId": "לא נמצא פרופיל תלמיד/ה. התחבר/י עם חשבון תלמיד תקין ונסה/י שוב.",
+    "incompleteProfile": "יש להשלים את פרטי הפרופיל לפני תחילת המבחן: שם, בית ספר, כיתה ותאריך לידה.",
+    "completeProfile": "עריכת פרופיל"
   },
 
   "personalityTest": {

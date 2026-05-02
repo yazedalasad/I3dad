@@ -1,6 +1,22 @@
 import { buildCreateSessionPayload, buildUpdateSessionPayload } from '../utils/gameSessionPayloads';
 import { validateGameSessionInput } from '../utils/gameValidation';
-import { supabase } from '../config/supabase';
+import { supabase } from '../../../../config/supabase';
+
+async function findExistingInProgressSession({ studentId, gameId, levelId }) {
+  const { data, error } = await supabase
+    .from('game_sessions')
+    .select('*')
+    .eq('student_id', studentId)
+    .eq('game_id', gameId)
+    .eq('level_id', levelId)
+    .eq('status', 'in_progress')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
 
 export async function createGameSession(input) {
   validateGameSessionInput(input);
@@ -13,7 +29,25 @@ export async function createGameSession(input) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    const isConflict =
+      error.code === '23505' ||
+      error.status === 409 ||
+      String(error.message || '').toLowerCase().includes('duplicate') ||
+      String(error.details || '').toLowerCase().includes('already exists');
+
+    if (!isConflict) throw error;
+
+    const existingSession = await findExistingInProgressSession(input);
+    if (!existingSession) throw error;
+
+    const refreshedSession = await updateGameSession(existingSession.id, {
+      currentSceneId: input.currentSceneId,
+    });
+
+    return refreshedSession;
+  }
+
   return data;
 }
 

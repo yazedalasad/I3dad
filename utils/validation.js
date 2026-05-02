@@ -1,286 +1,224 @@
-// دوال التحقق من صحة البيانات
+import i18n from '../i18n';
 
-// التحقق من البريد الإلكتروني (Gmail فقط)
+const isHebrew = () => String(i18n?.language || '').toLowerCase().startsWith('he');
+
+const text = {
+  requiredEmail: () => (isHebrew() ? 'האימייל הוא שדה חובה' : 'البريد الإلكتروني مطلوب'),
+  invalidEmail: () =>
+    isHebrew()
+      ? 'האימייל חייב להיות חשבון Gmail (@gmail.com)'
+      : 'يجب أن يكون البريد الإلكتروني من Gmail (@gmail.com)',
+  requiredPhone: () => (isHebrew() ? 'מספר הטלפון הוא שדה חובה' : 'رقم الهاتف مطلوب'),
+  invalidPhone: () =>
+    isHebrew()
+      ? 'מספר הטלפון אינו תקין. יש להזין מספר טלפון ישראלי תקין'
+      : 'رقم الهاتف غير صحيح. يجب أن يكون رقم هاتف إسرائيلي صحيح',
+  requiredId: () => (isHebrew() ? 'מספר הזהות הוא שדה חובה' : 'رقم الهوية مطلوب'),
+  invalidId: () =>
+    isHebrew()
+      ? 'מספר הזהות חייב להכיל 9 ספרות'
+      : 'رقم الهوية يجب أن يتكون من 9 أرقام',
+  requiredField: (fieldName) =>
+    isHebrew() ? `${fieldName} הוא שדה חובה` : `${fieldName} مطلوب`,
+  minNameLength: (fieldName) =>
+    isHebrew()
+      ? `${fieldName} חייב להכיל לפחות 2 תווים`
+      : `${fieldName} يجب أن يحتوي على حرفين على الأقل`,
+  invalidNameChars: (fieldName) =>
+    isHebrew()
+      ? `${fieldName} חייב להכיל אותיות בערבית, עברית או אנגלית בלבד`
+      : `${fieldName} يجب أن يحتوي على أحرف عربية أو عبرية أو إنجليزية فقط`,
+  languageMismatchArabicHebrew: () =>
+    isHebrew()
+      ? 'השם הפרטי בערבית ושם המשפחה בעברית. יש להשתמש באותה שפה בשני השמות'
+      : 'الاسم الأول بالعربية والاسم الأخير بالعبرية. يجب استخدام نفس اللغة للاسمين',
+  languageMismatchHebrewArabic: () =>
+    isHebrew()
+      ? 'השם הפרטי בעברית ושם המשפחה בערבית. יש להשתמש באותה שפה בשני השמות'
+      : 'الاسم الأول بالعبرية والاسم الأخير بالعربية. يجب استخدام نفس اللغة للاسمين',
+  languageMismatchFirstEnglish: () =>
+    isHebrew()
+      ? 'השם הפרטי באנגלית ושם המשפחה בשפה אחרת. יש להשתמש באותה שפה בשני השמות'
+      : 'الاسم الأول بالإنجليزية والاسم الأخير بلغة أخرى. يجب استخدام نفس اللغة للاسمين',
+  languageMismatchLastEnglish: () =>
+    isHebrew()
+      ? 'שם המשפחה באנגלית והשם הפרטי בשפה אחרת. יש להשתמש באותה שפה בשני השמות'
+      : 'الاسم الأخير بالإنجليزية والاسم الأول بلغة أخرى. يجب استخدام نفس اللغة للاسمين',
+  languageMismatchGeneric: () =>
+    isHebrew()
+      ? 'השם הפרטי ושם המשפחה חייבים להיות באותה שפה (ערבית, עברית או אנגלית)'
+      : 'يجب أن يكون الاسم الأول والأخير بنفس اللغة (عربية، عبرية، أو إنجليزية)',
+  requiredPassword: () => (isHebrew() ? 'הסיסמה היא שדה חובה' : 'كلمة المرور مطلوبة'),
+  passwordLength: () =>
+    isHebrew()
+      ? 'הסיסמה חייבת להכיל לפחות 8 תווים'
+      : 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+  passwordUpper: () =>
+    isHebrew()
+      ? 'הסיסמה חייבת להכיל לפחות אות גדולה אחת (A-Z)'
+      : 'كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل (A-Z)',
+  passwordLower: () =>
+    isHebrew()
+      ? 'הסיסמה חייבת להכיל לפחות אות קטנה אחת (a-z)'
+      : 'كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل (a-z)',
+  passwordNumber: () =>
+    isHebrew()
+      ? 'הסיסמה חייבת להכיל לפחות מספר אחד (0-9)'
+      : 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل (0-9)',
+  passwordSpecial: () =>
+    isHebrew()
+      ? 'הסיסמה חייבת להכיל לפחות תו מיוחד אחד (!@#$%^&*)'
+      : 'كلمة المرور يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%^&*)',
+  strengthWeak: () => (isHebrew() ? 'חלשה' : 'ضعيفة'),
+  strengthMedium: () => (isHebrew() ? 'בינונית' : 'متوسطة'),
+  strengthGood: () => (isHebrew() ? 'טובה' : 'جيدة'),
+  strengthStrong: () => (isHebrew() ? 'חזקה מאוד' : 'قوية جدًا'),
+  requiredBirthday: () => (isHebrew() ? 'תאריך הלידה הוא שדה חובה' : 'تاريخ الميلاد مطلوب'),
+  invalidBirthdayAge: () =>
+    isHebrew()
+      ? 'הגיל שלך חייב להיות בין 14 ל-20'
+      : 'يجب أن يكون عمرك بين 14 و 20 سنة',
+  requiredGrade: () => (isHebrew() ? 'הכיתה היא שדה חובה' : 'الصف الدراسي مطلوب'),
+  invalidGrade: () =>
+    isHebrew()
+      ? 'הכיתה חייבת להיות בין 9 ל-12'
+      : 'الصف الدراسي يجب أن يكون بين 9 و 12',
+  requiredSchool: () => (isHebrew() ? 'בית הספר הוא שדה חובה' : 'المدرسة مطلوبة'),
+  passwordsNotMatch: () =>
+    isHebrew() ? 'הסיסמאות אינן תואמות' : 'كلمات المرور غير متطابقة',
+};
+
 export const validateEmail = (email) => {
-  if (!email) {
-    return { isValid: false, error: 'البريد الإلكتروني مطلوب' };
-  }
-  
+  if (!email) return { isValid: false, error: text.requiredEmail() };
   const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-  if (!emailRegex.test(email)) {
-    return { isValid: false, error: 'يجب أن يكون البريد الإلكتروني من Gmail (@gmail.com)' };
-  }
-  
+  if (!emailRegex.test(email)) return { isValid: false, error: text.invalidEmail() };
   return { isValid: true, error: null };
 };
 
-// التحقق من رقم الهاتف الإسرائيلي
 export const validatePhone = (phone) => {
-  if (!phone) {
-    return { isValid: false, error: 'رقم الهاتف مطلوب' };
-  }
-  
-  // إزالة المسافات والشرطات
+  if (!phone) return { isValid: false, error: text.requiredPhone() };
   const cleanPhone = phone.replace(/[\s-]/g, '');
-  
-  // التحقق من صيغة الهاتف الإسرائيلي
-  // يمكن أن يبدأ بـ +972 أو 972 أو 0
   const phoneRegex = /^(\+972|972|0)(5[0-9]|[2-4]|[8-9])[0-9]{7}$/;
-  
-  if (!phoneRegex.test(cleanPhone)) {
-    return { isValid: false, error: 'رقم الهاتف غير صحيح. يجب أن يكون رقم هاتف إسرائيلي صحيح' };
-  }
-  
+  if (!phoneRegex.test(cleanPhone)) return { isValid: false, error: text.invalidPhone() };
   return { isValid: true, error: null };
 };
 
-// تنسيق رقم الهاتف
 export const formatPhone = (phone) => {
   const cleanPhone = phone.replace(/[\s-]/g, '');
-  
-  // تحويل إلى صيغة +972
-  if (cleanPhone.startsWith('0')) {
-    return '+972' + cleanPhone.substring(1);
-  } else if (cleanPhone.startsWith('972')) {
-    return '+' + cleanPhone;
-  } else if (cleanPhone.startsWith('+972')) {
-    return cleanPhone;
-  }
-  
+  if (cleanPhone.startsWith('0')) return `+972${cleanPhone.substring(1)}`;
+  if (cleanPhone.startsWith('972')) return `+${cleanPhone}`;
+  if (cleanPhone.startsWith('+972')) return cleanPhone;
   return phone;
 };
 
-// التحقق من رقم الهوية
 export const validateStudentId = (id) => {
-  if (!id) {
-    return { isValid: false, error: 'رقم الهوية مطلوب' };
-  }
-  
-  // التحقق من أن الرقم يحتوي على 9 أرقام فقط
-  const idRegex = /^[0-9]{9}$/;
-  if (!idRegex.test(id)) {
-    return { isValid: false, error: 'رقم الهوية يجب أن يتكون من 9 أرقام' };
-  }
-  
+  if (!id) return { isValid: false, error: text.requiredId() };
+  if (!/^[0-9]{9}$/.test(id)) return { isValid: false, error: text.invalidId() };
   return { isValid: true, error: null };
 };
 
-// التحقق من الاسم (يدعم العربية والعبرية والإنجليزية)
-export const validateName = (name, fieldName = 'الاسم') => {
-  if (!name || name.trim().length === 0) {
-    return { isValid: false, error: `${fieldName} مطلوب` };
-  }
-  
-  if (name.trim().length < 2) {
-    return { isValid: false, error: `${fieldName} يجب أن يحتوي على حرفين على الأقل` };
-  }
-  
-  // التحقق من أن الاسم يحتوي على أحرف عربية أو عبرية أو إنجليزية فقط
-  // \u0600-\u06FF = أحرف عربية
-  // \u0590-\u05FF = أحرف عبرية
-  // a-zA-Z = أحرف إنجليزية
+export const validateName = (name, fieldName = isHebrew() ? 'שם' : 'الاسم') => {
+  if (!name || name.trim().length === 0) return { isValid: false, error: text.requiredField(fieldName) };
+  if (name.trim().length < 2) return { isValid: false, error: text.minNameLength(fieldName) };
   const nameRegex = /^[\u0600-\u06FF\u0590-\u05FFa-zA-Z\s]+$/;
-  if (!nameRegex.test(name)) {
-    return { isValid: false, error: `${fieldName} يجب أن يحتوي على أحرف عربية أو عبرية أو إنجليزية فقط` };
-  }
-  
+  if (!nameRegex.test(name)) return { isValid: false, error: text.invalidNameChars(fieldName) };
   return { isValid: true, error: null };
 };
 
-// الحصول على لغة الاسم
 export const getNameLanguage = (name) => {
   if (!name) return null;
-  
   const hasArabic = /[\u0600-\u06FF]/.test(name);
   const hasHebrew = /[\u0590-\u05FF]/.test(name);
   const hasEnglish = /[a-zA-Z]/.test(name);
-  
   if (hasArabic) return 'arabic';
   if (hasHebrew) return 'hebrew';
   if (hasEnglish) return 'english';
-  
   return null;
 };
 
-// التحقق من تطابق لغة الاسم الأول والأخير
 export const validateNamesLanguageMatch = (firstName, lastName) => {
-  if (!firstName || !lastName) {
-    return { isValid: true, error: null }; // سيتم التحقق من الفراغات في validateName
-  }
-  
+  if (!firstName || !lastName) return { isValid: true, error: null };
   const firstNameLang = getNameLanguage(firstName);
   const lastNameLang = getNameLanguage(lastName);
-  
-  if (!firstNameLang || !lastNameLang) {
-    return { isValid: true, error: null };
-  }
-  
+  if (!firstNameLang || !lastNameLang) return { isValid: true, error: null };
   if (firstNameLang !== lastNameLang) {
-    let message = '';
     if (firstNameLang === 'arabic' && lastNameLang === 'hebrew') {
-      message = 'الاسم الأول بالعربية والاسم الأخير بالعبرية. يجب استخدام نفس اللغة للاسمين';
-    } else if (firstNameLang === 'hebrew' && lastNameLang === 'arabic') {
-      message = 'الاسم الأول بالعبرية والاسم الأخير بالعربية. يجب استخدام نفس اللغة للاسمين';
-    } else if (firstNameLang === 'english') {
-      message = 'الاسم الأول بالإنجليزية والاسم الأخير بلغة أخرى. يجب استخدام نفس اللغة للاسمين';
-    } else if (lastNameLang === 'english') {
-      message = 'الاسم الأخير بالإنجليزية والاسم الأول بلغة أخرى. يجب استخدام نفس اللغة للاسمين';
-    } else {
-      message = 'يجب أن يكون الاسم الأول والأخير بنفس اللغة (عربية، عبرية، أو إنجليزية)';
+      return { isValid: false, error: text.languageMismatchArabicHebrew() };
     }
-    
-    return { isValid: false, error: message };
+    if (firstNameLang === 'hebrew' && lastNameLang === 'arabic') {
+      return { isValid: false, error: text.languageMismatchHebrewArabic() };
+    }
+    if (firstNameLang === 'english') {
+      return { isValid: false, error: text.languageMismatchFirstEnglish() };
+    }
+    if (lastNameLang === 'english') {
+      return { isValid: false, error: text.languageMismatchLastEnglish() };
+    }
+    return { isValid: false, error: text.languageMismatchGeneric() };
   }
-  
   return { isValid: true, error: null };
 };
 
-// التحقق من كلمة المرور القوية
 export const validatePassword = (password) => {
-  if (!password || password.trim() === '') {
-    return {
-      isValid: false,
-      error: 'كلمة المرور مطلوبة',
-    };
+  if (!password || password.trim() === '') return { isValid: false, error: text.requiredPassword() };
+  if (password.length < 10) return { isValid: false, error: text.passwordLength() };
+  if (!/[A-Z]/.test(password)) return { isValid: false, error: text.passwordUpper() };
+  if (!/[a-z]/.test(password)) return { isValid: false, error: text.passwordLower() };
+  if (!/[0-9]/.test(password)) return { isValid: false, error: text.passwordNumber() };
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(password)) {
+    return { isValid: false, error: text.passwordSpecial() };
   }
-
-  // الحد الأدنى 8 أحرف
-  if (password.length < 8) {
-    return {
-      isValid: false,
-      error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
-    };
-  }
-
-  // يجب أن تحتوي على حرف كبير واحد على الأقل
-  if (!/[A-Z]/.test(password)) {
-    return {
-      isValid: false,
-      error: 'كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل (A-Z)',
-    };
-  }
-
-  // يجب أن تحتوي على حرف صغير واحد على الأقل
-  if (!/[a-z]/.test(password)) {
-    return {
-      isValid: false,
-      error: 'كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل (a-z)',
-    };
-  }
-
-  // يجب أن تحتوي على رقم واحد على الأقل
-  if (!/[0-9]/.test(password)) {
-    return {
-      isValid: false,
-      error: 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل (0-9)',
-    };
-  }
-
-  // يجب أن تحتوي على رمز خاص واحد على الأقل
-  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password)) {
-    return {
-      isValid: false,
-      error: 'كلمة المرور يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%^&*)',
-    };
-  }
-
-  return {
-    isValid: true,
-    error: null,
-  };
+  if (/\s/.test(password)) return { isValid: false, error: text.requiredPassword() };
+  return { isValid: true, error: null };
 };
 
-// حساب قوة كلمة المرور (اختياري - للعرض البصري)
 export const getPasswordStrength = (password) => {
   if (!password) return { strength: 0, label: '', color: '' };
-  
   let strength = 0;
-  
-  // الطول
-  if (password.length >= 8) strength += 20;
+  if (password.length >= 10) strength += 20;
   if (password.length >= 12) strength += 10;
   if (password.length >= 16) strength += 10;
-  
-  // أحرف كبيرة
   if (/[A-Z]/.test(password)) strength += 15;
-  
-  // أحرف صغيرة
   if (/[a-z]/.test(password)) strength += 15;
-  
-  // أرقام
   if (/[0-9]/.test(password)) strength += 15;
-  
-  // رموز خاصة
-  if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password)) strength += 15;
-  
-  // مجموعات متنوعة
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password);
-  const varietyCount = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-  
+  if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(password)) strength += 15;
+  if (!/\s/.test(password)) strength += 15;
+  const varietyCount = [
+    /[a-z]/.test(password),
+    /[A-Z]/.test(password),
+    /[0-9]/.test(password),
+    /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(password),
+  ].filter(Boolean).length;
   if (varietyCount === 4) strength += 20;
   else if (varietyCount === 3) strength += 10;
-  
-  // تحديد التصنيف
-  if (strength < 40) {
-    return { strength, label: 'ضعيفة', color: '#e74c3c' };
-  } else if (strength < 70) {
-    return { strength, label: 'متوسطة', color: '#f39c12' };
-  } else if (strength < 90) {
-    return { strength, label: 'جيدة', color: '#3498db' };
-  } else {
-    return { strength, label: 'قوية جداً', color: '#27ae60' };
-  }
+  if (strength < 40) return { strength, label: text.strengthWeak(), color: '#e74c3c' };
+  if (strength < 70) return { strength, label: text.strengthMedium(), color: '#f39c12' };
+  if (strength < 90) return { strength, label: text.strengthGood(), color: '#3498db' };
+  return { strength, label: text.strengthStrong(), color: '#27ae60' };
 };
 
-// التحقق من تاريخ الميلاد
 export const validateBirthday = (birthday) => {
-  if (!birthday) {
-    return { isValid: false, error: 'تاريخ الميلاد مطلوب' };
-  }
-  
+  if (!birthday) return { isValid: false, error: text.requiredBirthday() };
   const birthDate = new Date(birthday);
   const today = new Date();
   const age = today.getFullYear() - birthDate.getFullYear();
-  
-  // التحقق من أن العمر بين 14 و 20 سنة (طلاب الصفوف 9-12)
-  if (age < 14 || age > 20) {
-    return { isValid: false, error: 'يجب أن يكون عمرك بين 14 و 20 سنة' };
-  }
-  
+  if (age < 14 || age > 20) return { isValid: false, error: text.invalidBirthdayAge() };
   return { isValid: true, error: null };
 };
 
-// التحقق من الصف الدراسي
 export const validateGrade = (grade) => {
-  if (!grade) {
-    return { isValid: false, error: 'الصف الدراسي مطلوب' };
-  }
-  
-  const gradeNum = parseInt(grade);
-  if (gradeNum < 9 || gradeNum > 12) {
-    return { isValid: false, error: 'الصف الدراسي يجب أن يكون بين 9 و 12' };
-  }
-  
+  if (!grade) return { isValid: false, error: text.requiredGrade() };
+  const gradeNum = parseInt(grade, 10);
+  if (gradeNum < 9 || gradeNum > 12) return { isValid: false, error: text.invalidGrade() };
   return { isValid: true, error: null };
 };
 
-// التحقق من المدرسة
 export const validateSchool = (school) => {
-  if (!school) {
-    return { isValid: false, error: 'المدرسة مطلوبة' };
-  }
-  
+  if (!school) return { isValid: false, error: text.requiredSchool() };
   return { isValid: true, error: null };
 };
 
-// التحقق من تطابق كلمة المرور
 export const validatePasswordMatch = (password, confirmPassword) => {
-  if (password !== confirmPassword) {
-    return { isValid: false, error: 'كلمات المرور غير متطابقة' };
-  }
-  
+  if (password !== confirmPassword) return { isValid: false, error: text.passwordsNotMatch() };
   return { isValid: true, error: null };
 };

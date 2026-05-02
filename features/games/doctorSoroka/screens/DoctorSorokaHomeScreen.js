@@ -5,7 +5,7 @@ import {
   GameHeader,
   GameCard,
   ChoiceButton,
-} from '../shared';
+} from '../../shared';
 import { doctorSorokaLevels } from '../data/levels';
 
 export default function DoctorSorokaHomeScreen({ navigation, studentId = 'demo-student-id' }) {

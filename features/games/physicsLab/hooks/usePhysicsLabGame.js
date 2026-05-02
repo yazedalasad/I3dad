@@ -81,6 +81,11 @@ export function usePhysicsLabGame({ levelId = 'physics_lab_level_1' } = {}) {
     };
   }
 
+  function resetAttempt() {
+    setLastAttempt(null);
+    timerApi.restart();
+  }
+
   return {
     ...sessionApi,
     ...timerApi,
@@ -91,6 +96,7 @@ export function usePhysicsLabGame({ levelId = 'physics_lab_level_1' } = {}) {
     updateParam,
     startLevel,
     runAttempt,
+    resetAttempt,
     finishLevel,
   };
 }

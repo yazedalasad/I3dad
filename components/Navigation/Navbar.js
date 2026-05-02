@@ -1,15 +1,31 @@
 import { FontAwesome } from '@expo/vector-icons';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
 import { useAuth } from '../../contexts/AuthContext';
 
-export default function Navbar({ activeTab, onTabPress }) {
-  const { t } = useTranslation();
-  const { user } = useAuth();
+export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBackPress }) {
+  const { t, i18n } = useTranslation();
+  const { user, signOut } = useAuth();
+  const [accountExpanded, setAccountExpanded] = useState(false);
+  const isRTL =
+    String(i18n.language || '').toLowerCase().startsWith('ar') ||
+    String(i18n.language || '').toLowerCase().startsWith('he');
 
   const label = (key, fallback) => {
-    const v = t(key);
-    return typeof v === 'string' && v !== key ? v : fallback;
+    const value = t(key);
+    return typeof value === 'string' && value !== key ? value : fallback;
+  };
+
+  const doSignOut = async () => {
+    await signOut?.();
+    setAccountExpanded(false);
+    onTabPress?.('home');
+  };
+
+  const handleSignOut = () => {
+    doSignOut();
   };
 
   const tabs = user
@@ -17,8 +33,9 @@ export default function Navbar({ activeTab, onTabPress }) {
         { id: 'home', icon: 'home' },
         { id: 'successStories', icon: 'star' },
         { id: 'activities', icon: 'calendar-check-o' },
-        { id: 'adaptiveTest', icon: 'edit' }, // ✅ كان accountant — خليها test عشان تطابق keys
-        { id: 'profile', icon: 'user' },
+        { id: 'games', icon: 'gamepad' },
+        { id: 'universitiesAndColleges', icon: 'university' },
+        { id: 'adaptiveTest', icon: 'edit' },
       ]
     : [
         { id: 'home', icon: 'home' },
@@ -30,48 +47,286 @@ export default function Navbar({ activeTab, onTabPress }) {
 
   return (
     <View style={styles.container}>
-      {tabs.map((tab) => (
+      <View style={[styles.topRow, isRTL && styles.topRowRtl]}>
         <TouchableOpacity
-          key={tab.id}
-          style={styles.tab}
-          onPress={() => onTabPress(tab.id)}
+          style={[styles.backButton, !canGoBack && styles.backButtonHidden]}
+          onPress={onBackPress}
+          disabled={!canGoBack}
+          activeOpacity={0.9}
         >
           <FontAwesome
-            name={tab.icon}
-            size={24}
-            color={activeTab === tab.id ? '#27ae60' : '#94A3B8'}
+            name={isRTL ? 'arrow-right' : 'arrow-left'}
+            size={18}
+            color={canGoBack ? '#0f172a' : 'transparent'}
           />
-          <Text style={[styles.label, activeTab === tab.id && styles.activeLabel]}>
-            {label(`navigation:tabs.${tab.id}`, tab.id)}
+          <Text style={[styles.backLabel, !canGoBack && styles.backLabelHidden]}>
+            {label('common.back', 'Back')}
           </Text>
         </TouchableOpacity>
-      ))}
+      </View>
+
+      <View style={[styles.shell, isRTL && styles.shellRtl]}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.tab, isActive && styles.activeTab]}
+              onPress={() => onTabPress(tab.id)}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.iconWrap, isActive && styles.activeIconWrap]}>
+                <FontAwesome
+                  name={tab.icon}
+                  size={22}
+                  color={isActive ? '#16a34a' : '#94A3B8'}
+                />
+              </View>
+              <Text
+                numberOfLines={1}
+                style={[styles.label, isActive && styles.activeLabel, isRTL && styles.rtlLabel]}
+              >
+                {label(`navigation:tabs.${tab.id}`, tab.id)}
+              </Text>
+              {isActive ? <View style={styles.activeGlow} /> : null}
+            </TouchableOpacity>
+          );
+        })}
+        {user ? (
+          <View style={[styles.accountTab, accountExpanded && styles.accountTabExpanded]}>
+            <TouchableOpacity
+              style={[styles.accountTabMain, accountExpanded && styles.accountTabMainExpanded]}
+              onPress={() => setAccountExpanded((value) => !value)}
+              activeOpacity={0.9}
+            >
+              <View style={styles.accountIconWrap}>
+                <FontAwesome name="user-circle" size={22} color="#16a34a" />
+              </View>
+              <Text numberOfLines={1} style={[styles.label, styles.activeLabel, isRTL && styles.rtlLabel]}>
+                {label('navigation:tabs.profile', 'حسابي')}
+              </Text>
+              <View style={styles.activeGlow} />
+            </TouchableOpacity>
+
+            {accountExpanded ? (
+              <View style={styles.accountDropdown}>
+                <TouchableOpacity
+                  style={styles.accountDropdownItem}
+                  onPress={() => {
+                    setAccountExpanded(false);
+                    onTabPress?.('profile');
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <FontAwesome name="user" size={14} color="#0f766e" />
+                  <Text style={styles.accountDropdownText}>{label('navigation:tabs.profile', 'حسابي')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.accountDropdownItem, styles.accountDropdownDanger]}
+                  onPress={handleSignOut}
+                  activeOpacity={0.9}
+                >
+                  <FontAwesome name="sign-out" size={14} color="#dc2626" />
+                  <Text style={[styles.accountDropdownText, styles.accountDropdownDangerText]}>
+                    {label('common.logout', 'خروج')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingVertical: 10,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    justifyContent: 'space-around',
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 18,
+    backgroundColor: '#f8fbff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d9e6f5',
   },
-  tab: {
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 10,
+  },
+  topRowRtl: {
+    flexDirection: 'row-reverse',
+  },
+  backButton: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d7e2ef',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  backButtonHidden: {
+    opacity: 0,
+  },
+  backLabel: {
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '900',
+  },
+  backLabelHidden: {
+    color: 'transparent',
+  },
+  accountTab: {
+    position: 'relative',
     alignItems: 'center',
     flex: 1,
+    minHeight: 84,
+    justifyContent: 'flex-start',
+    borderRadius: 22,
+  },
+  accountTabExpanded: {
+    minHeight: 176,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  accountTabMain: {
+    position: 'relative',
+    alignItems: 'center',
+    width: '100%',
+    minHeight: 84,
+    justifyContent: 'center',
+    borderRadius: 22,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  accountTabMainExpanded: {
+    backgroundColor: '#f0fdf4',
+  },
+  accountIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  accountDropdown: {
+    width: '100%',
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+    gap: 7,
+  },
+  accountDropdownItem: {
+    minHeight: 36,
+    borderRadius: 13,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 8,
+  },
+  accountDropdownDanger: {
+    backgroundColor: '#fff1f2',
+    borderColor: '#fecdd3',
+  },
+  accountDropdownText: {
+    color: '#0f766e',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  accountDropdownDangerText: {
+    color: '#dc2626',
+  },
+  shell: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    gap: 10,
+    padding: 10,
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d7e2ef',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 7,
+  },
+  shellRtl: {
+    flexDirection: 'row-reverse',
+  },
+  tab: {
+    position: 'relative',
+    alignItems: 'center',
+    flex: 1,
+    minHeight: 84,
+    justifyContent: 'center',
+    borderRadius: 22,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  activeTab: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  iconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  activeIconWrap: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 3,
   },
   label: {
     fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 4,
+    color: '#64748b',
+    marginTop: 8,
     textAlign: 'center',
+    fontWeight: '800',
   },
   activeLabel: {
-    color: '#27ae60',
-    fontWeight: '600',
+    color: '#15803d',
+    fontWeight: '900',
+  },
+  rtlLabel: {
+    writingDirection: 'rtl',
+  },
+  activeGlow: {
+    position: 'absolute',
+    bottom: 6,
+    width: 30,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#22c55e',
   },
 });

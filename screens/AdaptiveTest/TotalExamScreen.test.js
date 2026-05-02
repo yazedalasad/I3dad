@@ -1,6 +1,5 @@
 // screens/AdaptiveTest/TotalExamScreen.test.js
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Pressable } from 'react-native';
 
 /**
  * =========================================================
@@ -62,6 +61,12 @@ jest.mock('../../services/adaptiveTestService', () => ({
   },
 }));
 
+const mockUseAuth = jest.fn();
+jest.mock('../../contexts/AuthContext', () => ({
+  __esModule: true,
+  useAuth: (...args) => mockUseAuth(...args),
+}));
+
 /* -------------------- import AFTER mocks -------------------- */
 const TotalExamScreen = require('./TotalExamScreen').default;
 
@@ -101,14 +106,29 @@ async function waitScreenReady(utils) {
 
 /** Press the screen's single start Pressable */
 function pressStart(utils) {
-  const btn = utils.UNSAFE_getByType(Pressable);
-  fireEvent.press(btn);
+  fireEvent.press(utils.getByTestId('total-exam-start-button'));
 }
 
 /* -------------------- tests -------------------- */
 describe('TotalExamScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockUseAuth.mockReturnValue({
+      studentData: {
+        id: 'stu-auth',
+        first_name: 'Test',
+        last_name: 'Student',
+        school_name: 'School',
+        grade: 10,
+        birthday: '2007-05-19',
+        gender: 'male',
+      },
+      studentDataLoading: false,
+      studentId: 'stu-auth',
+      loading: false,
+      user: null,
+    });
 
     mockGetAllSubjects.mockResolvedValue({
       success: true,
@@ -215,7 +235,46 @@ describe('TotalExamScreen', () => {
     });
   });
 
+  it('start (positive): accepts profile aliases and does not require gender', async () => {
+    mockUseAuth.mockReturnValue({
+      studentData: {
+        id: 'stu-auth',
+        firstName: 'Test',
+        lastName: 'Student',
+        school: 'School',
+        grade_level: 10,
+        birth_date: '2007-05-19',
+      },
+      studentDataLoading: false,
+      studentId: 'stu-auth',
+      loading: false,
+      user: null,
+    });
+
+    const utils = render(<TotalExamScreen {...baseProps()} />);
+    await waitScreenReady(utils);
+
+    pressStart(utils);
+
+    await waitFor(() => {
+      expect(mockStartComprehensiveAssessment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          studentId: 'stu-1',
+          subjectIds: ['s1', 's2'],
+        })
+      );
+    });
+  });
+
   it('start (negative): if studentId missing, it does NOT call service and does NOT navigate', async () => {
+    mockUseAuth.mockReturnValue({
+      studentData: null,
+      studentDataLoading: false,
+      studentId: null,
+      loading: false,
+      user: null,
+    });
+
     const navigateTo = jest.fn();
 
     const utils = render(
@@ -226,10 +285,47 @@ describe('TotalExamScreen', () => {
     // Button is disabled when studentId is missing, but we still press to be safe.
     pressStart(utils);
 
+    expect(utils.queryByText(/ManualNavigator \+ AuthContext/)).toBeNull();
+    expect(
+      utils.getByText('تعذر العثور على ملف الطالب. سجل الدخول بحساب طالب صالح ثم جرب مرة أخرى.')
+    ).toBeTruthy();
+
     await waitFor(() => {
       expect(mockStartComprehensiveAssessment).not.toHaveBeenCalled();
       expect(navigateTo).not.toHaveBeenCalled();
     });
+  });
+
+  it('start (negative): if profile is incomplete, it asks the student to edit profile', async () => {
+    mockUseAuth.mockReturnValue({
+      studentData: {
+        id: 'stu-auth',
+        first_name: 'Test',
+        last_name: '',
+        school_name: '',
+        grade: '',
+        birthday: '',
+        gender: '',
+      },
+      studentDataLoading: false,
+      studentId: 'stu-auth',
+      loading: false,
+      user: null,
+    });
+
+    const navigateTo = jest.fn();
+    const utils = render(<TotalExamScreen {...baseProps({ navigateTo })} />);
+    await waitScreenReady(utils);
+
+    expect(utils.getByText('تعديل البروفايل')).toBeTruthy();
+    pressStart(utils);
+
+    await waitFor(() => {
+      expect(mockStartComprehensiveAssessment).not.toHaveBeenCalled();
+    });
+
+    fireEvent.press(utils.getByText('تعديل البروفايل'));
+    expect(navigateTo).toHaveBeenCalledWith('editProfile');
   });
 
   it('start (negative): if service returns success=false, it does NOT navigate', async () => {

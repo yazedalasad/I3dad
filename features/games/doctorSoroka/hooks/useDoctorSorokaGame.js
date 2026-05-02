@@ -4,7 +4,7 @@ import {
   useGameProgress,
   useGameSession,
   useGameTimer,
-} from '../shared';
+} from '../../shared';
 import { doctorSorokaLevels } from '../data/levels';
 import { getInitialScene, getSceneById, getNextSceneFromChoice, isLevelCompletedByChoice } from '../utils/caseEngine';
 import { computeDoctorSorokaSummary } from '../utils/diagnosticScoring';

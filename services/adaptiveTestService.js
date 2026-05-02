@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { buildBehaviorSignals } from '../features/games/shared/utils/gameAnalytics';
 
 /* -------------------------------------------------- */
 /* CONFIG                                              */
@@ -68,6 +69,153 @@ function normalizeLang(language) {
 
 function ensureArray(x) {
   return Array.isArray(x) ? x : [];
+}
+
+function paceBucket(seconds) {
+  const value = safeNum(seconds, 0);
+  if (value <= 0) return 'unknown';
+  if (value <= 8) return 'fast';
+  if (value <= 35) return 'steady';
+  if (value <= 60) return 'slow';
+  return 'very_slow';
+}
+
+function questionAnalysisMeta(question = {}) {
+  return {
+    questionId: question.id || null,
+    subjectId: question.subject_id || null,
+    difficulty: safeNum(question.difficulty, null),
+    cognitiveLevel: question.cognitive_level || null,
+    questionType: question.question_type || null,
+    targetLanguage: question.target_language || null,
+  };
+}
+
+function appendLimited(list, value, limit = 40) {
+  return [...ensureArray(list), value].slice(-limit);
+}
+
+function buildNextSubjectAnalysisMeta({ state, question, isCorrect, timeTakenSeconds, nextAnswered, nextCorrect }) {
+  const previousAnalysis = state.analysis || {};
+  const pace = paceBucket(timeTakenSeconds);
+  const previousPattern = ensureArray(previousAnalysis.answerPattern);
+  const previousPaceCounts = previousAnalysis.paceCounts || {};
+  const currentCorrectStreak = isCorrect ? safeNum(previousAnalysis.correctStreak, 0) + 1 : 0;
+  const currentWrongStreak = isCorrect ? 0 : safeNum(previousAnalysis.wrongStreak, 0) + 1;
+  const responseTimes = appendLimited(previousAnalysis.responseTimesSeconds, safeNum(timeTakenSeconds, 0));
+  const avgResponseSeconds = responseTimes.length
+    ? Math.round(responseTimes.reduce((sum, value) => sum + safeNum(value, 0), 0) / responseTimes.length)
+    : 0;
+
+  return {
+    ...previousAnalysis,
+    lastQuestion: questionAnalysisMeta(question),
+    lastPace: pace,
+    avgResponseSeconds,
+    responseTimesSeconds: responseTimes,
+    answerPattern: appendLimited(previousPattern, isCorrect ? 'correct' : 'wrong'),
+    difficultyTrail: appendLimited(previousAnalysis.difficultyTrail, safeNum(question.difficulty, null)),
+    paceCounts: {
+      ...previousPaceCounts,
+      [pace]: safeNum(previousPaceCounts[pace], 0) + 1,
+    },
+    correctStreak: currentCorrectStreak,
+    wrongStreak: currentWrongStreak,
+    recoveryAfterMistake:
+      isCorrect && previousPattern[previousPattern.length - 1] === 'wrong'
+        ? safeNum(previousAnalysis.recoveryAfterMistake, 0) + 1
+        : safeNum(previousAnalysis.recoveryAfterMistake, 0),
+    accuracy: nextAnswered ? Math.round((nextCorrect / nextAnswered) * 100) : 0,
+  };
+}
+
+function buildExamActionsFromResponses(responses = []) {
+  return (responses || []).map((response, index) => ({
+    sceneId: response?.questions?.subject_id || response?.subject_id || null,
+    choiceId: response?.question_id || `question_${index + 1}`,
+    actionType: 'answer',
+    timeToChooseMs: Math.max(0, safeNum(response?.time_taken_seconds, 0)) * 1000,
+    isOptimal: response?.is_correct === true,
+  }));
+}
+
+async function buildExamBehaviorSummary({ sessionId, totalTimeSpentSeconds, skippedCount = 0 }) {
+  const { data: responses, error } = await supabase
+    .from('student_responses')
+    .select('question_id, is_correct, time_taken_seconds, questions(subject_id,difficulty,cognitive_level,question_type)')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  const answerRows = responses || [];
+  const totalAnswers = answerRows.length;
+  const correctAnswers = answerRows.filter((response) => response?.is_correct === true).length;
+  const actions = buildExamActionsFromResponses(answerRows);
+  const totalTimeMs = Math.max(0, safeNum(totalTimeSpentSeconds, 0)) * 1000;
+  const activeTimeSeconds = answerRows.reduce(
+    (sum, response) => sum + Math.max(0, safeNum(response?.time_taken_seconds, 0)),
+    0
+  );
+  const idleTimeSeconds = Math.max(0, Math.floor(safeNum(totalTimeSpentSeconds, 0) - activeTimeSeconds));
+  const completionRate =
+    totalAnswers + safeNum(skippedCount, 0) > 0
+      ? totalAnswers / Math.max(1, totalAnswers + safeNum(skippedCount, 0))
+      : 1;
+
+  const behavior = buildBehaviorSignals({
+    actions,
+    totalAnswers,
+    correctAnswers,
+    totalTimeMs,
+    completionRate,
+  });
+  const subjectBreakdown = {};
+  answerRows.forEach((response) => {
+    const subjectId = response?.questions?.subject_id;
+    if (!subjectId) return;
+
+    const bucket = subjectBreakdown[subjectId] || {
+      subjectId,
+      answered: 0,
+      correct: 0,
+      totalTimeSeconds: 0,
+      difficultyTrail: [],
+      cognitiveLevels: {},
+      questionTypes: {},
+      paceCounts: {},
+    };
+    const seconds = Math.max(0, safeNum(response?.time_taken_seconds, 0));
+    const pace = paceBucket(seconds);
+    const cognitiveLevel = response?.questions?.cognitive_level || 'unknown';
+    const questionType = response?.questions?.question_type || 'unknown';
+
+    bucket.answered += 1;
+    bucket.correct += response?.is_correct === true ? 1 : 0;
+    bucket.totalTimeSeconds += seconds;
+    bucket.difficultyTrail = appendLimited(bucket.difficultyTrail, safeNum(response?.questions?.difficulty, null));
+    bucket.cognitiveLevels[cognitiveLevel] = safeNum(bucket.cognitiveLevels[cognitiveLevel], 0) + 1;
+    bucket.questionTypes[questionType] = safeNum(bucket.questionTypes[questionType], 0) + 1;
+    bucket.paceCounts[pace] = safeNum(bucket.paceCounts[pace], 0) + 1;
+    subjectBreakdown[subjectId] = bucket;
+  });
+
+  Object.values(subjectBreakdown).forEach((subject) => {
+    subject.accuracy = subject.answered ? Math.round((subject.correct / subject.answered) * 100) : 0;
+    subject.avgTimeSeconds = subject.answered ? Math.round(subject.totalTimeSeconds / subject.answered) : 0;
+  });
+
+  return {
+    behavior,
+    subjectBreakdown,
+    totalAnswers,
+    correctAnswers,
+    activeTimeSeconds: Math.floor(activeTimeSeconds),
+    idleTimeSeconds,
+    engagementScore: behavior.engagement,
+    understandingScore: behavior.understanding,
+    interestSignal: behavior.interest,
+  };
 }
 
 function resolveMinMax({ minQuestionsPerSubject, maxQuestionsPerSubject, questionsPerSubject }) {
@@ -408,6 +556,7 @@ export async function loadSubjectStatesFromDb({ sessionId }) {
         lastPickedQuestionId: meta.lastPickedQuestionId ?? null,
         lastTargetDifficulty: meta.lastTargetDifficulty ?? null,
         lastAnswerCorrect: meta.lastAnswerCorrect ?? null,
+        analysis: meta.analysis || {},
       };
     });
 
@@ -516,6 +665,19 @@ export async function getComprehensiveQuestion(sessionId, subjectStatesFromUi = 
 
       if (updErr) return { success: false, error: 'USED_IDS_UPDATE_FAILED: ' + updErr.message };
 
+      recordHeartbeat({
+        sessionId,
+        studentId: session.student_id,
+        eventType: 'question_presented',
+        metadata: {
+          ...questionAnalysisMeta(question),
+          targetDifficulty: pick.targetDifficulty,
+          answeredCount: answered,
+          minQuestions: minQ,
+          maxQuestions: maxQ,
+        },
+      }).catch(() => {});
+
       return { success: true, question, subjectId: sid, subjectStates };
     }
 
@@ -570,6 +732,14 @@ export async function submitComprehensiveAnswer({
       minQ,
       maxQ,
     });
+    const nextAnalysis = buildNextSubjectAnalysisMeta({
+      state,
+      question,
+      isCorrect,
+      timeTakenSeconds,
+      nextAnswered,
+      nextCorrect,
+    });
 
     const nextState = {
       ...state,
@@ -581,6 +751,7 @@ export async function submitComprehensiveAnswer({
       confidence: stop.stats.confidence,
       // used by next question selection
       lastAnswerCorrect: isCorrect,
+      analysis: nextAnalysis,
     };
 
     // Insert response
@@ -616,6 +787,7 @@ export async function submitComprehensiveAnswer({
           lastPickedQuestionId: state.lastPickedQuestionId ?? null,
           lastTargetDifficulty: state.lastTargetDifficulty ?? null,
           lastAnswerCorrect: isCorrect,
+          analysis: nextAnalysis,
         },
       })
       .eq('session_id', sessionId)
@@ -627,7 +799,20 @@ export async function submitComprehensiveAnswer({
       sessionId,
       studentId,
       eventType: 'answer',
-      metadata: { subjectId, isCorrect, timeTakenSeconds },
+      metadata: {
+        ...questionAnalysisMeta(question),
+        isCorrect,
+        timeTakenSeconds,
+        pace: nextAnalysis.lastPace,
+        selectedAnswer,
+        correctAnswer: question.correct_answer,
+        answeredCount: nextAnswered,
+        correctCount: nextCorrect,
+        accuracy: nextAnalysis.accuracy,
+        correctStreak: nextAnalysis.correctStreak,
+        wrongStreak: nextAnalysis.wrongStreak,
+        recoveryAfterMistake: nextAnalysis.recoveryAfterMistake,
+      },
     });
 
     const mergedStates = {
@@ -654,18 +839,48 @@ export async function completeComprehensiveAssessment({
   language,
 }) {
   try {
+    let behaviorSummary = {
+      behavior: null,
+      totalAnswers: 0,
+      correctAnswers: 0,
+      activeTimeSeconds: 0,
+      idleTimeSeconds: 0,
+      engagementScore: 50,
+      understandingScore: 0,
+      interestSignal: 50,
+    };
+
+    try {
+      behaviorSummary = await buildExamBehaviorSummary({
+        sessionId,
+        totalTimeSpentSeconds,
+        skippedCount,
+      });
+    } catch (_error) {
+      // Finish the exam even if behavioral enrichment cannot be calculated.
+    }
+
     const { error } = await supabase
       .from('test_sessions')
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
         total_time_seconds: Math.max(0, Math.floor(safeNum(totalTimeSpentSeconds, 0))),
+        active_time_seconds: behaviorSummary.activeTimeSeconds,
+        idle_time_seconds: behaviorSummary.idleTimeSeconds,
+        engagement_score: behaviorSummary.engagementScore,
         metadata: {
           ...(subjectStates ? { finalSubjectStates: subjectStates } : {}),
           totalTimeSpentSeconds,
           skippedCount,
           language: normalizeLang(language),
           examType: 'total_exam',
+          behaviorSignals: behaviorSummary.behavior,
+          subjectBehavior: behaviorSummary.subjectBreakdown,
+          understandingScore: behaviorSummary.understandingScore,
+          interestSignal: behaviorSummary.interestSignal,
+          totalAnswers: behaviorSummary.totalAnswers,
+          correctAnswers: behaviorSummary.correctAnswers,
         },
       })
       .eq('id', sessionId);

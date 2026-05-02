@@ -1,6 +1,6 @@
 import { buildActionLogPayload } from '../utils/gameSessionPayloads';
 import { validateActionLogInput } from '../utils/gameValidation';
-import { supabase } from '../config/supabase';
+import { supabase } from '../../../../config/supabase';
 
 export async function createGameActionLog(input) {
   validateActionLogInput(input);

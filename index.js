@@ -1,6 +1,10 @@
 import { registerRootComponent } from 'expo';
+import { Platform } from 'react-native';
 import App from './App';
-import './app.web.css';
+
+if (Platform.OS === 'web') {
+  require('./app.web.css');
+}
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 // It also ensures that whether you load the app in Expo Go or in a native build,

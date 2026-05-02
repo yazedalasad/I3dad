@@ -4,7 +4,9 @@
 This directory contains the database schema for the IRT-based Computerized Adaptive Testing (CAT) system.
 
 ## Files
-- `schema.sql` - Complete database schema with 8 tables
+- `schema.sql` - Core adaptive testing schema
+- `institutions_schema.sql` - Universities, colleges, programs, and major matching tables
+- `institutions_seed.sql` - Basic seed data for key Israeli universities and colleges
 - `seedData.js` - Sample data seeding script (to be implemented)
 
 ## Database Tables
@@ -26,8 +28,10 @@ This directory contains the database schema for the IRT-based Computerized Adapt
 ### Option 1: Supabase Dashboard (Recommended)
 1. Go to your Supabase project dashboard
 2. Navigate to **SQL Editor**
-3. Copy the contents of `schema.sql`
-4. Click **Run** to execute the schema
+3. Run `schema.sql`
+4. Run `institutions_schema.sql`
+5. Run `institutions_seed.sql`
+6. Click **Run** after each file
 
 ### Option 2: Supabase CLI
 ```bash
@@ -47,6 +51,8 @@ supabase db push
 ### Option 3: Direct SQL Execution
 ```bash
 psql -h your-db-host -U postgres -d postgres -f database/schema.sql
+psql -h your-db-host -U postgres -d postgres -f database/institutions_schema.sql
+psql -h your-db-host -U postgres -d postgres -f database/institutions_seed.sql
 ```
 
 ## IRT Parameters Explanation

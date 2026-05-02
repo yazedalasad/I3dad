@@ -1,12 +1,13 @@
+function stripArabicDiacritics(value = '') {
+  return String(value).replace(/[\u064B-\u0652\u0670\u0640]/g, '');
+}
+
 export function normalizeArabic(value = '') {
-  return String(value)
+  return stripArabicDiacritics(value)
     .trim()
-    .replace(/[ًٌٍَُِّْـ]/g, '')
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(/ة/g, 'ه');
+    .replace(/[\u0623\u0625\u0622]/g, '\u0627')
+    .replace(/\u0624/g, '\u0648')
+    .replace(/\u0626/g, '\u064A');
 }
 
 export function normalizeArabicLoose(value = '') {
@@ -15,4 +16,13 @@ export function normalizeArabicLoose(value = '') {
 
 export function answersMatch(userAnswer = '', correctAnswer = '') {
   return normalizeArabicLoose(userAnswer) === normalizeArabicLoose(correctAnswer);
+}
+
+export function answersMatchReversed(userAnswer = '', correctAnswer = '') {
+  const normalizedUserAnswer = normalizeArabicLoose(userAnswer);
+  const normalizedCorrectAnswer = normalizeArabicLoose(correctAnswer);
+
+  if (!normalizedUserAnswer || !normalizedCorrectAnswer) return false;
+
+  return Array.from(normalizedUserAnswer).reverse().join('') === normalizedCorrectAnswer;
 }

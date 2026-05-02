@@ -1,39 +1,31 @@
-// components/Navigation/Navbar.test.js
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+
 import Navbar from './Navbar';
 
-/* ------------------------------------------------
-   Mocks
------------------------------------------------- */
-
-// Auth
 jest.mock('../../contexts/AuthContext', () => ({
   __esModule: true,
   useAuth: jest.fn(),
 }));
 
-/**
- * i18n
- * Navbar calls:
- *   t(`navigation:tabs.${tab.id}`)
- * and if t returns the key, it falls back to tab.id.
- *
- * Our test expects Arabic labels, so we MUST return Arabic values here.
- */
 jest.mock('react-i18next', () => ({
   __esModule: true,
   useTranslation: () => ({
-    t: (k) => {
+    t: (key) => {
       const map = {
         'navigation:tabs.home': 'الرئيسية',
         'navigation:tabs.successStories': 'قصص النجاح',
         'navigation:tabs.activities': 'الأنشطة',
         'navigation:tabs.about': 'عن إعداد',
         'navigation:tabs.login': 'تسجيل الدخول',
-        'navigation:tabs.test': 'الاختبار',
+        'navigation:tabs.adaptiveTest': 'امتحان',
         'navigation:tabs.profile': 'حسابي',
+        'common.back': 'رجوع',
+        'common.logout': 'خروج',
+        'common.logoutConfirm': 'هل تريد الخروج من الحساب؟',
+        'common.cancel': 'إلغاء',
       };
-      return map[k] ?? k;
+      return map[key] ?? key;
     },
     i18n: {
       language: 'ar',
@@ -42,7 +34,6 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-// Icons
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
@@ -58,61 +49,45 @@ describe('Navbar', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
-  /* --------------------------------
-     LOGGED OUT USER
-  -------------------------------- */
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   test('renders correct tabs when user is logged out', () => {
-    useAuth.mockReturnValue({ user: null });
+    useAuth.mockReturnValue({ user: null, signOut: jest.fn() });
 
     const { getByText, queryByText } = render(
       <Navbar activeTab="home" onTabPress={onTabPress} />
     );
 
-    // Common (logged out)
     expect(getByText('الرئيسية')).toBeTruthy();
     expect(getByText('قصص النجاح')).toBeTruthy();
     expect(getByText('الأنشطة')).toBeTruthy();
-
-    // Logged-out specific
     expect(getByText('عن إعداد')).toBeTruthy();
     expect(getByText('تسجيل الدخول')).toBeTruthy();
-
-    // Logged-in only tabs should NOT exist
     expect(queryByText('حسابي')).toBeNull();
-    expect(queryByText('الاختبار')).toBeNull();
+    expect(queryByText('خروج')).toBeNull();
   });
 
-  /* --------------------------------
-     LOGGED IN USER
-  -------------------------------- */
-  test('renders correct tabs when user is logged in', () => {
-    useAuth.mockReturnValue({ user: { id: 'u1' } });
+  test('renders compact account switcher when user is logged in', () => {
+    useAuth.mockReturnValue({ user: { id: 'u1' }, signOut: jest.fn() });
 
-    const { getByText, queryByText } = render(
+    const { getAllByText, getByText, queryByText } = render(
       <Navbar activeTab="home" onTabPress={onTabPress} />
     );
 
-    // Common (logged in)
     expect(getByText('الرئيسية')).toBeTruthy();
-    expect(getByText('قصص النجاح')).toBeTruthy();
-    expect(getByText('الأنشطة')).toBeTruthy();
-
-    // Logged-in specific
-    
-    expect(getByText('حسابي')).toBeTruthy();
-
-    // Logged-out only tabs should NOT exist
+    expect(getAllByText('حسابي').length).toBeGreaterThan(0);
+    expect(queryByText('خروج')).toBeNull();
     expect(queryByText('عن إعداد')).toBeNull();
     expect(queryByText('تسجيل الدخول')).toBeNull();
   });
 
-  /* --------------------------------
-     INTERACTION
-  -------------------------------- */
   test('pressing a tab calls onTabPress with tab id', () => {
-    useAuth.mockReturnValue({ user: null });
+    useAuth.mockReturnValue({ user: null, signOut: jest.fn() });
 
     const { getByText } = render(
       <Navbar activeTab="home" onTabPress={onTabPress} />
@@ -125,19 +100,46 @@ describe('Navbar', () => {
     expect(onTabPress).toHaveBeenCalledWith('login');
   });
 
-  /* --------------------------------
-     ACTIVE TAB STABILITY
-  -------------------------------- */
-  test('does not crash when activeTab changes', () => {
-    useAuth.mockReturnValue({ user: { id: 'u1' } });
+  test('account switcher expands, then profile button navigates to profile', () => {
+    useAuth.mockReturnValue({ user: { id: 'u1' }, signOut: jest.fn() });
 
-    const { getByText, rerender } = render(
+    const { getAllByText, getByText } = render(
+      <Navbar activeTab="home" onTabPress={onTabPress} />
+    );
+
+    fireEvent.press(getAllByText('حسابي')[0]);
+    expect(getByText('خروج')).toBeTruthy();
+
+    fireEvent.press(getAllByText('حسابي')[1]);
+    expect(onTabPress).toHaveBeenCalledWith('profile');
+  });
+
+  test('expanded logout signs out immediately', async () => {
+    const signOut = jest.fn().mockResolvedValueOnce(undefined);
+    useAuth.mockReturnValue({ user: { id: 'u1' }, signOut });
+
+    const { getAllByText, getByText } = render(
+      <Navbar activeTab="home" onTabPress={onTabPress} />
+    );
+
+    fireEvent.press(getAllByText('حسابي')[0]);
+    fireEvent.press(getByText('خروج'));
+    await waitFor(() => {
+      expect(signOut).toHaveBeenCalled();
+      expect(onTabPress).toHaveBeenCalledWith('home');
+    });
+  });
+
+  test('does not crash when activeTab changes', () => {
+    useAuth.mockReturnValue({ user: { id: 'u1' }, signOut: jest.fn() });
+
+    const { getAllByText, getByText, rerender } = render(
       <Navbar activeTab="home" onTabPress={onTabPress} />
     );
 
     expect(getByText('الرئيسية')).toBeTruthy();
 
     rerender(<Navbar activeTab="profile" onTabPress={onTabPress} />);
-    expect(getByText('حسابي')).toBeTruthy();
+    expect(getAllByText('حسابي').length).toBeGreaterThan(0);
   });
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { GameCard, SectionTitle } from '../shared';
+import { GameCard, SectionTitle } from '../../shared';
 
 export default function PatientInfoCard({ title, body }) {
   return (

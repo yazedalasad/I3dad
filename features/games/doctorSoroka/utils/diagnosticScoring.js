@@ -1,4 +1,4 @@
-import { buildSessionAnalytics } from '../shared';
+import { buildSessionAnalytics } from '../../shared';
 
 export function computeDoctorSorokaSummary({
   rawScores = {},

@@ -206,14 +206,14 @@ describe('SignupScreen', () => {
    * ========================= */
 
   it('step1 (positive): renders personal info title and Next button', async () => {
-    const { getByText } = renderScreen();
+    const { getByText, getByLabelText } = renderScreen();
 
     expect(getByText('auth.signup.personalInfo')).toBeTruthy();
     expect(getByText('common.next')).toBeTruthy();
   });
 
   it('step1 -> step2 (positive): clicking Next with valid step1 moves to step2', async () => {
-    const { getByText } = renderScreen();
+    const { getByText, getByLabelText } = renderScreen();
 
     fireEvent.press(getByText('common.next'));
 
@@ -265,11 +265,12 @@ describe('SignupScreen', () => {
   });
 
   it('step2 -> step3 (positive): Next with valid step2 moves to step3', async () => {
-    const { getByText } = renderScreen();
+    const { getByText, getByLabelText } = renderScreen();
 
     fireEvent.press(getByText('common.next')); // step2
     await waitFor(() => expect(getByText('auth.signup.contactInfo')).toBeTruthy());
 
+    fireEvent.press(getByLabelText('picker:الشعبة'));
     fireEvent.press(getByText('common.next')); // step3
     await waitFor(() => expect(getByText('auth.signup.accountInfo')).toBeTruthy());
   });
@@ -295,11 +296,12 @@ describe('SignupScreen', () => {
    * ========================= */
 
   it('signup (positive): create account success -> navigates to login and shows success alert after 500ms', async () => {
-    const { getByText, navigateTo } = renderScreen();
+    const { getByText, getByLabelText, navigateTo } = renderScreen();
 
     fireEvent.press(getByText('common.next')); // step2
     await waitFor(() => expect(getByText('auth.signup.contactInfo')).toBeTruthy());
 
+    fireEvent.press(getByLabelText('picker:الشعبة'));
     fireEvent.press(getByText('common.next')); // step3
     await waitFor(() => expect(getByText('auth.signup.accountInfo')).toBeTruthy());
 
@@ -328,11 +330,12 @@ describe('SignupScreen', () => {
       error: { message: 'already registered' },
     });
 
-    const { getByText } = renderScreen();
+    const { getByText, getByLabelText } = renderScreen();
 
     fireEvent.press(getByText('common.next')); // step2
     await waitFor(() => expect(getByText('auth.signup.contactInfo')).toBeTruthy());
 
+    fireEvent.press(getByLabelText('picker:الشعبة'));
     fireEvent.press(getByText('common.next')); // step3
     await waitFor(() => expect(getByText('auth.signup.accountInfo')).toBeTruthy());
 
@@ -346,11 +349,12 @@ describe('SignupScreen', () => {
   it('signup (negative): invalid password step3 -> does NOT call signUp', async () => {
     mockValidatePassword.mockReturnValueOnce({ isValid: false, error: 'weak' });
 
-    const { getByText } = renderScreen();
+    const { getByText, getByLabelText } = renderScreen();
 
     fireEvent.press(getByText('common.next')); // step2
     await waitFor(() => expect(getByText('auth.signup.contactInfo')).toBeTruthy());
 
+    fireEvent.press(getByLabelText('picker:الشعبة'));
     fireEvent.press(getByText('common.next')); // step3
     await waitFor(() => expect(getByText('auth.signup.accountInfo')).toBeTruthy());
 

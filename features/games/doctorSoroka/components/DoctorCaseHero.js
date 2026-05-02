@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { GameCard, SceneImage } from '../shared';
+import { GameCard, SceneImage } from '../../shared';
 
 export default function DoctorCaseHero({ image, title, subtitle }) {
   return (

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { createGameSession, updateGameSession } from '../services/gameSessionService';
 import { createGameActionLog } from '../services/gameActionLogService';
 import {
@@ -18,6 +18,10 @@ export function useGameSession() {
   const [totalAnswers, setTotalAnswers] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const scoresRef = useRef(createEmptyScores());
+  const actionsRef = useRef([]);
+  const correctAnswersRef = useRef(0);
+  const totalAnswersRef = useRef(0);
 
   const resetLocalState = useCallback(() => {
     setSession(null);
@@ -26,6 +30,10 @@ export function useGameSession() {
     setCorrectAnswers(0);
     setTotalAnswers(0);
     setError(null);
+    scoresRef.current = createEmptyScores();
+    actionsRef.current = [];
+    correctAnswersRef.current = 0;
+    totalAnswersRef.current = 0;
   }, []);
 
   const startSession = useCallback(async ({
@@ -52,6 +60,10 @@ export function useGameSession() {
       setActions([]);
       setCorrectAnswers(0);
       setTotalAnswers(0);
+      scoresRef.current = createEmptyScores();
+      actionsRef.current = [];
+      correctAnswersRef.current = 0;
+      totalAnswersRef.current = 0;
 
       return created;
     } catch (err) {
@@ -76,7 +88,8 @@ export function useGameSession() {
       throw new Error('No active session');
     }
 
-    const updatedScores = applySubjectWeights(scores, subjectWeights);
+    const updatedScores = applySubjectWeights(scoresRef.current, subjectWeights);
+    scoresRef.current = updatedScores;
     setScores(updatedScores);
 
     const actionRecord = {
@@ -89,22 +102,25 @@ export function useGameSession() {
     };
 
     await createGameActionLog(actionRecord);
-    setActions((prev) => [...prev, actionRecord]);
+    actionsRef.current = [...actionsRef.current, actionRecord];
+    setActions(actionsRef.current);
 
     if (isAnswer) {
-      setTotalAnswers((prev) => prev + 1);
+      totalAnswersRef.current += 1;
+      setTotalAnswers(totalAnswersRef.current);
       if (isCorrect) {
-        setCorrectAnswers((prev) => prev + 1);
+        correctAnswersRef.current += 1;
+        setCorrectAnswers(correctAnswersRef.current);
       }
     }
 
     return updatedScores;
-  }, [scores, session?.id]);
+  }, [session?.id]);
 
   const completeSession = useCallback(async ({
     currentSceneId,
     totalTimeMs = 0,
-    trustScore = 0,
+    trustScore = undefined,
     hebrewScore = undefined,
     medicalReasoningScore = undefined,
   } = {}) => {
@@ -113,9 +129,9 @@ export function useGameSession() {
     }
 
     const averageDecisionTimeMs =
-      actions.length > 0
+      actionsRef.current.length > 0
         ? Math.round(
-            actions
+            actionsRef.current
               .map((item) => item.timeToChooseMs)
               .filter((item) => typeof item === 'number')
               .reduce((sum, value, _, arr) => sum + value / arr.length, 0)
@@ -124,25 +140,34 @@ export function useGameSession() {
 
     const completionRate = 1;
     const engagementScore = estimateEngagementScore({
-      actionsCount: actions.length,
+      actionsCount: actionsRef.current.length,
       completionRate,
       averageDecisionTimeMs,
     });
 
     const analytics = buildSessionAnalytics({
-      rawScores: scores,
-      totalAnswers,
-      correctAnswers,
+      rawScores: scoresRef.current,
+      totalAnswers: totalAnswersRef.current,
+      correctAnswers: correctAnswersRef.current,
       totalTimeMs,
+      actions: actionsRef.current,
+      completionRate,
     });
+    const finalEngagementScore = Math.round(
+      Math.max(engagementScore, analytics.behavior?.engagement || 0)
+    );
+    const finalTrustScore =
+      typeof trustScore === 'number'
+        ? trustScore
+        : Math.round(analytics.behavior?.understanding || analytics.accuracy || 0);
 
     const updated = await updateGameSession(session.id, {
       status: 'completed',
       currentSceneId,
       endedAt: new Date().toISOString(),
       interestSignal: analytics.interestSignal,
-      engagementScore,
-      trustScore,
+      engagementScore: finalEngagementScore,
+      trustScore: finalTrustScore,
       hebrewScore,
       medicalReasoningScore,
     });
@@ -155,10 +180,11 @@ export function useGameSession() {
       topSubjects: analytics.topSubjects,
       analytics: {
         ...analytics,
-        engagementScore,
+        engagementScore: finalEngagementScore,
+        trustScore: finalTrustScore,
       },
     };
-  }, [actions, correctAnswers, scores, session?.id, totalAnswers]);
+  }, [session?.id]);
 
   const abandonSession = useCallback(async ({ currentSceneId } = {}) => {
     if (!session?.id) {

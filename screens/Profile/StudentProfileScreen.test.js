@@ -5,6 +5,10 @@ jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock('../../services/studentJourneyService', () => ({
+  getStudentJourneySnapshot: jest.fn(),
+}));
+
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
@@ -12,11 +16,13 @@ jest.mock('@expo/vector-icons', () => {
 });
 
 const { useAuth } = require('../../contexts/AuthContext');
+const { getStudentJourneySnapshot } = require('../../services/studentJourneyService');
 
 describe('StudentProfileScreen', () => {
   const navigateTo = jest.fn();
 
   test('renders student name and stats', () => {
+    getStudentJourneySnapshot.mockResolvedValue({ success: true, data: {} });
     useAuth.mockReturnValue({
       user: { email: 'a@test.com' },
       studentData: { first_name: 'Ali', last_name: 'Ahmad', points: 10 },
@@ -32,6 +38,7 @@ describe('StudentProfileScreen', () => {
   });
 
   test('navigate to edit profile', () => {
+    getStudentJourneySnapshot.mockResolvedValue({ success: true, data: {} });
     useAuth.mockReturnValue({
       user: {},
       studentData: {},

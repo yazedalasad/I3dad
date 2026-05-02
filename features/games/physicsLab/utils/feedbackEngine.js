@@ -9,16 +9,16 @@ export function getAttemptFeedback(level, attempt) {
 
   if (level.id === 'physics_lab_level_1') {
     if (attempt.undershoot) {
-      return { title: 'Too weak', body: 'The box stopped before the goal. Increase force or reduce friction.', tone: 'warning' };
+      return { title: 'Too slow', body: 'The ball reached the goal in more than 5 s. Increase speed a little.', tone: 'warning' };
     }
-    return { title: 'Too strong', body: 'The box slid past the goal. Lower the force for better control.', tone: 'warning' };
+    return { title: 'Too fast', body: 'The ball reached the goal in less than 5 s. Lower the speed a little.', tone: 'warning' };
   }
 
   if (level.id === 'physics_lab_level_2') {
     if (attempt.undershoot) {
-      return { title: 'Not enough speed', body: 'The ball did not travel far enough to clear the gap and reach the target.', tone: 'warning' };
+      return { title: 'Too weak', body: 'The box stopped before the goal. Increase force or reduce friction.', tone: 'warning' };
     }
-    return { title: 'Too fast', body: 'The ball flew too far. Lower the speed or adjust the angle.', tone: 'warning' };
+    return { title: 'Too strong', body: 'The box slid past the goal. Lower the force or increase friction.', tone: 'warning' };
   }
 
   if (level.id === 'physics_lab_level_3') {

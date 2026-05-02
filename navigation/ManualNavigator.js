@@ -16,22 +16,59 @@ import TotalExamScreen from '../screens/AdaptiveTest/TotalExamScreen';
 
 import ChangePasswordScreen from '../screens/Auth/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
-import LoginScreen from '../screens/Auth/LoginScreen';
+import LoginScreen from '../screens/Auth/LoginScreen.js';
+import PrincipalAcceptInviteScreen from '../screens/Auth/PrincipalAcceptInviteScreen';
+import PrincipalOnboardingScreen from '../screens/Auth/PrincipalOnboardingScreen';
 import PrincipalSetPasswordScreen from '../screens/Auth/PrincipalSetPasswordScreen';
 import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
 import RoleRouterScreen from '../screens/Auth/RoleRouterScreen';
 import SignupScreen from '../screens/Auth/SignupScreen';
 import VerifyCodeScreen from '../screens/Auth/VerifyCodeScreen';
 
-import AdminDashboardScreen from '../screens/Dashboard/AdminDashboardScreen';
-import PrincipalDashboardScreen from '../screens/Dashboard/PrincipalDashboardScreen';
+import AdminDashboardScreen from '../screens/dashboard/AdminDashboardScreen';
+import AdminAuditLogScreen from '../screens/dashboard/AdminAuditLogScreen';
+import AdminGamesScreen from '../screens/dashboard/AdminGamesScreen';
+import AdminInstitutionsScreen from '../screens/dashboard/AdminInstitutionsScreen';
+import AdminManagementScreen from '../screens/dashboard/AdminManagementScreen';
+import AdminManagersScreen from '../screens/dashboard/AdminManagersScreen';
+import AdminQuestionFormScreen from '../screens/dashboard/AdminQuestionFormScreen';
+import AdminQuestionsScreen from '../screens/dashboard/AdminQuestionsScreen';
+import AdminReportsScreen from '../screens/dashboard/AdminReportsScreen';
+import AdminRolesScreen from '../screens/dashboard/AdminRolesScreen';
+import AdminSchoolsScreen from '../screens/dashboard/AdminSchoolsScreen';
+import AdminSettingsScreen from '../screens/dashboard/AdminSettingsScreen';
+import AdminStudentDetailsScreen from '../screens/dashboard/AdminStudentDetailsScreen';
+import AdminStudentsScreen from '../screens/dashboard/AdminStudentsScreen';
+import AdminSubjectsScreen from '../screens/dashboard/AdminSubjectsScreen';
+import AdminTestSessionsScreen from '../screens/dashboard/AdminTestSessionsScreen';
+import AdminTranslationsScreen from '../screens/dashboard/AdminTranslationsScreen';
+import AssessmentsTrackingScreen from '../screens/dashboard/AssessmentsTrackingScreen';
+import ClassesAnalyticsScreen from '../screens/dashboard/ClassesAnalyticsScreen';
+import ExportReportsScreen from '../screens/dashboard/ExportReportsScreen';
+import GamesAnalyticsScreen from '../screens/dashboard/GamesAnalyticsScreen';
+import ManageQuestionsScreen from '../screens/dashboard/ManageQuestionsScreen';
+import MajorsAnalyticsScreen from '../screens/dashboard/MajorsAnalyticsScreen';
+import PrincipalActivitiesScreen from '../screens/dashboard/PrincipalActivitiesScreen';
+import PrincipalDashboardScreen from '../screens/dashboard/PrincipalDashboardScreen';
+import PrincipalProfileSettingsScreen from '../screens/dashboard/PrincipalProfileSettingsScreen';
+import PrincipalReportsScreen from '../screens/dashboard/PrincipalReportsScreen';
+import PrincipalStudentsScreen from '../screens/dashboard/PrincipalStudentsScreen';
+import SchoolStrengthsWeaknessesScreen from '../screens/dashboard/SchoolStrengthsWeaknessesScreen';
+import StudentReportDetailsScreen from '../screens/dashboard/StudentReportDetailsScreen';
 
 import HomeScreen from '../screens/Home/HomeScreen';
+import GamesScreen from '../screens/Games/GamesScreen';
 import SuccessStoriesScreen from '../screens/SuccessStories/SuccessStoriesScreen';
 
 import EditStudentProfileScreen from '../screens/Profile/EditStudentProfileScreen';
 import ExamHistoryScreen from '../screens/Profile/ExamHistoryScreen';
+import FinalReportScreen from '../screens/Profile/FinalReportScreen';
+import InstitutionDetailsScreen from '../screens/Profile/InstitutionDetailsScreen';
+import MajorDetailsScreen from '../screens/Profile/MajorDetailsScreen';
+import MiniTasksScreen from '../screens/Profile/MiniTasksScreen';
+import SkillsProfileScreen from '../screens/Profile/SkillsProfileScreen';
 import StudentProfileScreen from '../screens/Profile/StudentProfileScreen';
+import UniversitiesAndCollegesScreen from '../screens/Profile/UniversitiesAndCollegesPage.js';
 
 import StudentRecommendationsScreen from '../screens/Profile/StudentRecommendationsScreen';
 
@@ -39,19 +76,50 @@ import PersonalityResultsScreen from '../screens/AdaptiveTest/PersonalityResults
 import PersonalityTestScreen from '../screens/AdaptiveTest/PersonalityTestScreen';
 
 import StudentInsightReportScreen from '../screens/StudentInsightReport/StudentInsightReportScreen';
+import {
+  ArabicPoetPuzzleHomeScreen,
+  ArabicPoetPuzzleLevelScreen,
+  ArabicPoetPuzzleResultScreen,
+} from '../features/games/arabicPoetPuzzle';
+import {
+  DoctorSorokaCaseScreen,
+  DoctorSorokaHomeScreen,
+  DoctorSorokaSummaryScreen,
+} from '../features/games/doctorSoroka';
+import {
+  PhysicsLabHomeScreen,
+  PhysicsLabLevelScreen,
+  PhysicsLabResultScreen,
+} from '../features/games/physicsLab';
+import {
+  PhysicsBridgeGameScreen,
+  PhysicsBridgeLevelSelectScreen,
+} from '../features/games/physicsBridge';
 
 function normalizeLang(lng) {
   const s = String(lng || '').toLowerCase();
   return s.startsWith('he') ? 'he' : 'ar';
 }
 
+const NAVBAR_TAB_SCREENS = [
+  'home',
+  'successStories',
+  'activities',
+  'universitiesAndColleges',
+  'adaptiveTest',
+  'profile',
+  'about',
+  'login',
+];
+
 export default function ManualNavigator() {
-  const { user, loading, studentData } = useAuth();
+  const { user, loading, profile, studentData, studentDataLoading, studentId, studentIdentity } = useAuth();
   const { i18n } = useTranslation();
 
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
   const [screenParams, setScreenParams] = useState({});
+  const [historyStack, setHistoryStack] = useState([]);
 
   // ✅ Prevent loops: only route to roleRouter ONCE after login/signup
   const routedAfterLoginRef = useRef(false);
@@ -65,17 +133,23 @@ export default function ManualNavigator() {
       return;
     }
 
-    // Only if user is on login/signup, route one time
-    if ((currentScreen === 'login' || currentScreen === 'signup') && !routedAfterLoginRef.current) {
+    const role = String(user?.app_metadata?.role || user?.user_metadata?.role || profile?.role || '').toLowerCase();
+    const shouldRouteAfterAuth =
+      currentScreen === 'login' ||
+      (currentScreen === 'home' && ['admin', 'principal', 'school_admin'].includes(role));
+
+    // Only route once after an auth transition or an invited admin/principal callback.
+    if (shouldRouteAfterAuth && !routedAfterLoginRef.current) {
       routedAfterLoginRef.current = true;
-      navigateTo('roleRouter');
+      navigateTo('roleRouter', {}, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading, currentScreen]);
+  }, [user, loading, profile?.role, user?.app_metadata?.role, user?.user_metadata?.role, currentScreen]);
 
-  const navigateTo = (screen, params = {}) => {
+  const navigateTo = (screen, params = {}, options = {}) => {
     const currentLang = normalizeLang(i18n.language);
     const nextParams = { ...params };
+    const { replace = false, resetHistory = false } = options;
 
     if (!nextParams.language) {
       nextParams.language = currentLang;
@@ -83,28 +157,84 @@ export default function ManualNavigator() {
       nextParams.language = normalizeLang(nextParams.language);
     }
 
+    if (resetHistory) {
+      setHistoryStack([]);
+    } else if (replace) {
+      // Keep the stack as-is and swap the current screen.
+    } else if (screen !== currentScreen) {
+      setHistoryStack((prev) => [...prev, { screen: currentScreen, params: screenParams }]);
+    }
+
     setCurrentScreen(screen);
     setScreenParams(nextParams);
 
-    if (['home', 'adaptiveTest', 'profile', 'about'].includes(screen)) {
+    if (NAVBAR_TAB_SCREENS.includes(screen)) {
       setActiveTab(screen);
+    } else if (screen === 'games') {
+      setActiveTab('home');
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    if (url.pathname !== '/principal/accept-invite') return;
+
+    const token = url.searchParams.get('token') || '';
+    if (!token) return;
+
+    navigateTo('principalAcceptInvite', { token }, { replace: true, resetHistory: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ✅ MIN CHANGE: make navbar "adaptiveTest" behave like Home "Start Exam"
   const handleTabPress = (tabId) => {
     if (tabId === 'adaptiveTest') {
-      navigateTo(user ? 'adaptiveTest' : 'signup');
+      navigateTo(user ? 'adaptiveTest' : 'signup', {}, { resetHistory: true });
       return;
     }
 
     if (tabId === 'profile' && !user) {
-      navigateTo('login');
+      navigateTo('login', {}, { resetHistory: true });
       return;
     }
 
-    navigateTo(tabId);
+    if (tabId === 'universitiesAndColleges' && !user) {
+      navigateTo('login', {}, { resetHistory: true });
+      return;
+    }
+
+    navigateTo(tabId, {}, { resetHistory: true });
   };
+
+  const handleGoBack = () => {
+    setHistoryStack((prev) => {
+      if (!prev.length) return prev;
+
+      const nextHistory = [...prev];
+      const previousEntry = nextHistory.pop();
+
+      setCurrentScreen(previousEntry.screen);
+      setScreenParams(previousEntry.params || {});
+
+      if (NAVBAR_TAB_SCREENS.includes(previousEntry.screen)) {
+        setActiveTab(previousEntry.screen);
+      } else if (previousEntry.screen === 'games') {
+        setActiveTab('home');
+      }
+
+      return nextHistory;
+    });
+  };
+
+  const gameNavigation = {
+    navigate: (screen, params = {}) => navigateTo(screen, params),
+    replace: (screen, params = {}) => navigateTo(screen, params),
+  };
+
+  const gameRoute = { params: screenParams };
+  const resolvedStudentId = screenParams.studentId || studentId || studentData?.id || null;
 
   const renderScreen = () => {
     // Auth screens
@@ -133,6 +263,15 @@ export default function ManualNavigator() {
       return <PrincipalSetPasswordScreen navigateTo={navigateTo} />;
     }
 
+    if (currentScreen === 'principalAcceptInvite') {
+      return <PrincipalAcceptInviteScreen navigateTo={navigateTo} route={gameRoute} />;
+    }
+
+    if (currentScreen === 'principalOnboarding') {
+      if (!user) return <LoginScreen navigateTo={navigateTo} />;
+      return <PrincipalOnboardingScreen navigateTo={navigateTo} />;
+    }
+
     if (currentScreen === 'roleRouter') {
       return <RoleRouterScreen navigateTo={navigateTo} />;
     }
@@ -145,9 +284,115 @@ export default function ManualNavigator() {
       case 'about':
         return <AboutScreen navigateTo={navigateTo} />;
 
+      case 'games':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <GamesScreen navigateTo={navigateTo} />;
+
       case 'activities':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <ActivitiesScreen navigateTo={navigateTo} />;
+
+      case 'DoctorSorokaHome':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <DoctorSorokaHomeScreen
+            navigation={gameNavigation}
+            studentId={resolvedStudentId}
+          />
+        );
+
+      case 'DoctorSorokaCase':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <DoctorSorokaCaseScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+          />
+        );
+
+      case 'DoctorSorokaSummary':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <DoctorSorokaSummaryScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+          />
+        );
+
+      case 'PhysicsLabHome':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <PhysicsLabHomeScreen
+            navigation={gameNavigation}
+            studentId={resolvedStudentId}
+          />
+        );
+
+      case 'PhysicsLabLevel':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <PhysicsLabLevelScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+          />
+        );
+
+      case 'PhysicsLabResult':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <PhysicsLabResultScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+          />
+        );
+
+      case 'ArabicPoetPuzzleHome':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <ArabicPoetPuzzleHomeScreen
+            navigation={gameNavigation}
+            studentId={resolvedStudentId}
+          />
+        );
+
+      case 'ArabicPoetPuzzleLevel':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <ArabicPoetPuzzleLevelScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+          />
+        );
+
+      case 'ArabicPoetPuzzleResult':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <ArabicPoetPuzzleResultScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+          />
+        );
+
+      case 'physicsBridgeLevelSelect':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <PhysicsBridgeLevelSelectScreen
+            navigation={gameNavigation}
+            navigateTo={navigateTo}
+            studentId={resolvedStudentId}
+          />
+        );
+
+      case 'physicsBridgeGame':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <PhysicsBridgeGameScreen
+            navigation={gameNavigation}
+            route={gameRoute}
+            navigateTo={navigateTo}
+            studentId={resolvedStudentId}
+          />
+        );
 
       case 'successStories':
         return <SuccessStoriesScreen navigateTo={navigateTo} />;
@@ -157,12 +402,9 @@ export default function ManualNavigator() {
         return (
           <TotalExamScreen
             navigateTo={navigateTo}
-            studentId={studentData?.id}
-            studentName={
-              studentData
-                ? `${studentData.first_name || ''} ${studentData.last_name || ''}`.trim()
-                : 'طالب'
-            }
+            studentId={resolvedStudentId}
+            studentDataLoading={studentDataLoading}
+            studentName={studentIdentity?.fullName || 'Student'}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
@@ -173,7 +415,7 @@ export default function ManualNavigator() {
           <AdaptiveTestScreen
             navigateTo={navigateTo}
             sessionId={screenParams.sessionId}
-            studentId={screenParams.studentId}
+            studentId={resolvedStudentId}
             subjectStates={screenParams.subjectStates}
             subjectIds={screenParams.subjectIds}
             language={screenParams.language || normalizeLang(i18n.language)}
@@ -190,7 +432,7 @@ export default function ManualNavigator() {
             sessionId={screenParams.sessionId}
             subjectId={screenParams.subjectId}
             personalitySessionId={screenParams.personalitySessionId || null}
-            studentId={screenParams.studentId || studentData?.id}
+            studentId={resolvedStudentId}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
@@ -200,7 +442,7 @@ export default function ManualNavigator() {
         return (
           <PersonalityTestScreen
             navigateTo={navigateTo}
-            studentId={screenParams.studentId || studentData?.id}
+            studentId={resolvedStudentId}
             language={screenParams.language || normalizeLang(i18n.language)}
             abilitySessionId={screenParams.abilitySessionId || null}
             abilityJustFinished={!!screenParams.abilityJustFinished}
@@ -213,7 +455,7 @@ export default function ManualNavigator() {
         return (
           <PersonalityResultsScreen
             navigateTo={navigateTo}
-            studentId={screenParams.studentId || studentData?.id}
+            studentId={resolvedStudentId}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
@@ -223,7 +465,7 @@ export default function ManualNavigator() {
         return (
           <StudentInsightReportScreen
             navigateTo={navigateTo}
-            studentId={screenParams.studentId || studentData?.id}
+            studentId={resolvedStudentId}
             abilitySessionId={screenParams.abilitySessionId || screenParams.sessionId || null}
             personalitySessionId={screenParams.personalitySessionId || null}
             language={screenParams.language || normalizeLang(i18n.language)}
@@ -234,12 +476,131 @@ export default function ManualNavigator() {
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <AdminDashboardScreen navigateTo={navigateTo} />;
 
+      case 'adminManagement':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminManagementScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'adminStudents':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminStudentsScreen navigateTo={navigateTo} />;
+
+      case 'adminStudentDetails':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminStudentDetailsScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'adminManagers':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminManagersScreen navigateTo={navigateTo} />;
+
+      case 'adminSchools':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminSchoolsScreen navigateTo={navigateTo} />;
+
+      case 'adminSubjects':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminSubjectsScreen navigateTo={navigateTo} />;
+
+      case 'adminQuestions':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminQuestionsScreen navigateTo={navigateTo} />;
+
+      case 'adminQuestionForm':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminQuestionFormScreen navigateTo={navigateTo} />;
+
+      case 'adminGames':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminGamesScreen navigateTo={navigateTo} />;
+
+      case 'adminTestSessions':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminTestSessionsScreen navigateTo={navigateTo} />;
+
+      case 'adminReports':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminReportsScreen navigateTo={navigateTo} />;
+
+      case 'adminInstitutions':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminInstitutionsScreen navigateTo={navigateTo} />;
+
+      case 'adminTranslations':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminTranslationsScreen navigateTo={navigateTo} />;
+
+      case 'adminRoles':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminRolesScreen navigateTo={navigateTo} />;
+
+      case 'adminAuditLog':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminAuditLogScreen navigateTo={navigateTo} />;
+
+      case 'adminSettings':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AdminSettingsScreen navigateTo={navigateTo} />;
+
+      case 'manageQuestions':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <ManageQuestionsScreen navigateTo={navigateTo} />;
+
+      case 'exportReports':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <ExportReportsScreen navigateTo={navigateTo} />;
+
       case 'principalDashboard':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <PrincipalDashboardScreen navigateTo={navigateTo} />;
 
+      case 'principalStudents':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <PrincipalStudentsScreen navigateTo={navigateTo} />;
+
+      case 'studentReportDetails':
+      case 'principalStudentDetails':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <StudentReportDetailsScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'classesAnalytics':
+      case 'principalClassAnalytics':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <ClassesAnalyticsScreen navigateTo={navigateTo} />;
+
+      case 'majorsAnalytics':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <MajorsAnalyticsScreen navigateTo={navigateTo} />;
+
+      case 'schoolStrengthsWeaknesses':
+      case 'principalStrengthsWeaknesses':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <SchoolStrengthsWeaknessesScreen navigateTo={navigateTo} />;
+
+      case 'assessmentsTracking':
+      case 'principalTestTracking':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <AssessmentsTrackingScreen navigateTo={navigateTo} />;
+
+      case 'gamesAnalytics':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <GamesAnalyticsScreen navigateTo={navigateTo} />;
+
+      case 'principalActivities':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <PrincipalActivitiesScreen navigateTo={navigateTo} />;
+
+      case 'principalReports':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <PrincipalReportsScreen navigateTo={navigateTo} />;
+
+      case 'principalProfileSettings':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <PrincipalProfileSettingsScreen navigateTo={navigateTo} />;
+
       case 'profile':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        if (!studentData?.id) {
+          return <EditStudentProfileScreen navigateTo={navigateTo} />;
+        }
         return <StudentProfileScreen navigateTo={navigateTo} />;
 
       case 'editProfile':
@@ -253,6 +614,37 @@ export default function ManualNavigator() {
       case 'recommendations':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
         return <StudentRecommendationsScreen navigateTo={navigateTo} />;
+
+      case 'skillsProfile':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <SkillsProfileScreen navigateTo={navigateTo} />;
+
+      case 'majorDetails':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <MajorDetailsScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'universitiesAndColleges':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <UniversitiesAndCollegesScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'institutionDetails':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <InstitutionDetailsScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'miniTasks':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return <MiniTasksScreen navigateTo={navigateTo} route={gameRoute} />;
+
+      case 'finalReport':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <FinalReportScreen
+            navigateTo={navigateTo}
+            studentId={resolvedStudentId}
+            studentName={studentIdentity?.fullName || 'Student'}
+            language={screenParams.language || normalizeLang(i18n.language)}
+          />
+        );
 
       default:
         return <HomeScreen navigateTo={navigateTo} />;
@@ -276,25 +668,81 @@ export default function ManualNavigator() {
     'resetPassword',
     'changePassword',
     'principalSetPassword',
-    'about',
+    'principalAcceptInvite',
+    'principalOnboarding',
     'roleRouter',
     'adminDashboard',
+    'adminManagement',
+    'adminStudents',
+    'adminStudentDetails',
+    'adminManagers',
+    'adminSchools',
+    'adminSubjects',
+    'adminQuestions',
+    'adminQuestionForm',
+    'adminGames',
+    'adminTestSessions',
+    'adminReports',
+    'adminInstitutions',
+    'adminTranslations',
+    'adminRoles',
+    'adminAuditLog',
+    'adminSettings',
     'principalDashboard',
+    'manageQuestions',
+    'exportReports',
+    'principalStudents',
+    'studentReportDetails',
+    'principalStudentDetails',
+    'classesAnalytics',
+    'principalClassAnalytics',
+    'majorsAnalytics',
+    'schoolStrengthsWeaknesses',
+    'principalStrengthsWeaknesses',
+    'assessmentsTracking',
+    'principalTestTracking',
+    'gamesAnalytics',
+    'principalActivities',
+    'principalReports',
+    'principalProfileSettings',
     'editProfile',
     'examHistory',
     'recommendations',
+    'skillsProfile',
+    'majorDetails',
+    'institutionDetails',
+    'miniTasks',
+    'finalReport',
     'startAdaptiveTest',
+    'DoctorSorokaHome',
+    'DoctorSorokaCase',
+    'DoctorSorokaSummary',
+    'PhysicsLabHome',
+    'PhysicsLabLevel',
+    'PhysicsLabResult',
+    'ArabicPoetPuzzleHome',
+    'ArabicPoetPuzzleLevel',
+    'ArabicPoetPuzzleResult',
+    'physicsBridgeLevelSelect',
+    'physicsBridgeGame',
     'personalityTest',
     'personalityResults',
     'testResults',
   ];
 
+  const isAdminScreen = String(currentScreen || '').startsWith('admin');
+
   return (
     <View style={styles.container}>
-      <FloatingLanguageSwitcher />
+      {!isAdminScreen && <FloatingLanguageSwitcher />}
 
       {!hideNavbarOn.includes(currentScreen) && (
-        <Navbar activeTab={activeTab} onTabPress={handleTabPress} />
+        <Navbar
+          activeTab={activeTab}
+          onTabPress={handleTabPress}
+          canGoBack={historyStack.length > 0}
+          onBackPress={handleGoBack}
+        />
       )}
 
       {renderScreen()}

@@ -16,12 +16,16 @@ export default function CustomTextInput({
   placeholderParams, // ✅ NEW: params for placeholder (optional)
 
   error,
+  success,
   icon,
   secureTextEntry,
   keyboardType = 'default',
   multiline = false,
   editable = true,
   maxLength,
+  suffixText,
+  containerStyle,
+  inputStyle,
 }) {
   const { t } = useTranslation();
 
@@ -43,22 +47,27 @@ export default function CustomTextInput({
         : '';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {(resolvedLabel || label) ? <Text style={styles.label}>{resolvedLabel || label}</Text> : null}
 
       <View
         style={[
           styles.inputContainer,
           isFocused && styles.inputContainerFocused,
+          success && styles.inputContainerSuccess,
           error && styles.inputContainerError,
           !editable && styles.inputContainerDisabled,
         ]}
       >
+        {!!suffixText && (
+          <Text style={styles.suffixText}>{suffixText}</Text>
+        )}
+
         {icon && (
           <FontAwesome
             name={icon}
             size={20}
-            color={error ? '#e74c3c' : isFocused ? '#27ae60' : '#94A3B8'}
+            color={error ? '#e74c3c' : success || isFocused ? '#27ae60' : '#94A3B8'}
             style={styles.icon}
           />
         )}
@@ -68,6 +77,7 @@ export default function CustomTextInput({
             styles.input,
             multiline && styles.inputMultiline,
             !editable && styles.inputDisabled,
+            inputStyle,
           ]}
           value={value}
           onChangeText={onChangeText}
@@ -121,7 +131,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -133,6 +143,9 @@ const styles = StyleSheet.create({
   inputContainerFocused: {
     borderColor: '#27ae60',
     backgroundColor: '#f0fdf4',
+  },
+  inputContainerSuccess: {
+    backgroundColor: '#ecfdf3',
   },
   inputContainerError: {
     borderColor: '#e74c3c',
@@ -151,6 +164,8 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     paddingVertical: 12,
     textAlign: 'right',
+    borderWidth: 0,
+    outlineStyle: 'none',
   },
   inputMultiline: {
     minHeight: 80,
@@ -162,6 +177,12 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 8,
     marginRight: -8,
+  },
+  suffixText: {
+    color: '#64748b',
+    fontSize: 15,
+    marginLeft: 8,
+    fontWeight: '600',
   },
   errorContainer: {
     flexDirection: 'row',

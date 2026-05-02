@@ -5,7 +5,7 @@ import {
   GameHeader,
   ChoiceButton,
   GameCard,
-} from '../shared';
+} from '../../shared';
 import LevelResultCard from '../components/LevelResultCard';
 
 export default function DoctorSorokaSummaryScreen({ route, navigation }) {

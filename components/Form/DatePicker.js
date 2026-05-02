@@ -1,7 +1,7 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import CustomButton from './CustomButton';
 
 export default function DatePicker({
@@ -13,6 +13,7 @@ export default function DatePicker({
   onValueChange,
   error,
   icon,
+  containerStyle,
 
   placeholder,
   placeholderKey = 'datePicker.placeholder', // ✅ NEW default key
@@ -22,6 +23,7 @@ export default function DatePicker({
   maxAge = 20, // Maximum age allowed
 }) {
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : new Date());
@@ -155,8 +157,10 @@ export default function DatePicker({
     }
   }, [value]);
 
+  const isCompactLayout = width >= 720;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {(resolvedLabel || label) ? <Text style={styles.label}>{resolvedLabel || label}</Text> : null}
 
       <TouchableOpacity
@@ -200,11 +204,17 @@ export default function DatePicker({
       <Modal
         visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+          <Pressable
+            style={[
+              styles.modalContent,
+              isCompactLayout ? styles.modalContentCompact : styles.modalContentSheet,
+            ]}
+            onPress={() => {}}
+          >
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
                 <FontAwesome name="times" size={24} color="#2c3e50" />
@@ -311,8 +321,8 @@ export default function DatePicker({
                 disabled={!!dateError}
               />
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -371,14 +381,33 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.22)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    width: '100%',
+    borderRadius: 24,
     paddingBottom: 20,
+    borderWidth: 1,
+    borderColor: '#dbe7f3',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 10,
+  },
+  modalContentCompact: {
+    maxWidth: 620,
+  },
+  modalContentSheet: {
+    alignSelf: 'stretch',
+    marginTop: 'auto',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -417,8 +446,8 @@ const styles = StyleSheet.create({
   datePickerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
   },
   pickerColumn: {
     alignItems: 'center',
@@ -436,15 +465,15 @@ const styles = StyleSheet.create({
   valueContainer: {
     backgroundColor: '#f0fdf4',
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    minWidth: 80,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    minWidth: 72,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#27ae60',
   },
   valueText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#27ae60',
   },

@@ -84,11 +84,11 @@ describe('HomeScreen', () => {
       studentData: null,
     });
 
-    const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
+    const { getAllByText, getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
     // HomeScreen renders t('title') and t('subtitle')
-    expect(getByText('title')).toBeTruthy();
-    expect(getByText('subtitle')).toBeTruthy();
+    expect(getAllByText('title').length).toBeGreaterThan(0);
+    expect(getAllByText('subtitle').length).toBeGreaterThan(0);
   });
 
   test('logged out user → primary button shows getStarted and navigates to signup', () => {
@@ -219,8 +219,8 @@ describe('HomeScreen', () => {
       studentData: null,
     });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getAllByText } = render(<HomeScreen />);
 
-    expect(getByText('title')).toBeTruthy();
+    expect(getAllByText('title').length).toBeGreaterThan(0);
   });
 });

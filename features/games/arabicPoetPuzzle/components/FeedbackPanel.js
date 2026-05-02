@@ -22,8 +22,8 @@ export default function FeedbackPanel({ feedback }) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
-    padding: 14,
-    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: 1.5,
   },
   successCard: {
@@ -36,15 +36,15 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFF8EB',
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
     textAlign: 'right',
   },
   body: {
-    marginTop: 6,
+    marginTop: 4,
     color: '#FFF1DB',
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 20,
     textAlign: 'right',
   },
 });

@@ -1,7 +1,17 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 export default function CustomPicker({
   label,
@@ -19,12 +29,14 @@ export default function CustomPicker({
   error,
   icon,
   searchable = false,
+  containerStyle,
 
   modalTitle,
   modalTitleKey = 'picker.titleFallback', // ✅ NEW: default key
   modalTitleParams, // ✅ NEW: params (optional)
 }) {
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,15 +64,35 @@ export default function CustomPicker({
 
   const selectedItem = items.find((item) => item.value === value);
   const displayText = selectedItem ? selectedItem.label : resolvedPlaceholder;
+  const normalizedQuery = String(searchQuery || '').trim().toLowerCase();
 
-  const filteredItems =
-    searchable && searchQuery
-      ? items.filter((item) =>
-          String(item.label || '')
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
-        )
-      : items;
+  const filteredItems = useMemo(() => {
+    if (!searchable || !normalizedQuery) return items;
+
+    return [...items]
+      .map((item) => {
+        const labelText = String(item.label || '');
+        const normalizedLabel = labelText.toLowerCase();
+        const startsWithMatch = normalizedLabel.startsWith(normalizedQuery);
+        const includesMatch = normalizedLabel.includes(normalizedQuery);
+
+        if (!startsWithMatch && !includesMatch) return null;
+
+        return {
+          item,
+          labelText,
+          priority: startsWithMatch ? 0 : 1,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        return a.labelText.localeCompare(b.labelText);
+      })
+      .map(({ item }) => item);
+  }, [items, normalizedQuery, searchable]);
+
+  const isCompactLayout = width >= 720;
 
   const handleSelect = (itemValue) => {
     onValueChange(itemValue);
@@ -69,14 +101,17 @@ export default function CustomPicker({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {(resolvedLabel || label) ? (
         <Text style={styles.label}>{resolvedLabel || label}</Text>
       ) : null}
 
       <TouchableOpacity
         style={[styles.pickerButton, error && styles.pickerButtonError]}
-        onPress={() => setModalVisible(true)}
+        onPress={() => {
+          setSearchQuery('');
+          setModalVisible(true);
+        }}
         accessibilityRole="button"
         accessibilityLabel={displayText}
       >
@@ -106,11 +141,18 @@ export default function CustomPicker({
       <Modal
         visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+          <Pressable
+            style={[
+              styles.modalContent,
+              isCompactLayout ? styles.modalContentCompact : styles.modalContentSheet,
+              searchable ? styles.modalContentSearchable : styles.modalContentSimple,
+            ]}
+            onPress={() => {}}
+          >
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
                 <FontAwesome name="times" size={24} color="#2c3e50" />
@@ -120,6 +162,21 @@ export default function CustomPicker({
                 {resolvedLabel || resolvedModalTitle}
               </Text>
             </View>
+
+            {searchable && (
+              <View style={styles.searchWrap}>
+                <FontAwesome name="search" size={16} color="#94A3B8" />
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder={t('picker.search', { defaultValue: 'Search...' })}
+                  style={styles.searchInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
+                />
+              </View>
+            )}
 
             <ScrollView style={styles.itemsList}>
               {filteredItems.map((item) => (
@@ -135,9 +192,17 @@ export default function CustomPicker({
                   {value === item.value && <FontAwesome name="check" size={18} color="#27ae60" />}
                 </TouchableOpacity>
               ))}
+
+              {filteredItems.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>
+                    {t('picker.noResults', { defaultValue: 'No matching results' })}
+                  </Text>
+                </View>
+              )}
             </ScrollView>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -196,15 +261,40 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.22)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '70%',
-    paddingBottom: 20,
+    borderRadius: 24,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#dbe7f3',
+    paddingBottom: 12,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 10,
+  },
+  modalContentCompact: {
+    maxWidth: 560,
+  },
+  modalContentSheet: {
+    alignSelf: 'stretch',
+    marginTop: 'auto',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    maxHeight: '68%',
+  },
+  modalContentSearchable: {
+    maxHeight: 460,
+  },
+  modalContentSimple: {
+    maxHeight: 320,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -227,6 +317,27 @@ const styles = StyleSheet.create({
   },
   itemsList: {
     flex: 1,
+    maxHeight: 300,
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#f8fafc',
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 46,
+    fontSize: 16,
+    color: '#2c3e50',
+    textAlign: 'right',
   },
   item: {
     flexDirection: 'row',
@@ -248,6 +359,16 @@ const styles = StyleSheet.create({
   },
   itemTextSelected: {
     color: '#27ae60',
+    fontWeight: '600',
+  },
+  emptyState: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  emptyStateText: {
+    textAlign: 'center',
+    color: '#64748B',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

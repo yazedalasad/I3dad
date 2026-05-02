@@ -1,0 +1,10 @@
+
+> I3dad@1.0.0 web
+> node scripts/expo-offline.cjs start --web --port 8082
+
+env: load .env
+env: export DEEPSEEK_API_KEY EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY CHE_BASE_HE CHE_BASE_EN MAX_PAGES CONCURRENCY
+Starting project at C:\Users\yazed\MajorProject\I3dad
+Starting Metro Bundler
+Waiting on http://localhost:8082
+Logs for your project will appear below.

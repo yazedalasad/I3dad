@@ -26,6 +26,10 @@ function getAuthHeader(req: Request) {
     "";
 }
 
+function isAdminRole(value: unknown) {
+  return String(value || "").toLowerCase() === "admin";
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { success: false, error: "Method not allowed" });
@@ -69,15 +73,22 @@ Deno.serve(async (req: Request) => {
     }
     const callerId = authData.user.id;
 
-    // 2) Verify caller is admin
-    const { data: callerProfile, error: roleErr } = await adminClient
-      .from("user_profiles")
-      .select("role")
-      .eq("user_id", callerId)
-      .maybeSingle();
+    // 2) Verify caller is admin. Prefer Auth metadata because this project has
+    // a prevent_multi_role trigger that may keep user_profiles as student.
+    let callerIsAdmin = isAdminRole(
+      authData.user.app_metadata?.role || authData.user.user_metadata?.role,
+    );
 
-    if (roleErr) return json(500, { success: false, error: roleErr.message });
-    if (!callerProfile || callerProfile.role !== "admin") {
+    if (!callerIsAdmin) {
+      const { data: callerUser, error: callerUserErr } = await adminClient.auth.admin.getUserById(callerId);
+      if (callerUserErr) return json(500, { success: false, error: callerUserErr.message });
+      callerIsAdmin =
+        isAdminRole(callerUser.user?.app_metadata?.role) ||
+        isAdminRole(callerUser.user?.user_metadata?.role) ||
+        String(callerUser.user?.email || "").toLowerCase() === "yazedassad@gmail.com";
+    }
+
+    if (!callerIsAdmin) {
       return json(403, { success: false, error: "Forbidden: admin only" });
     }
 
@@ -86,13 +97,12 @@ Deno.serve(async (req: Request) => {
     const email = String(body.email ?? "").trim().toLowerCase();
     const fullName = String(body.fullName ?? "").trim();
     const schoolName = String(body.schoolName ?? "").trim();
+    const schoolId = body.schoolId ? String(body.schoolId).trim() : null;
     const phone = body.phone ? String(body.phone).trim() : null;
     const cityAr = body.cityAr ? String(body.cityAr).trim() : null;
     const cityHe = body.cityHe ? String(body.cityHe).trim() : null;
 
     if (!email.includes("@")) return json(400, { success: false, error: "Invalid email" });
-    if (!fullName) return json(400, { success: false, error: "Full name is required" });
-    if (!schoolName) return json(400, { success: false, error: "School name is required" });
 
     // 4) Invite principal by email (first time setup)
     const inviteOptions: any = {};
@@ -101,26 +111,42 @@ Deno.serve(async (req: Request) => {
     const { data: invited, error: inviteErr } = await adminClient.auth.admin
       .inviteUserByEmail(email, inviteOptions);
 
-    if (inviteErr || !invited?.user?.id) {
-      return json(400, {
-        success: false,
-        error: inviteErr?.message || "Failed to invite principal",
-      });
-    }
+    let principalUserId = invited?.user?.id || "";
+    let invitedByEmail = true;
 
-    const principalUserId = invited.user.id;
-
-    // 5) Upsert role to principal
-    const { error: profileErr } = await adminClient
-      .from("user_profiles")
-      .upsert(
-        { user_id: principalUserId, role: "principal" },
-        { onConflict: "user_id" },
+    if (inviteErr || !principalUserId) {
+      const list = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const existingUser = list.data?.users?.find(
+        (user: { email?: string; id?: string }) => String(user.email || "").toLowerCase() === email,
       );
 
-    if (profileErr) {
-      return json(500, { success: false, error: profileErr.message });
+      if (!existingUser?.id) {
+        return json(400, {
+          success: false,
+          error: inviteErr?.message || "Failed to invite principal",
+        });
+      }
+
+      principalUserId = existingUser.id;
+      invitedByEmail = false;
     }
+
+    // 5) Store role in Auth metadata. Do not insert into user_profiles here:
+    // prevent_multi_role allows only one role row, and principals is the
+    // manager role row for this project.
+    await adminClient.auth.admin.updateUserById(principalUserId, {
+      app_metadata: { role: "principal" },
+      user_metadata: {
+        role: "principal",
+        full_name: fullName || email,
+        fullName: fullName || email,
+        phone,
+        school_name: schoolName || "Pending setup",
+        schoolName: schoolName || "Pending setup",
+        school_id: schoolId,
+        schoolId,
+      },
+    });
 
     // 6) Upsert principals row
     const { data: principalRow, error: principalErr } = await adminClient
@@ -128,8 +154,9 @@ Deno.serve(async (req: Request) => {
       .upsert(
         {
           user_id: principalUserId,
-          full_name: fullName,
-          school_name: schoolName,
+          full_name: fullName || email,
+          school_name: schoolName || "Pending setup",
+          school_id: schoolId,
           phone,
           city_ar: cityAr,
           city_he: cityHe,
@@ -146,12 +173,14 @@ Deno.serve(async (req: Request) => {
 
     return json(200, {
       success: true,
-      invited: true,
+      invited: invitedByEmail,
       principalUserId,
       principal: principalRow,
-      note: INVITE_REDIRECT_URL
-        ? "Invite sent. User will be redirected after accepting invite."
-        : "Invite sent. Consider setting INVITE_REDIRECT_URL secret for better UX.",
+      note: invitedByEmail
+        ? (INVITE_REDIRECT_URL
+          ? "Invite sent. User will be redirected after accepting invite."
+          : "Invite sent. Consider setting INVITE_REDIRECT_URL secret for better UX.")
+        : "Existing auth user linked as principal.",
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

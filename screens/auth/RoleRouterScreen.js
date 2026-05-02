@@ -3,76 +3,133 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+
+import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+
+const ADMIN_ROLES = new Set(['admin']);
+const PRINCIPAL_ROLES = new Set(['principal', 'school_admin']);
+
+function normalizeRole(role) {
+  return String(role || '').trim().toLowerCase();
+}
+
+function roleFromUser(user) {
+  return normalizeRole(user?.app_metadata?.role || user?.user_metadata?.role);
+}
+
+async function getFreshAuthUser() {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession?.();
+    if (sessionData?.session?.user) return sessionData.session.user;
+  } catch (_error) {
+    // Continue to getUser fallback.
+  }
+
+  try {
+    const { data: authData } = await supabase.auth.getUser?.();
+    return authData?.user || null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function getProfileRole(userId) {
+  if (!userId) return '';
+
+  try {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+    return normalizeRole(data?.role);
+  } catch (_error) {
+    return '';
+  }
+}
+
+async function getPrincipalDestination(user) {
+  try {
+    const { data: principal } = await supabase
+      .from('principals')
+      .select('full_name, school_id, is_active')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const needsSetup =
+      !principal?.full_name ||
+      principal.full_name === user.email ||
+      !principal?.school_id ||
+      principal.is_active === false;
+
+    return needsSetup ? 'principalOnboarding' : 'principalDashboard';
+  } catch (_error) {
+    return 'principalDashboard';
+  }
+}
 
 export default function RoleRouterScreen({ navigateTo }) {
   const { user, loading, profile } = useAuth();
   const { t } = useTranslation();
-
   const navRef = useRef(navigateTo);
+  const routedRef = useRef(false);
+  const [statusText, setStatusText] = useState('Checking role...');
+
   useEffect(() => {
     navRef.current = navigateTo;
   }, [navigateTo]);
 
-  const [statusText, setStatusText] = useState('Loading...');
-
-  const routedRef = useRef(false);
-
   useEffect(() => {
-    if (loading) return;
+    let cancelled = false;
 
-    if (!user) {
-      navRef.current('home');
-      return;
-    }
+    const route = async () => {
+      if (loading || routedRef.current) return;
 
-    // Prevent multiple navigations
-    if (routedRef.current) return;
+      setStatusText('Checking session...');
+      const authUser = user || (await getFreshAuthUser());
 
-    // If profile is still loading/null, wait a little then default to student
-    // (because user_profiles insert is service-only in your DB)
-    let timer = null;
+      if (cancelled || routedRef.current) return;
 
-    const decide = () => {
-      if (routedRef.current) return;
+      if (!authUser) {
+        routedRef.current = true;
+        navRef.current('login', {}, { replace: true });
+        return;
+      }
+
+      setStatusText('Checking role...');
+      const metadataRole = roleFromUser(authUser);
+      const contextRole = normalizeRole(profile?.role);
+      const dbRole = metadataRole || contextRole ? '' : await getProfileRole(authUser.id);
+      const role = metadataRole || contextRole || dbRole || 'student';
+
+      if (cancelled || routedRef.current) return;
+
       routedRef.current = true;
 
-      const role = profile?.role ?? 'student';
-
-      if (role === 'admin') {
+      if (ADMIN_ROLES.has(role)) {
         setStatusText('Loading admin dashboard...');
-        navRef.current('adminDashboard');
+        navRef.current('adminDashboard', {}, { replace: true });
         return;
       }
 
-      if (role === 'principal') {
+      if (PRINCIPAL_ROLES.has(role)) {
         setStatusText('Loading principal dashboard...');
-        navRef.current('principalDashboard');
+        const destination = await getPrincipalDestination(authUser);
+        if (!cancelled) navRef.current(destination, {}, { replace: true });
         return;
       }
 
-      setStatusText('Loading home...');
-      navRef.current('home');
+      setStatusText('Loading student home...');
+      navRef.current('home', {}, { replace: true });
     };
 
-    // If profile exists -> route immediately
-    if (profile?.role) {
-      setStatusText('Checking role...');
-      decide();
-      return () => {};
-    }
-
-    // Otherwise, wait briefly for AuthContext refreshUserData to fill it
-    setStatusText('Checking role...');
-    timer = setTimeout(() => {
-      // still no profile -> treat as student
-      decide();
-    }, 900); // small delay to let AuthContext finish
+    route();
 
     return () => {
-      if (timer) clearTimeout(timer);
+      cancelled = true;
     };
-  }, [user, loading, profile]);
+  }, [user, loading, profile?.role]);
 
   return (
     <View style={styles.container}>

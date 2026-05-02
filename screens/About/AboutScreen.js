@@ -4,27 +4,25 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function AboutScreen({ navigateTo }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(['about']);
 
   return (
     <View style={styles.page}>
-      {/* Navbar */}
       <View style={styles.navbar}>
+        <View style={styles.navSpacer} />
+
+        <Text style={styles.navTitle}>{t('title')}</Text>
+
         <TouchableOpacity
           style={styles.navBtn}
           onPress={() => navigateTo?.('home')}
           activeOpacity={0.9}
         >
-          <FontAwesome name="arrow-left" size={18} color="#fff" />
+          <FontAwesome name="arrow-right" size={15} color="#fff" />
         </TouchableOpacity>
-
-        <Text style={styles.navTitle}>{t('about.title', 'عن إعداد')}</Text>
-
-        <View style={{ width: 42 }} />
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Hero Section for About */}
         <LinearGradient
           colors={['#2c3e50', '#34495e', '#7f8c8d']}
           style={styles.heroSection}
@@ -32,37 +30,28 @@ export default function AboutScreen({ navigateTo }) {
           end={{ x: 1, y: 1 }}
         >
           <FontAwesome name="info-circle" size={60} color="#fff" />
-          <Text style={styles.heroTitle}>{t('about.title', 'عن إعداد')}</Text>
-          <Text style={styles.heroSubtitle}>
-            {t('about.subtitle', 'منصة متكاملة لتوجيه الطلاب العرب في إسرائيل')}
-          </Text>
+          <Text style={styles.heroTitle}>{t('title')}</Text>
+          <Text style={styles.heroSubtitle}>{t('subtitle')}</Text>
         </LinearGradient>
 
-        {/* Mission Section */}
         <View style={styles.missionSection}>
           <View style={styles.missionContent}>
             <FontAwesome name="bullseye" size={40} color="#27ae60" />
-            <Text style={styles.missionTitle}>{t('home.mission.title', 'رسالتنا')}</Text>
-            <Text style={styles.missionText}>
-              {t(
-                'home.mission.description',
-                'إعداد هي منصة توجيه مهني رائدة مصممة خصيصًا للطلاب العرب في إسرائيل. نهدف إلى سد الفجوة بين التعليم والتوظيف من خلال توفير أدوات شاملة لاكتشاف المسارات الوظيفية، والتوجيه الأكاديمي، وفرص التطوير المهني. نؤمن بأن كل طالب لديه إمكانات فريدة، ومهمتنا هي مساعدتك في اكتشافها وتطويرها لتحقيق النجاح في سوق العمل الإسرائيلي الديناميكي.'
-              )}
-            </Text>
+            <Text style={styles.missionTitle}>{t('missionTitle')}</Text>
+            <Text style={styles.missionText}>{t('missionText')}</Text>
           </View>
         </View>
 
-        {/* Stats Section */}
         <View style={styles.statsSection}>
-          <Text style={styles.statsTitle}>{t('about.impactTitle', 'الأثر والإنجازات')}</Text>
-          <Text style={styles.statsSubtitle}>{t('about.impactSubtitle', 'أرقام تتحدث عن نفسها')}</Text>
+          <Text style={styles.statsTitle}>{t('impactTitle')}</Text>
+          <Text style={styles.statsSubtitle}>{t('impactSubtitle')}</Text>
 
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <LinearGradient colors={['#3498db', '#2980b9']} style={styles.statGradient}>
                 <FontAwesome name="users" size={32} color="#fff" />
                 <Text style={styles.statNumber}>5000+</Text>
-                <Text style={styles.statLabel}>{t('home.mission.stats.students', 'طالب مستفيد')}</Text>
+                <Text style={styles.statLabel}>طلاب مستفيدون</Text>
               </LinearGradient>
             </View>
 
@@ -70,7 +59,7 @@ export default function AboutScreen({ navigateTo }) {
               <LinearGradient colors={['#e74c3c', '#c0392b']} style={styles.statGradient}>
                 <FontAwesome name="briefcase" size={32} color="#fff" />
                 <Text style={styles.statNumber}>200+</Text>
-                <Text style={styles.statLabel}>{t('home.mission.stats.careers', 'مسار وظيفي')}</Text>
+                <Text style={styles.statLabel}>مسار مهني</Text>
               </LinearGradient>
             </View>
 
@@ -78,7 +67,7 @@ export default function AboutScreen({ navigateTo }) {
               <LinearGradient colors={['#27ae60', '#229954']} style={styles.statGradient}>
                 <FontAwesome name="graduation-cap" size={32} color="#fff" />
                 <Text style={styles.statNumber}>50+</Text>
-                <Text style={styles.statLabel}>{t('about.universities', 'جامعة شريكة')}</Text>
+                <Text style={styles.statLabel}>{t('universities')}</Text>
               </LinearGradient>
             </View>
 
@@ -86,129 +75,84 @@ export default function AboutScreen({ navigateTo }) {
               <LinearGradient colors={['#9b59b6', '#8e44ad']} style={styles.statGradient}>
                 <FontAwesome name="star" size={32} color="#fff" />
                 <Text style={styles.statNumber}>95%</Text>
-                <Text style={styles.statLabel}>
-                  {t('home.mission.stats.satisfaction', 'رضى المستخدمين')}
-                </Text>
+                <Text style={styles.statLabel}>رضى المستخدمين</Text>
               </LinearGradient>
             </View>
           </View>
         </View>
 
-        {/* Vision Section */}
         <View style={styles.visionSection}>
           <View style={styles.visionContent}>
             <FontAwesome name="eye" size={40} color="#f39c12" />
-            <Text style={styles.visionTitle}>{t('about.visionTitle', 'رؤيتنا')}</Text>
-            <Text style={styles.visionText}>
-              {t(
-                'about.visionText',
-                'نسعى لأن نكون المنصة الرائدة في الشرق الأوسط لتوجيه الطلاب نحو المسارات الوظيفية المناسبة، حيث نهدف إلى تمكين مليون شاب وشابة عربي في إسرائيل من خلال تزويدهم بالأدوات والمعرفة اللازمة لتحقيق طموحاتهم الأكاديمية والمهنية. نؤمن بمجتمع عربي قوي ومزدهر يساهم بشكل فعّال في بناء اقتصاد إسرائيل الحديث.'
-              )}
-            </Text>
+            <Text style={styles.visionTitle}>{t('visionTitle')}</Text>
+            <Text style={styles.visionText}>{t('visionText')}</Text>
           </View>
         </View>
 
-        {/* Values Section */}
         <View style={styles.valuesSection}>
-          <Text style={styles.valuesTitle}>{t('about.valuesTitle', 'قيمنا')}</Text>
+          <Text style={styles.valuesTitle}>{t('valuesTitle')}</Text>
 
           <View style={styles.valuesGrid}>
             <View style={styles.valueCard}>
               <View style={[styles.valueIcon, { backgroundColor: '#3498db' }]}>
                 <FontAwesome name="heart" size={24} color="#fff" />
               </View>
-              <Text style={styles.valueTitle}>{t('about.value1.title', 'التمكين')}</Text>
-              <Text style={styles.valueDescription}>
-                {t('about.value1.description', 'تمكين الشباب العربي من خلال المعرفة والمهارات')}
-              </Text>
+              <Text style={styles.valueTitle}>{t('value1.title')}</Text>
+              <Text style={styles.valueDescription}>{t('value1.description')}</Text>
             </View>
 
             <View style={styles.valueCard}>
               <View style={[styles.valueIcon, { backgroundColor: '#27ae60' }]}>
                 <FontAwesome name="balance-scale" size={24} color="#fff" />
               </View>
-              <Text style={styles.valueTitle}>{t('about.value2.title', 'الإنصاف')}</Text>
-              <Text style={styles.valueDescription}>
-                {t('about.value2.description', 'توفير فرص متكافئة للجميع بغض النظر عن الخلفية')}
-              </Text>
+              <Text style={styles.valueTitle}>{t('value2.title')}</Text>
+              <Text style={styles.valueDescription}>{t('value2.description')}</Text>
             </View>
 
             <View style={styles.valueCard}>
               <View style={[styles.valueIcon, { backgroundColor: '#e74c3c' }]}>
                 <FontAwesome name="lightbulb-o" size={24} color="#fff" />
               </View>
-              <Text style={styles.valueTitle}>{t('about.value3.title', 'الابتكار')}</Text>
-              <Text style={styles.valueDescription}>
-                {t('about.value3.description', 'استخدام أحدث التقنيات والأساليب في التوجيه المهني')}
-              </Text>
+              <Text style={styles.valueTitle}>{t('value3.title')}</Text>
+              <Text style={styles.valueDescription}>{t('value3.description')}</Text>
             </View>
 
             <View style={styles.valueCard}>
               <View style={[styles.valueIcon, { backgroundColor: '#9b59b6' }]}>
                 <FontAwesome name="handshake-o" size={24} color="#fff" />
               </View>
-              <Text style={styles.valueTitle}>{t('about.value4.title', 'المجتمع')}</Text>
-              <Text style={styles.valueDescription}>
-                {t('about.value4.description', 'بناء مجتمع داعم من الخبراء والمرشدين')}
-              </Text>
+              <Text style={styles.valueTitle}>{t('value4.title')}</Text>
+              <Text style={styles.valueDescription}>{t('value4.description')}</Text>
             </View>
           </View>
         </View>
 
-        {/* Team/Partners Section */}
         <View style={styles.partnersSection}>
-          <Text style={styles.partnersTitle}>{t('about.partnersTitle', 'شركاؤنا')}</Text>
-          <Text style={styles.partnersSubtitle}>
-            {t('about.partnersSubtitle', 'نعمل مع أفضل المؤسسات التعليمية والشركات')}
-          </Text>
+          <Text style={styles.partnersTitle}>{t('partnersTitle')}</Text>
+          <Text style={styles.partnersSubtitle}>{t('partnersSubtitle')}</Text>
 
           <View style={styles.partnersGrid}>
             <View style={styles.partnerLogo}>
               <FontAwesome name="university" size={40} color="#2c3e50" />
-              <Text style={styles.partnerName}>جامعات إسرائيلية</Text>
+              <Text style={styles.partnerName}>{t('partners.1')}</Text>
             </View>
 
             <View style={styles.partnerLogo}>
               <FontAwesome name="building" size={40} color="#2c3e50" />
-              <Text style={styles.partnerName}>شركات رائدة</Text>
+              <Text style={styles.partnerName}>{t('partners.2')}</Text>
             </View>
 
             <View style={styles.partnerLogo}>
               <FontAwesome name="globe" size={40} color="#2c3e50" />
-              <Text style={styles.partnerName}>منظمات دولية</Text>
+              <Text style={styles.partnerName}>{t('partners.3')}</Text>
             </View>
 
             <View style={styles.partnerLogo}>
               <FontAwesome name="graduation-cap" size={40} color="#2c3e50" />
-              <Text style={styles.partnerName}>مدارس ثانوية</Text>
+              <Text style={styles.partnerName}>{t('partners.4')}</Text>
             </View>
           </View>
         </View>
-
-        {/* Contact CTA */}
-        <LinearGradient colors={['#2c3e50', '#34495e']} style={styles.contactSection}>
-          <Text style={styles.contactTitle}>{t('about.contactTitle', 'تواصل معنا')}</Text>
-          <Text style={styles.contactText}>
-            {t('about.contactText', 'هل لديك أسئلة أو ترغب في التعاون معنا؟')}
-          </Text>
-
-          <View style={styles.contactInfo}>
-            <View style={styles.contactItem}>
-              <FontAwesome name="envelope" size={20} color="#27ae60" />
-              <Text style={styles.contactDetail}>info@i3dad.com</Text>
-            </View>
-
-            <View style={styles.contactItem}>
-              <FontAwesome name="phone" size={20} color="#27ae60" />
-              <Text style={styles.contactDetail}>+972-3-1234567</Text>
-            </View>
-
-            <View style={styles.contactItem}>
-              <FontAwesome name="map-marker" size={20} color="#27ae60" />
-              <Text style={styles.contactDetail}>تل أبيب، إسرائيل</Text>
-            </View>
-          </View>
-        </LinearGradient>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -221,8 +165,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-
-  // Navbar
   navbar: {
     paddingTop: 56,
     paddingHorizontal: 16,
@@ -232,13 +174,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  navSpacer: {
+    width: 38,
+    height: 38,
+  },
   navBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -248,7 +194,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
-
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
@@ -256,7 +201,6 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 16,
   },
-
   heroSection: {
     paddingHorizontal: 24,
     paddingVertical: 60,
@@ -465,38 +409,5 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     textAlign: 'center',
     marginTop: 12,
-  },
-  contactSection: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  contactTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  contactText: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 24,
-    opacity: 0.9,
-  },
-  contactInfo: {
-    width: '100%',
-    maxWidth: 300,
-    gap: 16,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  contactDetail: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
   },
 });

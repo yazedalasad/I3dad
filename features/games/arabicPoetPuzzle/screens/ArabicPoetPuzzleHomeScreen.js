@@ -1,56 +1,109 @@
-import React from 'react';
-import { ImageBackground, StyleSheet, Text, View, Pressable, Image } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ImageBackground, StyleSheet, Text, View, Pressable } from 'react-native';
 import { ScreenContainer, GameCard } from '../../shared';
 import { arabicPoetPuzzleLevels } from '../data/levels';
 import { desertTheme } from '../utils/theme';
+import desertThemeBgImage from '../assets/desert-theme-bg.png';
+import { getCompletedArabicPoetPuzzleLevels } from '../services/levelProgressService';
 
 export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = 'demo-student-id' }) {
   const colors = desertTheme.colors;
-  const firstLevel = arabicPoetPuzzleLevels[0];
+  const [completedLevels, setCompletedLevels] = useState([]);
+
+  const loadCompletedLevels = useCallback(() => {
+    getCompletedArabicPoetPuzzleLevels(studentId)
+      .then((levels) => setCompletedLevels(levels))
+      .catch(() => setCompletedLevels([]));
+  }, [studentId]);
+
+  useEffect(() => {
+    const unsubscribe = navigation?.addListener?.('focus', loadCompletedLevels);
+    loadCompletedLevels();
+
+    return unsubscribe;
+  }, [loadCompletedLevels, navigation]);
 
   return (
     <ImageBackground
-      source={require('../assets/desert-theme-bg.png')}
+      source={desertThemeBgImage}
       resizeMode="cover"
       style={styles.flex}
     >
       <ScreenContainer scroll style={styles.transparent}>
         <View style={styles.topBanner}>
-          <Text style={styles.mainTitle}>كنوز الألفاظ</Text>
-          <Text style={styles.mainSubtitle}>ألفاظ شعرية قديمة • لعبة كلمات عربية</Text>
+          <Text style={styles.mainTitle}>{'\u0643\u0646\u0648\u0632 \u0627\u0644\u0623\u0644\u0641\u0627\u0638'}</Text>
+          <Text style={styles.mainSubtitle}>
+            {'\u0623\u0644\u0641\u0627\u0638 \u0634\u0639\u0631\u064a\u0629 \u0642\u062f\u064a\u0645\u0629 \u2022 \u0644\u0639\u0628\u0629 \u0643\u0644\u0645\u0627\u062a \u0639\u0631\u0628\u064a\u0629'}
+          </Text>
         </View>
 
         <GameCard style={[styles.heroCard, { backgroundColor: 'rgba(232,216,191,0.94)', borderColor: colors.cardBorder }]}>
-          <Text style={[styles.title, { color: colors.ink }]}>طريقة اللعب</Text>
+          <Text style={[styles.title, { color: colors.ink }]}>{'\u0637\u0631\u064a\u0642\u0629 \u0627\u0644\u0644\u0639\u0628'}</Text>
           <Text style={[styles.body, { color: colors.ink }]}>
-            اضغط على موضع الكلمة في الشبكة، واقرأ التلميح، ثم اكتب اللفظ الصحيح في الصندوق المزخرف.
-          </Text>
-
-          <Pressable
-            onPress={() =>
-              navigation?.navigate?.('ArabicPoetPuzzleLevel', {
-                levelId: firstLevel.id,
-                studentId,
-              })
+            {
+              '\u0627\u062e\u062a\u0631 \u062e\u0631\u064a\u0637\u0629 \u0645\u0646 \u0627\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a \u0623\u062f\u0646\u0627\u0647\u060c \u062b\u0645 \u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0631\u0642\u0645 \u0627\u0644\u0643\u0644\u0645\u0629 \u062f\u0627\u062e\u0644 \u0627\u0644\u0634\u0628\u0643\u0629\u060c \u0648\u0627\u0642\u0631\u0623 \u0627\u0644\u062a\u0644\u0645\u064a\u062d\u060c \u062b\u0645 \u0643\u0648\u0651\u0646 \u0627\u0644\u0644\u0641\u0638 \u0627\u0644\u0635\u062d\u064a\u062d \u0648\u062b\u0628\u0651\u062a\u0647.'
             }
-            style={({ pressed }) => [
-              styles.button,
-              { backgroundColor: colors.accent, borderColor: colors.accentDark },
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.buttonText}>ابدأ المستوى الأول</Text>
-          </Pressable>
+          </Text>
         </GameCard>
 
-        <GameCard style={[styles.previewCard, { backgroundColor: 'rgba(232,216,191,0.94)', borderColor: colors.cardBorder }]}>
-          <Text style={[styles.previewTitle, { color: colors.ink }]}>معاينة الشكل</Text>
-          <Image
-            source={require('../assets/level1-preview-styled.png')}
-            style={styles.previewImage}
-            resizeMode="cover"
-          />
-        </GameCard>
+        {arabicPoetPuzzleLevels.map((level, index) => {
+          const previousLevel = arabicPoetPuzzleLevels[index - 1];
+          const isUnlocked = index === 0 || completedLevels.includes(previousLevel?.id);
+          const isCompleted = completedLevels.includes(level.id);
+
+          return (
+            <GameCard
+              key={level.id}
+              style={[
+                styles.levelCard,
+                {
+                  backgroundColor: 'rgba(232,216,191,0.94)',
+                  borderColor: colors.cardBorder,
+                  opacity: isUnlocked ? 1 : 0.72,
+                },
+              ]}
+            >
+              <Text style={[styles.levelTitle, { color: colors.ink }]}>{level.subtitle}</Text>
+              <Text style={[styles.levelTheme, { color: colors.accentDark }]}>
+                {level.themeLabel || level.theme}
+              </Text>
+              {isCompleted ? <Text style={styles.completedText}>مكتمل ✓</Text> : null}
+              {!isUnlocked ? (
+                <Text style={styles.lockedText}>
+                  {`\u064a\u064f\u0641\u062a\u062d \u0628\u0639\u062f \u0625\u0643\u0645\u0627\u0644 \u0627\u0644\u0645\u0633\u062a\u0648\u0649 ${index}`}
+                </Text>
+              ) : null}
+
+              <Pressable
+                onPress={() =>
+                  isUnlocked
+                    ? navigation?.navigate?.('ArabicPoetPuzzleLevel', {
+                        levelId: level.id,
+                        studentId,
+                      })
+                    : null
+                }
+                disabled={!isUnlocked}
+                style={({ pressed }) => [
+                  styles.button,
+                  {
+                    backgroundColor: isUnlocked ? colors.accent : '#B7A28A',
+                    borderColor: isUnlocked ? colors.accentDark : '#9B866D',
+                  },
+                  pressed && isUnlocked && styles.pressed,
+                ]}
+              >
+                <Text style={styles.buttonText}>
+                  {isUnlocked
+                    ? isCompleted
+                      ? `أعد لعب المستوى ${index + 1}`
+                      : `\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u0633\u062a\u0648\u0649 ${index + 1}`
+                    : `\u0627\u0644\u0645\u0633\u062a\u0648\u0649 ${index + 1} \u0645\u0642\u0641\u0644`}
+                </Text>
+              </Pressable>
+            </GameCard>
+          );
+        })}
       </ScreenContainer>
     </ImageBackground>
   );
@@ -81,12 +134,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   body: {
     marginTop: 8,
     fontSize: 16,
     lineHeight: 26,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   button: {
     marginTop: 14,
@@ -99,23 +154,41 @@ const styles = StyleSheet.create({
     color: '#FFF8EB',
     fontSize: 19,
     fontWeight: '900',
+    writingDirection: 'rtl',
   },
   pressed: {
     transform: [{ scale: 0.99 }],
   },
-  previewCard: {
-    marginBottom: 20,
-    padding: 12,
+  levelCard: {
+    marginBottom: 16,
   },
-  previewTitle: {
-    fontSize: 20,
+  levelTitle: {
+    fontSize: 22,
     fontWeight: '900',
     textAlign: 'right',
-    marginBottom: 10,
+    writingDirection: 'rtl',
   },
-  previewImage: {
-    width: '100%',
-    height: 360,
-    borderRadius: 18,
+  levelTheme: {
+    marginTop: 8,
+    fontSize: 15,
+    lineHeight: 24,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  lockedText: {
+    marginTop: 8,
+    color: '#8F5B32',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  completedText: {
+    marginTop: 8,
+    color: '#2F7D45',
+    fontSize: 14,
+    fontWeight: '900',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

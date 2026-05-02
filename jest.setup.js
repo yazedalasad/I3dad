@@ -1,8 +1,15 @@
 require('@testing-library/jest-native/extend-expect');
-require('react-native-gesture-handler/jestSetup');
+try {
+  require('react-native-gesture-handler/jestSetup');
+} catch {}
 
 // Silence Animated warning in tests
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+try {
+  require.resolve('react-native/Libraries/Animated/NativeAnimatedHelper');
+  jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+} catch {
+  jest.mock('react-native/src/private/animated/NativeAnimatedHelper');
+}
 
 const makeSub = () => ({ remove: jest.fn() });
 
@@ -25,6 +32,7 @@ jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => ({
     removeListener: jest.fn(),
     removeAllListeners: jest.fn(),
     dismiss: jest.fn(),
+    isVisible: jest.fn(() => false),
   },
 }));
 

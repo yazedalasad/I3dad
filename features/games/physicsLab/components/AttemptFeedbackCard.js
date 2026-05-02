@@ -1,10 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export default function AttemptFeedbackCard({ feedback, details }) {
+export default function AttemptFeedbackCard({ feedback, details, onRetry }) {
   if (!feedback) return null;
 
   const isSuccess = feedback.tone === 'success';
+  const hasArrivalTime = Number.isFinite(details?.meta?.arrivalTimeSec);
+  const targetTimeSec = details?.meta?.targetTimeSec;
 
   return (
     <View style={[styles.card, isSuccess ? styles.successCard : styles.warningCard]}>
@@ -13,9 +15,19 @@ export default function AttemptFeedbackCard({ feedback, details }) {
 
       {details ? (
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>Distance: {details.distance} m</Text>
-          <Text style={styles.metaText}>Target: {details.targetDistance} m</Text>
+          <Text style={styles.metaText}>
+            {hasArrivalTime ? `Travel time: ${details.meta.arrivalTimeSec} s` : `Distance: ${details.distance} m`}
+          </Text>
+          <Text style={styles.metaText}>
+            {hasArrivalTime ? `Target time: ${targetTimeSec} s` : `Target: ${details.targetDistance} m`}
+          </Text>
         </View>
+      ) : null}
+
+      {!isSuccess && onRetry ? (
+        <Pressable onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+          <Text style={styles.retryLabel}>Retry From Start</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -56,5 +68,23 @@ const styles = StyleSheet.create({
     color: '#D3DFEA',
     fontSize: 12,
     fontWeight: '700',
+  },
+  retryButton: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+    backgroundColor: '#F59E0B',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  retryLabel: {
+    color: '#1F2937',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  pressed: {
+    transform: [{ scale: 0.98 }],
   },
 });

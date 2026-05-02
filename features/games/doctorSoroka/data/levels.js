@@ -3,7 +3,9 @@ import {
   createGameScene,
   createGameChoice,
   createLocalizedText,
-} from '../shared';
+} from '../../shared';
+import level1OverviewImage from '../assets/level1-overview.png';
+import level2OverviewImage from '../assets/level2-overview.png';
 
 const he = (value) => createLocalizedText({ he: value });
 
@@ -29,7 +31,7 @@ export const doctorSorokaLevels = [
         body: he(
           'אתה רופא צעיר במיון של סורוקה. נכנס מטופל בן 67 עם חום, שיעול וכאב בחזה בזמן נשימה עמוקה. המטרה שלך היא לשאול נכון, להזמין בדיקות נכונות ולהגיע לאבחנה הסבירה ביותר.'
         ),
-        image: require('../assets/level1-overview.png'),
+        image: level1OverviewImage,
         choices: [
           createGameChoice({
             id: 'l1_start_case',
@@ -347,7 +349,7 @@ export const doctorSorokaLevels = [
         body: he(
           'ילד בן 11 מגיע עם כאב בטן שהחל סביב הטבור ועבר לרביע ימני תחתון, עם בחילה וחום 37.9. ההורים לחוצים. המטרה שלך היא לברר נכון ולהחליט אם מדובר באפנדיציטיס או משהו אחר.'
         ),
-        image: require('../assets/level2-overview.png'),
+        image: level2OverviewImage,
         choices: [
           createGameChoice({
             id: 'l2_start',

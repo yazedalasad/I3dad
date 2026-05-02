@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { useAuth } from '../../contexts/AuthContext';
 import adaptiveTestService from '../../services/adaptiveTestService';
 import { getAllSubjects } from '../../services/questionService';
 
@@ -60,16 +61,62 @@ function SubjectTile({ subject, t, isArabic }) {
   );
 }
 
+const firstValue = (source, fields) => {
+  for (const field of fields) {
+    const value = source?.[field];
+    if (String(value ?? '').trim()) return String(value).trim();
+  }
+  return '';
+};
+
+function hasCompleteStudentProfile(studentData) {
+  if (!studentData?.id) return false;
+
+  const firstName = firstValue(studentData, ['first_name', 'firstName']);
+  const lastName = firstValue(studentData, ['last_name', 'lastName']);
+  const fullName = firstValue(studentData, ['full_name', 'fullName', 'name', 'display_name']);
+  const schoolName = firstValue(studentData, ['school_name', 'schoolName', 'school']);
+  const grade = firstValue(studentData, ['grade', 'grade_level', 'class_grade']);
+  const birthday = firstValue(studentData, ['birthday', 'birth_date', 'date_of_birth']);
+
+  return Boolean(
+    (firstName && lastName ? true : fullName) &&
+      schoolName &&
+      grade &&
+      birthday
+  );
+}
+
 export default function TotalExamScreen({
   navigateTo,
   studentId,
+  studentDataLoading = false,
   studentName,
   language = 'ar',
 }) {
   const { t: rawT, i18n } = useTranslation();
+  const {
+    studentData: authStudentData,
+    studentDataLoading: authStudentDataLoading = false,
+    studentId: authStudentId,
+    loading: authLoading,
+    profile,
+    user,
+  } = useAuth();
 
   // small helper: return fallback if key missing
   const t = (key, fallback) => {
+    if (key === 'totalExam.resolvingStudent') {
+      return String(i18n.language).toLowerCase() === 'he'
+        ? 'טוען את פרטי התלמיד/ה...'
+        : 'جار تجهيز بيانات الطالب...';
+    }
+    if (key === 'totalExam.missingStudentId') {
+      return String(i18n.language).toLowerCase() === 'he'
+        ? 'לא נמצא פרופיל תלמיד/ה. התחבר/י עם חשבון תלמיד תקין ונסה/י שוב.'
+        : 'تعذر العثور على ملف الطالب. سجل الدخول بحساب طالب صالح ثم جرب مرة أخرى.';
+    }
+
     const v = rawT(key);
     return typeof v === 'string' && v !== key ? v : fallback;
   };
@@ -91,6 +138,22 @@ export default function TotalExamScreen({
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+
+  const effectiveStudentId =
+    studentId ||
+    authStudentId ||
+    authStudentData?.id ||
+    authStudentData?.student_id ||
+    user?.user_metadata?.student_id ||
+    null;
+  const resolvingStudentId = authLoading || studentDataLoading || authStudentDataLoading;
+  const effectiveStudentData = {
+    ...(user?.user_metadata || {}),
+    ...(profile || {}),
+    ...(authStudentData || {}),
+    id: effectiveStudentId,
+  };
+  const profileComplete = hasCompleteStudentProfile(effectiveStudentData);
 
   const [subjects, setSubjects] = useState([]);
   const [selected, setSelected] = useState({}); // { [subjectId]: true }
@@ -140,8 +203,8 @@ export default function TotalExamScreen({
   }, []);
 
   const startTotalExam = async () => {
-    if (!studentId) {
-      console.log('TotalExamScreen: missing studentId (from ManualNavigator)');
+    if (!effectiveStudentId) {
+      console.log('TotalExamScreen: missing studentId after navigator + auth fallback');
       return;
     }
 
@@ -159,7 +222,7 @@ export default function TotalExamScreen({
 
     try {
       const res = await adaptiveTestService.startComprehensiveAssessment({
-        studentId,
+        studentId: effectiveStudentId,
         subjectIds: subjectIdsToUse,
         language: isArabic ? 'ar' : 'he',
 
@@ -321,15 +384,31 @@ export default function TotalExamScreen({
         ListFooterComponent={
           <View style={styles.footer}>
             <Pressable
+              testID="total-exam-start-button"
               onPress={startTotalExam}
               disabled={
-                starting || loading || subjects.length === 0 || !studentId
+                starting ||
+                loading ||
+                resolvingStudentId ||
+                subjects.length === 0 ||
+                !effectiveStudentId ||
+                !profileComplete
               }
               style={({ pressed }) => [
                 styles.startBtn,
-                (starting || loading || subjects.length === 0 || !studentId) &&
+                (starting ||
+                  loading ||
+                  resolvingStudentId ||
+                  subjects.length === 0 ||
+                  !effectiveStudentId ||
+                  !profileComplete) &&
                   styles.startBtnDisabled,
-                pressed && !starting && !loading && studentId
+                pressed &&
+                !starting &&
+                !loading &&
+                !resolvingStudentId &&
+                effectiveStudentId &&
+                profileComplete
                   ? styles.startBtnPressed
                   : null,
               ]}
@@ -349,13 +428,49 @@ export default function TotalExamScreen({
               )}
             </Pressable>
 
-            {!studentId && (
+            {effectiveStudentId && !resolvingStudentId && !profileComplete && (
+              <View style={styles.profileWarningBox}>
+                <Text style={styles.warnText}>
+                  {t(
+                    'totalExam.incompleteProfile',
+                    isArabic
+                      ? 'أكمل بيانات البروفايل قبل بدء الامتحان: الاسم، المدرسة، الصف وتاريخ الميلاد.'
+                      : 'יש להשלים את פרטי הפרופיל לפני תחילת המבחן: שם, בית ספר, כיתה ותאריך לידה.'
+                  )}
+                </Text>
+                <Pressable
+                  onPress={() => navigateTo?.('editProfile')}
+                  style={({ pressed }) => [styles.profileBtn, pressed && styles.startBtnPressed]}
+                >
+                  <Ionicons name="person-circle-outline" size={17} color="#fff" />
+                  <Text style={styles.profileBtnText}>
+                    {t(
+                      'totalExam.completeProfile',
+                      isArabic ? 'تعديل البروفايل' : 'עריכת פרופיל'
+                    )}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {!effectiveStudentId && resolvingStudentId && (
+              <Text style={styles.loadingText}>
+                {t(
+                  'totalExam.resolvingStudent',
+                  isArabic
+                    ? 'جار تجهيز بيانات الطالب...'
+                    : 'טוען את פרטי התלמיד/ה...'
+                )}
+              </Text>
+            )}
+
+            {!effectiveStudentId && !resolvingStudentId && (
               <Text style={styles.warnText}>
                 {t(
                   'totalExam.missingStudentId',
                   isArabic
-                    ? '⚠️ لا يمكن البدء بدون studentId (تأكد من ManualNavigator + AuthContext)'
-                    : '⚠️ אי אפשר להתחיל בלי studentId (בדוק/י ManualNavigator + AuthContext)'
+                    ? 'تعذر العثور على ملف الطالب. سجل الدخول بحساب طالب صالح ثم جرب مرة أخرى.'
+                    : 'לא נמצא פרופיל תלמיד/ה. התחבר/י עם חשבון תלמיד תקין ונסה/י שוב.'
                 )}
               </Text>
             )}
@@ -456,6 +571,18 @@ const styles = StyleSheet.create({
   tileMetaText: { color: '#546A99', fontWeight: '700', textAlign: 'right', fontSize: 12 },
 
   footer: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
+  profileWarningBox: { gap: 10, alignItems: 'center' },
+  profileBtn: {
+    minHeight: 42,
+    borderRadius: 14,
+    backgroundColor: '#1E4FBF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  profileBtnText: { color: '#fff', fontWeight: '900' },
   startBtn: {
     height: 52,
     borderRadius: 16,

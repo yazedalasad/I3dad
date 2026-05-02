@@ -6,7 +6,7 @@ import {
   LoadingState,
   ProgressBar,
   ScreenContainer,
-} from '../shared';
+} from '../../shared';
 import DoctorCaseHero from '../components/DoctorCaseHero';
 import PatientInfoCard from '../components/PatientInfoCard';
 import DiagnosticOptionsList from '../components/DiagnosticOptionsList';

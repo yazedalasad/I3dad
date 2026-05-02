@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ChoiceButton } from '../shared';
+import { ChoiceButton } from '../../shared';
 
 export default function DiagnosticOptionsList({ choices = [], t, onChoose, disabled = false }) {
   return (

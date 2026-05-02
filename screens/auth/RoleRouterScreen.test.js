@@ -18,6 +18,8 @@ jest.mock('../../contexts/AuthContext', () => ({
 /* -------------------- Supabase mock -------------------- */
 const mockMaybeSinglePrincipals = jest.fn();
 const mockMaybeSingleProfiles = jest.fn();
+const mockGetUser = jest.fn();
+const mockGetSession = jest.fn();
 
 // NOTE: must start with "mock" because used inside jest.mock factory
 const mockChainPrincipals = {
@@ -35,6 +37,10 @@ const mockChainProfiles = {
 jest.mock('../../config/supabase', () => ({
   __esModule: true,
   supabase: {
+    auth: {
+      getSession: (...args) => mockGetSession(...args),
+      getUser: (...args) => mockGetUser(...args),
+    },
     from: (table) => {
       if (table === 'principals') return mockChainPrincipals;
       if (table === 'user_profiles') return mockChainProfiles;
@@ -51,6 +57,14 @@ function baseProps(overrides = {}) {
   };
 }
 
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+  mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+  mockMaybeSingleProfiles.mockResolvedValue({ data: null, error: null });
+  mockMaybeSinglePrincipals.mockResolvedValue({ data: null, error: null });
+});
+
 
 
   it('render (positive): shows pleaseWait hint', async () => {
@@ -63,14 +77,14 @@ function baseProps(overrides = {}) {
     });
   });
 
-  it('render (negative): if not logged in and not loading -> navigates home and does NOT query supabase', async () => {
+  it('render (negative): if not logged in and not loading -> navigates login and does NOT query profile tables', async () => {
     mockAuthState = { user: null, loading: false };
     const navigateTo = jest.fn();
 
     render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
 
     await waitFor(() => {
-      expect(navigateTo).toHaveBeenCalledWith('home');
+      expect(navigateTo).toHaveBeenCalledWith('login', {}, { replace: true });
       expect(mockMaybeSinglePrincipals).not.toHaveBeenCalled();
       expect(mockMaybeSingleProfiles).not.toHaveBeenCalled();
     });
@@ -109,7 +123,38 @@ function baseProps(overrides = {}) {
     render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
 
     await waitFor(() => {
-      expect(navigateTo).toHaveBeenCalledWith('home');
+      expect(navigateTo).toHaveBeenCalledWith('home', {}, { replace: true });
+    });
+  });
+
+  it('route (positive): auth metadata admin -> navigates admin dashboard', async () => {
+    mockAuthState = {
+      user: { id: 'u-admin', user_metadata: { role: 'admin' } },
+      loading: false,
+      profile: null,
+    };
+
+    const navigateTo = jest.fn();
+    render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
+
+    await waitFor(() => {
+      expect(navigateTo).toHaveBeenCalledWith('adminDashboard', {}, { replace: true });
+    });
+  });
+
+  it('route (positive): database profile admin -> navigates admin dashboard', async () => {
+    mockAuthState = {
+      user: { id: 'u-admin-db', user_metadata: {} },
+      loading: false,
+      profile: null,
+    };
+    mockMaybeSingleProfiles.mockResolvedValueOnce({ data: { role: 'admin' }, error: null });
+
+    const navigateTo = jest.fn();
+    render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
+
+    await waitFor(() => {
+      expect(navigateTo).toHaveBeenCalledWith('adminDashboard', {}, { replace: true });
     });
   });
 
@@ -122,7 +167,22 @@ function baseProps(overrides = {}) {
     render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
 
     await waitFor(() => {
-      expect(navigateTo).toHaveBeenCalledWith('home');
+      expect(navigateTo).toHaveBeenCalledWith('home', {}, { replace: true });
+    });
+  });
+
+  it('route (positive): fresh session admin -> navigates admin dashboard', async () => {
+    mockAuthState = { user: null, loading: false, profile: null };
+    mockGetSession.mockResolvedValueOnce({
+      data: { session: { user: { id: 'fresh-admin', app_metadata: { role: 'admin' }, user_metadata: {} } } },
+      error: null,
+    });
+
+    const navigateTo = jest.fn();
+    render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
+
+    await waitFor(() => {
+      expect(navigateTo).toHaveBeenCalledWith('adminDashboard', {}, { replace: true });
     });
   });
 

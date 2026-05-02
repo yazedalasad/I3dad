@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ObjectSprite from './ObjectSprite';
 
 function GoalFlag({ distanceLabel }) {
@@ -25,39 +25,129 @@ function ForceArrows() {
   );
 }
 
-export default function WorldScene({ level, distance = 0, isRunning = false }) {
+export default function WorldScene({
+  level,
+  distance = 0,
+  isRunning = false,
+  motionDurationMs = 0,
+  onPressObject,
+}) {
   const worldWidth = 880;
-  const objectStart = 110;
-  const usableWidth = worldWidth - 180;
-  const translateX = useRef(new Animated.Value(objectStart)).current;
+  const trackStartX = 48;
+  const trackEndX = worldWidth - 48;
+  const trackLength = trackEndX - trackStartX;
+  const objectWrapWidth = 90;
 
-  const mapLength = level?.world?.mapLength || 12;
-  const goalX = objectStart + usableWidth * ((level?.world?.targetDistance || 0) / mapLength);
+  const rulerLength = level?.world?.rulerLength || level?.world?.mapLength || 15;
+  const targetDistance = level?.world?.targetDistance || 0;
+  const clampedDistance = Math.max(0, Math.min(distance, rulerLength));
+  const hasMountedRef = useRef(false);
+  const previousDistanceRef = useRef(0);
+  const animationFrameRef = useRef(null);
+  const [animatedDistance, setAnimatedDistance] = useState(0);
 
-  const targetX = useMemo(() => {
-    return objectStart + usableWidth * (Math.max(0, Math.min(distance, mapLength)) / mapLength);
-  }, [distance, mapLength]);
+  const getCenterXForDistance = useMemo(
+    () => (meters) => {
+      const clampedMeters = Math.max(0, Math.min(meters, rulerLength));
+      return trackStartX + (trackLength * clampedMeters) / rulerLength;
+    },
+    [rulerLength, trackLength]
+  );
+
+  const goalCenterX = getCenterXForDistance(targetDistance);
+  const objectX = useMemo(() => {
+    return getCenterXForDistance(animatedDistance) - objectWrapWidth / 2;
+  }, [animatedDistance, getCenterXForDistance]);
 
   useEffect(() => {
-    Animated.timing(translateX, {
-      toValue: targetX,
-      duration: isRunning ? 850 : 0,
-      useNativeDriver: true,
-    }).start();
-  }, [targetX, isRunning, translateX]);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    const isFirstRender = !hasMountedRef.current;
+    const targetChanged = Math.abs(previousDistanceRef.current - clampedDistance) > 0.01;
+    const shouldResetInstantly = !isRunning && clampedDistance <= 0;
+    const shouldAnimate = !isFirstRender && targetChanged && (isRunning || clampedDistance > 0);
+
+    if (shouldResetInstantly) {
+      setAnimatedDistance(0);
+      previousDistanceRef.current = 0;
+      hasMountedRef.current = true;
+      return undefined;
+    }
+
+    if (!shouldAnimate) {
+      setAnimatedDistance(clampedDistance);
+      previousDistanceRef.current = clampedDistance;
+      hasMountedRef.current = true;
+      return undefined;
+    }
+
+    const startDistance = previousDistanceRef.current;
+    const distanceDelta = clampedDistance - startDistance;
+    const distanceRatio = Math.max(0.18, Math.abs(distanceDelta) / rulerLength);
+    const visualDurationMs = level?.id === 'physics_lab_level_1'
+      ? Math.max(900, Math.round(motionDurationMs || 0))
+      : Math.max(
+          4200,
+          Math.round((motionDurationMs || 0) * 2.4),
+          Math.round(distanceRatio * 12000)
+        );
+    const animationStartTime = Date.now();
+
+    const step = () => {
+      const elapsedMs = Date.now() - animationStartTime;
+      const rawProgress = Math.min(1, elapsedMs / visualDurationMs);
+      const easedProgress = rawProgress < 0.5
+        ? 2 * rawProgress * rawProgress
+        : 1 - Math.pow(-2 * rawProgress + 2, 2) / 2;
+
+      setAnimatedDistance(startDistance + distanceDelta * easedProgress);
+
+      if (rawProgress < 1) {
+        animationFrameRef.current = requestAnimationFrame(step);
+      } else {
+        previousDistanceRef.current = clampedDistance;
+        animationFrameRef.current = null;
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(step);
+    hasMountedRef.current = true;
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [clampedDistance, isRunning, motionDurationMs, rulerLength]);
+
+  const meterMarks = useMemo(
+    () =>
+      Array.from({ length: rulerLength }, (_, index) => {
+        const meter = index + 1;
+        return {
+          meter,
+          left: getCenterXForDistance(meter),
+        };
+      }),
+    [getCenterXForDistance, rulerLength]
+  );
 
   return (
     <View style={styles.sceneWrap}>
       <View style={styles.world}>
         <View style={styles.trackArea}>
-          <View style={styles.startLabel}>
+          <View style={[styles.startLabel, { left: trackStartX - 10 }]}>
             <Text style={styles.startLabelText}>START</Text>
           </View>
 
-          <Animated.View style={[styles.objectWrap, { transform: [{ translateX }] }]}>
+          <Pressable onPress={onPressObject} style={[styles.objectWrap, { left: objectX }]}>
             <ForceArrows />
             <ObjectSprite type={level?.objectType} size={level?.objectType === 'capsule' ? 54 : 46} />
-          </Animated.View>
+          </Pressable>
 
           {level?.world?.obstacleType === 'gap' ? (
             <View style={styles.gapBlock}>
@@ -72,15 +162,28 @@ export default function WorldScene({ level, distance = 0, isRunning = false }) {
             </View>
           ) : null}
 
-          <View style={[styles.goalAbsolute, { left: goalX }]}>
-            <GoalFlag distanceLabel={`${level?.world?.targetDistance}${level?.world?.markerUnit || 'm'}`} />
+          <View
+            style={[
+              styles.goalColumn,
+              {
+                left: goalCenterX - 7,
+              },
+            ]}
+          />
+
+          <View style={[styles.goalAbsolute, { left: goalCenterX }]}>
+            <GoalFlag distanceLabel={`${targetDistance}${level?.world?.markerUnit || 'm'}`} />
           </View>
 
           <View style={styles.surface} />
           <View style={styles.frictionBand} />
-          <View style={styles.markerLine} />
-          {Array.from({ length: 7 }).map((_, index) => (
-            <View key={index} style={[styles.marker, { left: 30 + index * 120 }]} />
+          <View style={[styles.markerLine, { left: trackStartX, right: worldWidth - trackEndX }]} />
+
+          {meterMarks.map((mark) => (
+            <View key={mark.meter} style={[styles.meterWrap, { left: mark.left - 12 }]}>
+              <View style={styles.marker} />
+              <Text style={styles.meterText}>{mark.meter}</Text>
+            </View>
           ))}
         </View>
       </View>
@@ -108,7 +211,6 @@ const styles = StyleSheet.create({
   },
   startLabel: {
     position: 'absolute',
-    left: 24,
     top: 100,
     backgroundColor: '#394352',
     borderRadius: 10,
@@ -221,7 +323,21 @@ const styles = StyleSheet.create({
   },
   goalAbsolute: {
     position: 'absolute',
-    bottom: 92,
+    bottom: 96,
+  },
+  goalColumn: {
+    position: 'absolute',
+    bottom: 36,
+    width: 14,
+    height: 82,
+    borderRadius: 999,
+    backgroundColor: '#22C55E',
+    borderWidth: 2.5,
+    borderColor: '#86EFAC',
+    shadowColor: '#22C55E',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 5,
   },
   goalWrap: {
     alignItems: 'center',
@@ -248,8 +364,8 @@ const styles = StyleSheet.create({
   distanceText: {
     marginTop: 10,
     color: '#E7EEF5',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '900',
   },
   surface: {
     height: 36,
@@ -265,17 +381,24 @@ const styles = StyleSheet.create({
   },
   markerLine: {
     position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 27,
-    height: 4,
+    bottom: 36,
+    height: 3,
     backgroundColor: '#9AA5AF',
   },
-  marker: {
+  meterWrap: {
     position: 'absolute',
-    bottom: 18,
+    bottom: 8,
+    alignItems: 'center',
+  },
+  marker: {
     width: 3,
-    height: 22,
+    height: 24,
     backgroundColor: '#D8E0E6',
+  },
+  meterText: {
+    marginTop: 4,
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

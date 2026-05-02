@@ -1,112 +1,149 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { I18nManager, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { I18nManager, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const LANG_OPTIONS = [
+  { code: 'ar', label: 'AR' },
+  { code: 'he', label: 'HE' },
+];
+
+function normalizeLanguage(lang) {
+  const value = String(lang || '').toLowerCase();
+  return value.startsWith('he') ? 'he' : 'ar';
+}
 
 export default function FloatingLanguageSwitcher() {
   const { i18n } = useTranslation();
-  const [currentLang, setCurrentLang] = useState(i18n.language || 'ar');
+  const [currentLang, setCurrentLang] = useState(normalizeLanguage(i18n.language));
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    setCurrentLang(normalizeLanguage(i18n.language));
+  }, [i18n.language]);
+
+  const orderedOptions = useMemo(() => {
+    const activeOption = LANG_OPTIONS.find((option) => option.code === currentLang);
+    const inactiveOptions = LANG_OPTIONS.filter((option) => option.code !== currentLang);
+    return activeOption ? [activeOption, ...inactiveOptions] : LANG_OPTIONS;
+  }, [currentLang]);
 
   const changeLanguage = async (lang) => {
-    console.log('=== Language Change Started ===');
-    console.log('Changing language to:', lang);
-    console.log('Current language before change:', i18n.language);
+    const normalizedLang = normalizeLanguage(lang);
 
     try {
-      await i18n.changeLanguage(lang);
-      setCurrentLang(lang);
-      console.log('Language changed successfully to:', i18n.language);
-      console.log('State updated to:', lang);
+      await i18n.changeLanguage(normalizedLang);
+      setCurrentLang(normalizedLang);
 
-      // Force RTL update for Hebrew and Arabic
-      const isRTL = lang === 'ar' || lang === 'he';
+      const isRTL = normalizedLang === 'ar' || normalizedLang === 'he';
       if (I18nManager.isRTL !== isRTL) {
         I18nManager.forceRTL(isRTL);
-        console.log(`RTL forced to ${isRTL} for language: ${lang}`);
       }
-
-      console.log('=== Language Change Complete ===');
     } catch (error) {
       console.error('Error changing language:', error);
+    } finally {
+      setIsExpanded(false);
     }
   };
 
-  console.log('FloatingLanguageSwitcher render - Current language:', currentLang);
-
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={[
-          styles.button,
-          currentLang === 'ar' && styles.activeButton
-        ]}
-        onPress={() => changeLanguage('ar')}
-      >
-        <Text style={styles.flag}>🇵🇸</Text>
-        <Text style={[
-          styles.buttonText,
-          currentLang === 'ar' && styles.activeButtonText
-        ]}>
-          ع
-        </Text>
-      </TouchableOpacity>
+    <View style={styles.wrapper} pointerEvents="box-none">
+      <View style={styles.container}>
+        <View style={styles.segmentedControl}>
+          {(isExpanded ? orderedOptions : orderedOptions.slice(0, 1)).map((option) => {
+            const isActive = currentLang === option.code;
+            const isCurrentOnlyButton = !isExpanded && isActive;
 
-      <TouchableOpacity
-        style={[
-          styles.button,
-          currentLang === 'he' && styles.activeButton
-        ]}
-        onPress={() => changeLanguage('he')}
-      >
-        <Text style={styles.flag}>🇮🇱</Text>
-        <Text style={[
-          styles.buttonText,
-          currentLang === 'he' && styles.activeButtonText
-        ]}>
-          ע
-        </Text>
-      </TouchableOpacity>
+            return (
+              <TouchableOpacity
+                key={option.code}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isCurrentOnlyButton
+                    ? `Current language ${option.label}`
+                    : `Switch language to ${option.label}`
+                }
+                testID={`floating-language-${option.code}`}
+                style={[styles.segmentButton, isActive && styles.activeSegmentButton]}
+                onPress={() => {
+                  if (isCurrentOnlyButton) {
+                    setIsExpanded(true);
+                    return;
+                  }
+
+                  changeLanguage(option.code);
+                }}
+              >
+                <Text style={[styles.segmentText, isActive && styles.activeSegmentText]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          <View style={styles.badgeIcon} testID="floating-language-indicator" />
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     position: 'absolute',
-    top: 50,
-    left: 16,
-    flexDirection: 'row',
-    gap: 8,
+    top: Platform.select({ web: 14, default: 48 }),
+    left: 14,
     zIndex: 9999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 10,
   },
-  button: {
+  container: {
+    padding: 6,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(203, 213, 225, 0.9)',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  badgeIcon: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#1f9d62',
+    borderWidth: 2,
+    borderColor: '#cdeedc',
+  },
+  segmentedControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 20,
+    padding: 3,
+    borderRadius: 14,
+    backgroundColor: '#e8eef5',
     gap: 4,
-    borderWidth: 2,
-    borderColor: '#e9ecef',
   },
-  activeButton: {
-    backgroundColor: '#27ae60',
-    borderColor: '#27ae60',
+  segmentButton: {
+    minWidth: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 11,
   },
-  flag: {
-    fontSize: 16,
+  activeSegmentButton: {
+    backgroundColor: '#1f9d62',
+    shadowColor: '#1f9d62',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
   },
-  buttonText: {
+  segmentText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#2c3e50',
+    fontWeight: '800',
+    color: '#51657a',
+    letterSpacing: 0.6,
   },
-  activeButtonText: {
-    color: '#fff',
+  activeSegmentText: {
+    color: '#ffffff',
   },
 });

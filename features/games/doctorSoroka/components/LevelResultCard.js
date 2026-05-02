@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { GameCard, SectionTitle, ScoreChip } from '../shared';
+import { GameCard, SectionTitle, ScoreChip } from '../../shared';
 
 export default function LevelResultCard({ summary }) {
   return (

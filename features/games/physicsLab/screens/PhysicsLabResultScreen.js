@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer, GameHeader, ChoiceButton, GameCard, ScoreChip } from '../../shared';
 import { physicsLabLevels } from '../data/levels';
+import { markPhysicsLabLevelCompleted } from '../services/levelProgressService';
 
 export default function PhysicsLabResultScreen({ route, navigation }) {
   const levelId = route?.params?.levelId;
+  const studentId = route?.params?.studentId || 'demo-student-id';
   const result = route?.params?.result || {};
   const level = physicsLabLevels.find((item) => item.id === levelId) || physicsLabLevels[0];
   const nextLevel = result?.nextLevel || null;
+
+  useEffect(() => {
+    markPhysicsLabLevelCompleted(level.id, studentId).catch(() => {});
+  }, [level.id, studentId]);
 
   return (
     <ScreenContainer scroll>
@@ -41,14 +47,14 @@ export default function PhysicsLabResultScreen({ route, navigation }) {
           title={`Next: ${nextLevel.title}`}
           description={nextLevel.subtitle}
           variant="secondary"
-          onPress={() => navigation?.replace?.('PhysicsLabLevel', { levelId: nextLevel.id })}
+          onPress={() => navigation?.replace?.('PhysicsLabLevel', { levelId: nextLevel.id, studentId })}
         />
       ) : null}
 
       <ChoiceButton
         title="Back to Physics Lab"
         description="Choose another level"
-        onPress={() => navigation?.navigate?.('PhysicsLabHome')}
+        onPress={() => navigation?.navigate?.('PhysicsLabHome', { studentId })}
       />
     </ScreenContainer>
   );

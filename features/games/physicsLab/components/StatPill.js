@@ -1,7 +1,16 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export default function StatPill({ label, value }) {
+export default function StatPill({ label, value, onPress }) {
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, pressed && styles.pressed]}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.value}>{value}</Text>
+      </Pressable>
+    );
+  }
+
   return (
     <View style={styles.pill}>
       <Text style={styles.label}>{label}</Text>
@@ -21,6 +30,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#2E5778',
+  },
+  pressed: {
+    transform: [{ scale: 0.98 }],
   },
   label: {
     color: '#9CCFFF',

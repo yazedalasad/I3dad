@@ -1,9 +1,9 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   FlatList,
   Image,
   Platform,
@@ -11,6 +11,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -18,11 +19,9 @@ import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityDetailsModal from './ActivityDetailsModal';
 
-const { width } = Dimensions.get('window');
 const GAP = 12;
-const CARD_WIDTH = (width - 32 - GAP) / 2;
+const CONTENT_MAX_WIDTH = 1440;
 
-/* ---------------- THEME (أخضر + أبيض) ---------------- */
 const COLORS = {
   bg: '#f4fbf6',
   card: '#ffffff',
@@ -36,7 +35,91 @@ const COLORS = {
   shadow: '#000',
 };
 
-/* ---------------- STAGGER ANIMATION ---------------- */
+function normalizeLanguage(language) {
+  const value = String(language || '').toLowerCase();
+  if (value.startsWith('he')) return 'he';
+  if (value.startsWith('ar')) return 'ar';
+  return 'en';
+}
+
+function getLocalizedActivityField(activity, baseField, language) {
+  const normalizedLanguage = normalizeLanguage(language);
+  return (
+    activity?.[`${baseField}_${normalizedLanguage}`] ||
+    activity?.[`${baseField}_ar`] ||
+    activity?.[`${baseField}_he`] ||
+    activity?.[`${baseField}_en`] ||
+    activity?.[baseField] ||
+    ''
+  );
+}
+
+function getActivityDateValue(activity, keys) {
+  for (const key of keys) {
+    if (activity?.[key]) return activity[key];
+  }
+  return null;
+}
+
+function formatActivitySchedule(activity, language) {
+  const locale = normalizeLanguage(language) === 'he' ? 'he-IL' : normalizeLanguage(language) === 'ar' ? 'ar-EG' : 'en-US';
+  const startDateRaw = getActivityDateValue(activity, ['start_date', 'activity_date', 'date']);
+  const endDateRaw = getActivityDateValue(activity, ['end_date', 'activity_end_date', 'date_end']);
+  const startTimeRaw = getActivityDateValue(activity, ['start_time', 'time_start', 'activity_time']);
+  const endTimeRaw = getActivityDateValue(activity, ['end_time', 'time_end']);
+
+  const formatDate = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return new Intl.DateTimeFormat(locale, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(parsed);
+  };
+
+  const formatTime = (value) => {
+    if (!value) return '';
+    const safeValue = String(value).trim();
+    const parsed = new Date(`2000-01-01T${safeValue}`);
+    if (Number.isNaN(parsed.getTime())) return safeValue;
+    return new Intl.DateTimeFormat(locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(parsed);
+  };
+
+  const startDate = formatDate(startDateRaw);
+  const endDate = formatDate(endDateRaw);
+  const startTime = formatTime(startTimeRaw);
+  const endTime = formatTime(endTimeRaw);
+
+  const dayRange = startDate && endDate && startDate !== endDate
+    ? `${startDate} - ${endDate}`
+    : startDate || endDate || '';
+  const timeRange = startTime && endTime
+    ? `${startTime} - ${endTime}`
+    : startTime || endTime || '';
+
+  return {
+    dayRange,
+    timeRange,
+  };
+}
+
+function getActivitySchoolLabel(activity, language) {
+  return (
+    getLocalizedActivityField(activity, 'school_name', language) ||
+    getLocalizedActivityField(activity, 'school', language) ||
+    getLocalizedActivityField(activity, 'host_school', language) ||
+    getLocalizedActivityField(activity, 'venue_name', language) ||
+    getLocalizedActivityField(activity, 'location_name', language) ||
+    getLocalizedActivityField(activity, 'location', language) ||
+    ''
+  );
+}
+
 function Stagger({ index, children }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(14)).current;
@@ -58,19 +141,14 @@ function Stagger({ index, children }) {
     ]).start();
   }, [index, opacity, translateY]);
 
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
 
-/* ---------------- CARD WITH POP (hover/press) ---------------- */
-function ActivityCard({ item, index, onPress }) {
-  const t = useRef(new Animated.Value(0)).current;
+function ActivityCard({ item, index, onPress, language, t }) {
+  const animation = useRef(new Animated.Value(0)).current;
 
   const animateTo = (toValue) => {
-    Animated.spring(t, {
+    Animated.spring(animation, {
       toValue,
       useNativeDriver: true,
       friction: 8,
@@ -78,10 +156,11 @@ function ActivityCard({ item, index, onPress }) {
     }).start();
   };
 
-  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
-  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
-
+  const scale = animation.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] });
+  const translateY = animation.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
   const imgH = [190, 140, 170, 210][index % 4];
+  const schedule = formatActivitySchedule(item, language);
+  const schoolLabel = getActivitySchoolLabel(item, language);
 
   return (
     <Stagger index={index}>
@@ -93,19 +172,14 @@ function ActivityCard({ item, index, onPress }) {
         onHoverOut={Platform.OS === 'web' ? () => animateTo(0) : undefined}
         style={styles.cardOuter}
       >
-        <Animated.View
-          style={[
-            styles.card,
-            { width: CARD_WIDTH, transform: [{ translateY }, { scale }] },
-          ]}
-        >
+        <Animated.View style={[styles.card, { transform: [{ translateY }, { scale }] }]}>
           <View style={styles.imageWrap}>
             <Image source={{ uri: item.image }} style={[styles.image, { height: imgH }]} />
             <View style={styles.imageOverlay} />
 
             <View style={styles.cornerTag}>
               <FontAwesome name="map-marker" size={12} color={COLORS.green} />
-              <Text style={styles.cornerTagText}>الجنوب</Text>
+              <Text style={styles.cornerTagText}>{schoolLabel || t('card.region')}</Text>
             </View>
 
             <View style={styles.seatsPill}>
@@ -116,23 +190,46 @@ function ActivityCard({ item, index, onPress }) {
           </View>
 
           <View style={styles.cardBody}>
+            <View style={styles.metaStrip}>
+              {schedule.dayRange ? (
+                <View style={styles.metaChip}>
+                  <FontAwesome name="calendar" size={12} color={COLORS.green} />
+                  <Text style={styles.metaChipText}>{schedule.dayRange}</Text>
+                </View>
+              ) : null}
+
+              {schedule.timeRange ? (
+                <View style={styles.metaChip}>
+                  <FontAwesome name="clock-o" size={12} color={COLORS.green} />
+                  <Text style={styles.metaChipText}>{schedule.timeRange}</Text>
+                </View>
+              ) : null}
+            </View>
+
             <Text numberOfLines={2} style={styles.title}>
-              {item.title_ar}
+              {getLocalizedActivityField(item, 'title', language)}
             </Text>
 
             <Text numberOfLines={2} style={styles.desc}>
-              {item.description_ar}
+              {getLocalizedActivityField(item, 'description', language)}
             </Text>
+
+            {schoolLabel ? (
+              <View style={styles.schoolRow}>
+                <FontAwesome name="building-o" size={13} color="#2563eb" />
+                <Text numberOfLines={1} style={styles.schoolText}>{schoolLabel}</Text>
+              </View>
+            ) : null}
 
             <View style={styles.row}>
               <View style={styles.pricePill}>
                 <Text style={styles.priceText}>
-                  {Number(item.price) === 0 ? 'مجّاني' : `${item.price}₪`}
+                  {Number(item.price) === 0 ? t('card.free') : `${item.price}₪`}
                 </Text>
               </View>
 
               <View style={styles.ctaMini}>
-                <Text style={styles.ctaMiniText}>تفاصيل</Text>
+                <Text style={styles.ctaMiniText}>{t('card.details')}</Text>
                 <FontAwesome name="chevron-left" size={12} color="#fff" />
               </View>
             </View>
@@ -143,7 +240,6 @@ function ActivityCard({ item, index, onPress }) {
   );
 }
 
-/* ---------------- MINI SECTION CARD ---------------- */
 function InfoCard({ icon, title, desc }) {
   return (
     <View style={styles.infoCard}>
@@ -158,10 +254,9 @@ function InfoCard({ icon, title, desc }) {
   );
 }
 
-/* ---------------- EXAMPLE CARD ---------------- */
-function ExampleCard({ icon, title, desc }) {
+function ExampleCard({ icon, title, desc, style }) {
   return (
-    <View style={styles.exampleCard}>
+    <View style={[styles.exampleCard, style]}>
       <View style={styles.exampleIcon}>
         <Text style={styles.exampleIconText}>{icon}</Text>
       </View>
@@ -171,7 +266,6 @@ function ExampleCard({ icon, title, desc }) {
   );
 }
 
-/* ---------------- FAQ ITEM ---------------- */
 function FaqItem({ q, a }) {
   return (
     <View style={styles.faqItem}>
@@ -181,18 +275,18 @@ function FaqItem({ q, a }) {
   );
 }
 
-/* ---------------- MAIN SCREEN ---------------- */
 export default function ActivitiesScreen() {
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const translation = useTranslation('activities');
+  const t = translation?.t || ((key) => key);
+  const language = translation?.i18n?.language || 'ar';
 
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const [selected, setSelected] = useState(null); // modal activity
-
-  // UI-only filters (شكل فقط حالياً)
-  const [activeChip, setActiveChip] = useState('الكل');
+  const [selected, setSelected] = useState(null);
+  const [activeChip, setActiveChip] = useState('all');
 
   useEffect(() => {
     load();
@@ -201,7 +295,6 @@ export default function ActivitiesScreen() {
   const load = async () => {
     setLoading(true);
 
-    // نفس منطق الداتا تقريباً - بدون تغييرات كبيرة
     const { data, error } = await supabase
       .from('activities')
       .select('*')
@@ -216,12 +309,12 @@ export default function ActivitiesScreen() {
     }
 
     setActivities(
-      (data || []).map((a) => ({
-        ...a,
+      (data || []).map((activity) => ({
+        ...activity,
         image:
-          a.image_url ||
+          activity.image_url ||
           'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
-        isRegistered: false, // local state for now
+        isRegistered: false,
       }))
     );
 
@@ -234,195 +327,172 @@ export default function ActivitiesScreen() {
     setRefreshing(false);
   };
 
-  /* ---------------- REGISTER / UNREGISTER (UI only) ---------------- */
   const toggleRegister = async (activity) => {
     if (!user) return;
 
-    const updated = activities.map((a) => {
-      if (a.id !== activity.id) return a;
+    let updatedSelected = null;
 
-      if (a.isRegistered) {
-        return {
-          ...a,
+    const updated = activities.map((entry) => {
+      if (entry.id !== activity.id) return entry;
+
+      if (entry.isRegistered) {
+        updatedSelected = {
+          ...entry,
           isRegistered: false,
-          registered: Math.max(0, Number(a.registered || 0) - 1),
+          registered: Math.max(0, Number(entry.registered || 0) - 1),
         };
+        return updatedSelected;
       }
-      return {
-        ...a,
+
+      updatedSelected = {
+        ...entry,
         isRegistered: true,
-        registered: Number(a.registered || 0) + 1,
+        registered: Number(entry.registered || 0) + 1,
       };
+      return updatedSelected;
     });
 
     setActivities(updated);
-    // DB logic later
+
+    if (updatedSelected) {
+      setSelected(updatedSelected);
+    }
   };
 
   const chips = useMemo(
     () => [
-      { key: 'الكل', icon: 'th-large' },
-      { key: 'ورشات', icon: 'wrench' },
-      { key: 'محاضرات', icon: 'microphone' },
-      { key: 'مسابقات', icon: 'trophy' },
-      { key: 'بعد الدوام', icon: 'graduation-cap' },
+      { key: 'all', icon: 'th-large', label: t('filters.all') },
+      { key: 'workshops', icon: 'wrench', label: t('filters.workshops') },
+      { key: 'lectures', icon: 'microphone', label: t('filters.lectures') },
+      { key: 'competitions', icon: 'trophy', label: t('filters.competitions') },
+      { key: 'afterSchool', icon: 'graduation-cap', label: t('filters.afterSchool') },
     ],
-    []
+    [t]
   );
 
-  const examples = useMemo(
-    () => [
-      {
-        icon: '🩺',
-        title: 'جرّب تخصص الطب',
-        desc: 'تجربة عملية: كيف الطبيب بفكّر؟ مهام بسيطة وأدوات ممتعة.',
-      },
-      {
-        icon: '🎓',
-        title: 'لقاء مع طلاب جامعة',
-        desc: 'تجارب حقيقية: كيف اختاروا تخصصهم؟ نصائح صادقة من واقعنا.',
-      },
-      {
-        icon: '💻',
-        title: 'تحدّي برمجة للمبتدئين',
-        desc: 'ألغاز بسيطة + جوّ منافسة + حماس + أحياناً جوائز رمزية.',
-      },
-      {
-        icon: '✍️',
-        title: 'ورشة كتابة وإقناع',
-        desc: 'كيف تكتب عن نفسك وتعرض أفكارك بثقة؟ مهارة بتفيدك بكل مجال.',
-      },
-      {
-        icon: '🧱',
-        title: 'هندسة وبناء',
-        desc: 'تصميم نموذج صغير + تفكير هندسي + شغل جماعي ممتع.',
-      },
-    ],
-    []
-  );
+  const examples = useMemo(() => {
+    const data = t('examples', { returnObjects: true });
+    return Array.isArray(data) ? data : [];
+  }, [t]);
 
-  const faqs = useMemo(
-    () => [
-      {
-        q: 'هل لازم يكون عندي خبرة مسبقة؟',
-        a: 'لا. الفعاليات مناسبة للمبتدئين، وبتبدأ خطوة خطوة وبأسلوب ممتع.',
-      },
-      {
-        q: 'وين بتنعمل الفعاليات؟',
-        a: 'غالباً داخل المدارس في الجنوب، وأحياناً بمراكز قريبة حسب النشاط.',
-      },
-      {
-        q: 'شو بستفيد بالنهاية؟',
-        a: 'بتطلع بفكرة أوضح عن تخصصك المناسب، وتجربة عملية، وثقة أكبر بقرارك.',
-      },
-    ],
-    []
-  );
+  const faqs = useMemo(() => {
+    const data = t('faq', { returnObjects: true });
+    return Array.isArray(data) ? data : [];
+  }, [t]);
 
-  // حالياً chips شكل فقط (بدون فلترة داتا)
   const visibleActivities = useMemo(() => activities, [activities]);
+  const showDesktopLayout = width >= 1100;
+  const contentWidth = Math.min(Math.max(width - 32, 0), CONTENT_MAX_WIDTH);
+  const numColumns = width >= 1700 ? 4 : width >= 1280 ? 3 : width >= 820 ? 2 : 1;
+  const cardWidth =
+    numColumns > 1
+      ? Math.max(260, Math.floor((contentWidth - GAP * (numColumns - 1)) / numColumns))
+      : contentWidth;
 
-  const Header = useMemo(() => {
-    return (
+  const heroExamples = useMemo(() => examples.slice(0, showDesktopLayout ? 3 : 2), [examples, showDesktopLayout]);
+  const exampleCardStyle = useMemo(
+    () => ({
+      width: width >= 1200 ? 210 : width >= 900 ? 190 : '100%',
+      flexGrow: width >= 900 ? 1 : 0,
+      flexBasis: width >= 1200 ? 210 : width >= 900 ? 190 : '100%',
+    }),
+    [width]
+  );
+
+  const header = useMemo(
+    () => (
       <View style={styles.headerWrap}>
-        {/* HERO */}
         <View style={styles.hero}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroIcon}>
-              <FontAwesome name="rocket" size={18} color="#fff" />
+          <View style={[styles.heroMainRow, showDesktopLayout && styles.heroMainRowWide]}>
+            <View style={[styles.heroIntro, showDesktopLayout && styles.heroIntroWide]}>
+              <View style={styles.heroTopRow}>
+                <View style={styles.heroIcon}>
+                  <FontAwesome name="rocket" size={18} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heroTitle}>{t('hero.title')}</Text>
+                  <Text style={styles.heroSub}>{t('hero.subtitle')}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.heroText}>{t('hero.description')}</Text>
+
+              {heroExamples.length ? (
+                <View style={styles.heroExamplesBlock}>
+                  <View style={styles.heroExamplesHead}>
+                    <Text style={styles.heroExamplesTitle}>{t('sections.examples')}</Text>
+                    <Text style={styles.heroExamplesHint}>
+                      {Platform.OS === 'web' ? t('sections.examplesHintWeb') : t('sections.examplesHintMobile')}
+                    </Text>
+                  </View>
+
+                  <View style={styles.heroExamplesGrid}>
+                    {heroExamples.map((item, index) => (
+                      <ExampleCard
+                        key={`${item.title}-hero-${index}`}
+                        icon={item.icon}
+                        title={item.title}
+                        desc={item.desc}
+                        style={exampleCardStyle}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.heroTitle}>فعاليات بتقرّبك من حلمك 🎯</Text>
-              <Text style={styles.heroSub}>
-                لطلاب صف 9–12 • داخل المدارس • في الجنوب
-              </Text>
+
+            <View style={[styles.infoGrid, showDesktopLayout && styles.infoGridWide]}>
+              <InfoCard icon="map-marker" title={t('info.whereTitle')} desc={t('info.whereDesc')} />
+              <InfoCard icon="users" title={t('info.whoTitle')} desc={t('info.whoDesc')} />
+              <InfoCard icon="compass" title={t('info.goalTitle')} desc={t('info.goalDesc')} />
+              <InfoCard icon="cogs" title={t('info.howTitle')} desc={t('info.howDesc')} />
             </View>
           </View>
 
-          <Text style={styles.heroText}>
-            هاي الفعاليات معمولة بالأساس لطلاب مجتمعنا العربي في مدارس الجنوب.
-            الهدف إنك تكتشف شو بتحب، شو بنفعلك، وكيف تختار تخصص/جامعة بثقة.
-            رح تلاقي محاضرات ملهمة، ورشات عملية، ومسابقات ممتعة… وبالآخر بتطلع
-            بخطوة واضحة لإلك!
-          </Text>
-
-          {/* INFO TABLE STYLE (cards grid) */}
-          <View style={styles.infoGrid}>
-            <InfoCard icon="map-marker" title="أين؟" desc="مدارس الجنوب" />
-            <InfoCard icon="users" title="لمين؟" desc="طلاب صف 9–12" />
-            <InfoCard icon="compass" title="الهدف؟" desc="تخصص/مهنة مناسبة" />
-            <InfoCard icon="cogs" title="كيف؟" desc="ورش + محاضرات + تجارب" />
-          </View>
-
-          {/* CHIPS */}
           <View style={styles.chipsRow}>
-            {chips.map((c) => {
-              const active = c.key === activeChip;
+            {chips.map((chip) => {
+              const isActive = chip.key === activeChip;
               return (
                 <Pressable
-                  key={c.key}
-                  onPress={() => setActiveChip(c.key)}
-                  style={[styles.chip, active && styles.chipActive]}
+                  key={chip.key}
+                  onPress={() => setActiveChip(chip.key)}
+                  style={[styles.chip, isActive && styles.chipActive]}
                 >
-                  <FontAwesome name={c.icon} size={12} color={active ? '#fff' : COLORS.green} />
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {c.key}
-                  </Text>
+                  <FontAwesome name={chip.icon} size={12} color={isActive ? '#fff' : COLORS.green} />
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{chip.label}</Text>
                 </Pressable>
               );
             })}
           </View>
         </View>
 
-        {/* EXAMPLES */}
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>أمثلة عن فعالياتنا 🔥</Text>
-          <Text style={styles.sectionHint}>
-            {Platform.OS === 'web' ? 'مرّر الماوس' : 'اسحب'} وشوف الأفكار
-          </Text>
-        </View>
-
-        <FlatList
-          data={examples}
-          keyExtractor={(x, i) => `${x.title}-${i}`}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 10, paddingHorizontal: 2, gap: 10 }}
-          renderItem={({ item }) => (
-            <ExampleCard icon={item.icon} title={item.title} desc={item.desc} />
-          )}
-        />
-
-        {/* FAQ */}
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>أسئلة سريعة 💡</Text>
-          <Text style={styles.sectionHint}>إجابات مختصرة وواضحة</Text>
+          <Text style={styles.sectionTitle}>{t('sections.faq')}</Text>
+          <Text style={styles.sectionHint}>{t('sections.faqHint')}</Text>
         </View>
 
         <View style={styles.faqWrap}>
-          {faqs.map((f, i) => (
-            <FaqItem key={`${f.q}-${i}`} q={f.q} a={f.a} />
+          {faqs.map((item, index) => (
+            <FaqItem key={`${item.q}-${index}`} q={item.q} a={item.a} />
           ))}
         </View>
 
-        {/* LIST TITLE */}
         <View style={[styles.sectionRow, { marginTop: 14 }]}>
-          <Text style={styles.sectionTitle}>الفعاليات القادمة</Text>
+          <Text style={styles.sectionTitle}>{t('sections.upcoming')}</Text>
           <Text style={styles.sectionHint}>
-            {Platform.OS === 'web' ? 'Hover' : 'اضغط'} على الكرت للتفاصيل
+            {Platform.OS === 'web' ? t('sections.upcomingHintWeb') : t('sections.upcomingHintMobile')}
           </Text>
         </View>
       </View>
-    );
-  }, [activeChip, chips, examples, faqs]);
+    ),
+    [activeChip, chips, exampleCardStyle, faqs, heroExamples, showDesktopLayout, t]
+  );
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={COLORS.green} />
-        <Text style={{ marginTop: 10, color: COLORS.muted, fontWeight: '700' }}>
-          جاري تحميل الفعاليات…
-        </Text>
+        <Text style={{ marginTop: 10, color: COLORS.muted, fontWeight: '700' }}>{t('loading')}</Text>
       </View>
     );
   }
@@ -431,29 +501,34 @@ export default function ActivitiesScreen() {
     <View style={styles.screen}>
       <FlatList
         data={visibleActivities}
-        keyExtractor={(i) => String(i.id)}
-        numColumns={2}
+        keyExtractor={(item) => String(item.id)}
+        numColumns={numColumns}
         renderItem={({ item, index }) => (
-          <ActivityCard item={item} index={index} onPress={() => setSelected(item)} />
+          <View style={[styles.cardColumn, { width: cardWidth }]}>
+            <ActivityCard
+              item={item}
+              index={index}
+              onPress={() => setSelected(item)}
+              language={language}
+              t={t}
+            />
+          </View>
         )}
-        columnWrapperStyle={{ gap: GAP }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
-        ListHeaderComponent={Header}
+        columnWrapperStyle={numColumns > 1 ? { gap: GAP, marginBottom: GAP } : undefined}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={header}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <View style={styles.emptyIcon}>
               <FontAwesome name="calendar" size={22} color={COLORS.green} />
             </View>
-            <Text style={styles.emptyTitle}>ما في فعاليات حالياً</Text>
-            <Text style={styles.emptyText}>
-              اسحب لتحديث الصفحة، أو ارجع بعد فترة — رح تنزل فعاليات جديدة قريباً.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('empty.title')}</Text>
+            <Text style={styles.emptyText}>{t('empty.text')}</Text>
           </View>
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
 
-      {/* Modal component (file موجود بنفس المجلد) */}
       <ActivityDetailsModal
         visible={!!selected}
         activity={selected}
@@ -464,16 +539,20 @@ export default function ActivitiesScreen() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  headerWrap: { paddingBottom: 10 },
-
+  listContent: {
+    padding: 16,
+    paddingBottom: 28,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+  },
+  headerWrap: { paddingBottom: 6 },
   hero: {
     borderRadius: 22,
-    padding: 16,
+    padding: 18,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: '#d1fae5',
@@ -482,6 +561,19 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 3,
+  },
+  heroMainRow: {
+    gap: 14,
+  },
+  heroMainRowWide: {
+    flexDirection: 'row-reverse',
+    alignItems: 'stretch',
+  },
+  heroIntro: {
+    flexShrink: 1,
+  },
+  heroIntroWide: {
+    flex: 1.2,
   },
   heroTopRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   heroIcon: {
@@ -494,19 +586,13 @@ const styles = StyleSheet.create({
   },
   heroTitle: { fontWeight: '900', fontSize: 18, color: COLORS.text, textAlign: 'right' },
   heroSub: { marginTop: 2, fontWeight: '800', color: COLORS.muted, textAlign: 'right', fontSize: 12 },
-  heroText: {
-    marginTop: 10,
-    color: COLORS.muted,
-    lineHeight: 20,
-    fontSize: 13,
-    textAlign: 'right',
+  heroText: { marginTop: 10, color: COLORS.muted, lineHeight: 20, fontSize: 13, textAlign: 'right' },
+  infoGrid: { marginTop: 2, gap: 10 },
+  infoGridWide: {
+    flex: 1,
+    display: 'flex',
+    justifyContent: 'space-between',
   },
-
-  infoGrid: {
-    marginTop: 12,
-    gap: 10,
-  },
-
   infoCard: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -516,6 +602,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.greenSoft2,
     borderWidth: 1,
     borderColor: '#bbf7d0',
+    minHeight: 76,
   },
   infoIcon: {
     width: 34,
@@ -527,13 +614,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: { fontWeight: '900', color: COLORS.text, textAlign: 'right' },
   infoDesc: { marginTop: 2, fontWeight: '800', color: COLORS.muted, textAlign: 'right', fontSize: 12 },
-
-  chipsRow: {
-    marginTop: 12,
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+  chipsRow: { marginTop: 14, flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -548,9 +629,8 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
   chipText: { fontWeight: '900', color: COLORS.green, fontSize: 12 },
   chipTextActive: { color: '#fff' },
-
   sectionRow: {
-    marginTop: 14,
+    marginTop: 16,
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -558,12 +638,40 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontWeight: '900', fontSize: 16, color: COLORS.text, textAlign: 'right' },
   sectionHint: { color: COLORS.muted, fontWeight: '700', fontSize: 12, textAlign: 'right' },
-
+  heroExamplesBlock: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#dcfce7',
+  },
+  heroExamplesHead: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  heroExamplesTitle: {
+    fontWeight: '900',
+    fontSize: 15,
+    color: COLORS.text,
+    textAlign: 'right',
+  },
+  heroExamplesHint: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.muted,
+    textAlign: 'right',
+  },
+  heroExamplesGrid: {
+    marginTop: 10,
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
   exampleCard: {
-    width: 220,
     backgroundColor: COLORS.card,
     borderRadius: 20,
-    padding: 14,
+    padding: 13,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: COLORS.shadow,
@@ -584,9 +692,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   exampleIconText: { fontSize: 18 },
-  exampleTitle: { marginTop: 10, fontWeight: '900', color: COLORS.text, textAlign: 'right' },
+  exampleTitle: { marginTop: 10, fontWeight: '900', color: COLORS.text, textAlign: 'right', fontSize: 14 },
   exampleDesc: { marginTop: 6, color: COLORS.muted, lineHeight: 18, fontSize: 12, textAlign: 'right' },
-
   faqWrap: {
     marginTop: 10,
     backgroundColor: COLORS.card,
@@ -595,27 +702,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  faqItem: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
-  },
+  faqItem: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eef2f7' },
   faqQ: { fontWeight: '900', color: COLORS.text, textAlign: 'right' },
   faqA: { marginTop: 6, color: COLORS.muted, lineHeight: 19, textAlign: 'right' },
-
+  cardColumn: {
+    flexShrink: 0,
+  },
   cardOuter: { flex: 1 },
-
   card: {
+    height: '100%',
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#dbe7e2',
     shadowColor: COLORS.shadow,
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
   },
   imageWrap: { position: 'relative' },
   image: { width: '100%' },
@@ -627,7 +732,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(15, 23, 42, 0.06)',
   },
-
   cornerTag: {
     position: 'absolute',
     top: 10,
@@ -635,59 +739,89 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
     borderColor: '#dcfce7',
   },
   cornerTagText: { fontWeight: '900', fontSize: 12, color: COLORS.green },
-
   seatsPill: {
     position: 'absolute',
     bottom: 10,
     right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   seatsText: { fontWeight: '900', color: COLORS.text, fontSize: 12 },
-
-  cardBody: { padding: 12 },
-  title: { fontWeight: '900', fontSize: 14, marginBottom: 4, color: COLORS.text, textAlign: 'right' },
-  desc: { fontSize: 12, color: COLORS.muted, lineHeight: 17, textAlign: 'right' },
-
+  cardBody: { padding: 14, paddingTop: 13, flexGrow: 1 },
+  metaStrip: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  metaChip: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  metaChipText: {
+    color: '#166534',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  title: { fontWeight: '900', fontSize: 17, marginBottom: 6, color: COLORS.text, textAlign: 'right' },
+  desc: { fontSize: 13, color: COLORS.muted, lineHeight: 20, textAlign: 'right' },
+  schoolRow: {
+    marginTop: 10,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 7,
+  },
+  schoolText: {
+    flex: 1,
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
   row: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 14,
   },
   pricePill: {
     backgroundColor: COLORS.greenSoft,
     borderWidth: 1,
     borderColor: '#bbf7d0',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderRadius: 999,
   },
   priceText: { fontWeight: '900', color: COLORS.green },
-
   ctaMini: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     borderRadius: 999,
     backgroundColor: COLORS.green,
   },
   ctaMiniText: { color: '#fff', fontWeight: '900', fontSize: 12 },
-
   emptyWrap: {
     marginTop: 14,
     backgroundColor: COLORS.card,
