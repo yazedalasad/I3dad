@@ -220,7 +220,7 @@ export function useArabicPoetPuzzle({ levelId = 'arabic_poet_puzzle_level_1' } =
       try {
         await sessionApi.startSession({
           studentId,
-          gameId: 'arabic_poet_puzzle',
+          gameId: level.gameId || 'arabic_poet_puzzle',
           levelId: level.id,
           language: 'ar',
           currentSceneId: level.id,

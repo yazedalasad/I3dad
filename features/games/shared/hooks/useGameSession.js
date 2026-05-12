@@ -10,6 +10,18 @@ import {
 } from '../utils/gameScoring';
 import { buildSessionAnalytics, estimateEngagementScore } from '../utils/gameAnalytics';
 
+function isLocalSession(session) {
+  return String(session?.id || '').startsWith('local-');
+}
+
+function isExpectedSessionFallback(error) {
+  const message = String(error?.message || error || '');
+  return (
+    message.includes('Failed to fetch') ||
+    message.includes('Network request failed')
+  );
+}
+
 export function useGameSession() {
   const [session, setSession] = useState(null);
   const [scores, setScores] = useState(createEmptyScores());
@@ -47,13 +59,32 @@ export function useGameSession() {
       setLoading(true);
       setError(null);
 
-      const created = await createGameSession({
-        studentId,
-        gameId,
-        levelId,
-        language,
-        currentSceneId,
-      });
+      let created;
+      try {
+        created = await createGameSession({
+          studentId,
+          gameId,
+          levelId,
+          language,
+          currentSceneId,
+        });
+      } catch (sessionError) {
+        if (!isExpectedSessionFallback(sessionError)) {
+          throw sessionError;
+        }
+        console.warn('Game session will continue locally:', sessionError?.message || sessionError);
+        created = {
+          id: `local-${gameId || 'game'}-${levelId || 'level'}-${Date.now()}`,
+          student_id: studentId,
+          game_id: gameId,
+          level_id: levelId,
+          language,
+          current_scene_id: currentSceneId,
+          status: 'in_progress',
+          created_at: new Date().toISOString(),
+          localOnly: true,
+        };
+      }
 
       setSession(created);
       setScores(createEmptyScores());
@@ -101,7 +132,9 @@ export function useGameSession() {
       isOptimal,
     };
 
-    await createGameActionLog(actionRecord);
+    if (!isLocalSession(session)) {
+      await createGameActionLog(actionRecord);
+    }
     actionsRef.current = [...actionsRef.current, actionRecord];
     setActions(actionsRef.current);
 
@@ -161,7 +194,7 @@ export function useGameSession() {
         ? trustScore
         : Math.round(analytics.behavior?.understanding || analytics.accuracy || 0);
 
-    const updated = await updateGameSession(session.id, {
+    const completedPayload = {
       status: 'completed',
       currentSceneId,
       endedAt: new Date().toISOString(),
@@ -170,7 +203,21 @@ export function useGameSession() {
       trustScore: finalTrustScore,
       hebrewScore,
       medicalReasoningScore,
-    });
+    };
+
+    const updated = isLocalSession(session)
+      ? {
+          ...session,
+          status: 'completed',
+          current_scene_id: currentSceneId,
+          ended_at: completedPayload.endedAt,
+          interest_signal: analytics.interestSignal,
+          engagement_score: finalEngagementScore,
+          trust_score: finalTrustScore,
+          hebrew_score: hebrewScore,
+          medical_reasoning_score: medicalReasoningScore,
+        }
+      : await updateGameSession(session.id, completedPayload);
 
     setSession(updated);
 
@@ -191,11 +238,18 @@ export function useGameSession() {
       throw new Error('No active session');
     }
 
-    const updated = await updateGameSession(session.id, {
-      status: 'abandoned',
-      currentSceneId,
-      endedAt: new Date().toISOString(),
-    });
+    const updated = isLocalSession(session)
+      ? {
+          ...session,
+          status: 'abandoned',
+          current_scene_id: currentSceneId,
+          ended_at: new Date().toISOString(),
+        }
+      : await updateGameSession(session.id, {
+          status: 'abandoned',
+          currentSceneId,
+          endedAt: new Date().toISOString(),
+        });
 
     setSession(updated);
     return updated;

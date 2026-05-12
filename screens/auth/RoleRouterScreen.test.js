@@ -73,7 +73,7 @@ beforeEach(() => {
     const utils = render(<RoleRouterScreen {...baseProps()} />);
 
     await waitFor(() => {
-      expect(utils.getByText('common.pleaseWait')).toBeTruthy();
+      expect(utils.getByText('الرجاء الانتظار...')).toBeTruthy();
     });
   });
 

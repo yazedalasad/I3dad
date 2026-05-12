@@ -9,6 +9,7 @@ import {
   LoadingState,
 } from '../../components/Admin/AdminLayout';
 import { adminColors } from '../../components/Admin/adminTheme';
+import { useAdminTranslator } from '../../components/Admin/adminTranslations';
 import { createAdminQuestion, validateQuestionPayload } from '../../services/adminPanelService';
 import { getAllSubjects } from '../../services/questionService';
 
@@ -33,6 +34,7 @@ const initialForm = {
 };
 
 export default function AdminQuestionFormScreen({ navigateTo }) {
+  const tr = useAdminTranslator();
   const [form, setForm] = useState(initialForm);
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
@@ -59,18 +61,18 @@ export default function AdminQuestionFormScreen({ navigateTo }) {
     const payload = { ...form, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) };
     const validation = validateQuestionPayload(payload);
     if (!validation.valid) {
-      Alert.alert('تحقق من السؤال', validation.message);
+      Alert.alert(tr('تحقق من السؤال'), tr(validation.message));
       return;
     }
     setSaving(true);
     const result = await createAdminQuestion(payload);
     setSaving(false);
     if (!result.success) {
-      Alert.alert('تعذر حفظ السؤال', result.error?.message || 'تحقق من حقول جدول questions');
+      Alert.alert(tr('تعذر حفظ السؤال'), result.error?.message || tr('تحقق من حقول جدول questions'));
       return;
     }
-    Alert.alert('تم الحفظ', 'تمت إضافة السؤال إلى بنك الأسئلة.', [
-      { text: 'رجوع للبنك', onPress: () => navigateTo?.('adminQuestions') },
+    Alert.alert(tr('تم الحفظ'), tr('تمت إضافة السؤال إلى بنك الأسئلة.'), [
+      { text: tr('رجوع للبنك'), onPress: () => navigateTo?.('adminQuestions') },
     ]);
   };
 
@@ -84,10 +86,10 @@ export default function AdminQuestionFormScreen({ navigateTo }) {
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigateTo?.('adminQuestions')} activeOpacity={0.85}>
             <FontAwesome name="arrow-right" size={14} color={adminColors.primary} />
-            <Text style={styles.backText}>رجوع للأسئلة</Text>
+            <Text style={styles.backText}>{tr('رجوع للأسئلة')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.saveButton} onPress={saveQuestion} disabled={saving}>
-          <Text style={styles.saveText}>{saving ? 'جاري الحفظ...' : 'حفظ السؤال'}</Text>
+          <Text style={styles.saveText}>{tr(saving ? 'جاري الحفظ...' : 'حفظ السؤال')}</Text>
           </TouchableOpacity>
         </View>
       }
@@ -114,7 +116,7 @@ export default function AdminQuestionFormScreen({ navigateTo }) {
               <FormInput label="نص السؤال بالعبرية" value={form.questionHe} onChangeText={(v) => setField('questionHe', v)} multiline />
               {['A', 'B', 'C', 'D'].map((key) => (
                 <View key={key} style={styles.optionBlock}>
-                  <Text style={styles.optionTitle}>الاختيار {key}</Text>
+                  <Text style={styles.optionTitle}>{tr(`الاختيار ${key}`)}</Text>
                   <FormInput label={`الخيار ${key} بالعربية`} value={form[`option${key}Ar`]} onChangeText={(v) => setField(`option${key}Ar`, v)} />
                   <FormInput label={`الخيار ${key} بالعبرية`} value={form[`option${key}He`]} onChangeText={(v) => setField(`option${key}He`, v)} />
                 </View>
@@ -133,10 +135,10 @@ export default function AdminQuestionFormScreen({ navigateTo }) {
 
           <AdminCard title="Preview" subtitle="تجربة شكل السؤال قبل الحفظ">
             <View style={styles.preview}>
-              <Text style={styles.previewQuestion}>{form.questionAr || form.questionHe || 'نص السؤال يظهر هنا'}</Text>
+              <Text style={styles.previewQuestion}>{form.questionAr || form.questionHe || tr('نص السؤال يظهر هنا')}</Text>
               {['A', 'B', 'C', 'D'].map((key) => (
                 <View key={key} style={[styles.previewOption, form.correctAnswer === key && styles.previewOptionCorrect]}>
-                  <Text style={styles.previewOptionText}>{key}. {form[`option${key}Ar`] || form[`option${key}He`] || `الخيار ${key}`}</Text>
+                  <Text style={styles.previewOptionText}>{key}. {form[`option${key}Ar`] || form[`option${key}He`] || tr(`الخيار ${key}`)}</Text>
                 </View>
               ))}
             </View>
@@ -148,9 +150,10 @@ export default function AdminQuestionFormScreen({ navigateTo }) {
 }
 
 function PickerLike({ label, value, options, onSelect }) {
+  const tr = useAdminTranslator();
   return (
     <View style={styles.pickerWrap}>
-      <Text style={styles.pickerLabel}>{label}</Text>
+      <Text style={styles.pickerLabel}>{tr(label)}</Text>
       <View style={styles.pickerOptions}>
         {options.slice(0, 10).map((option) => (
           <TouchableOpacity key={option.id} style={styles.pickerChip} onPress={() => onSelect(option)}>
@@ -158,7 +161,7 @@ function PickerLike({ label, value, options, onSelect }) {
           </TouchableOpacity>
         ))}
       </View>
-      <Text style={styles.currentValue}>الحالي: {value}</Text>
+      <Text style={styles.currentValue}>{tr(`الحالي: ${value}`)}</Text>
     </View>
   );
 }

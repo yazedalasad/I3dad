@@ -14,6 +14,7 @@
 
 import { supabase } from '../config/supabase';
 import { getStudentPersonalityProfile } from './personalityTestService';
+import { applyGameBonusToScore01, getGameCareerBonusByDegree } from './gameCareerSignalService';
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -461,6 +462,7 @@ export async function recommendTopDegreesWithPersonality(studentId, options = {}
     // 4) Student signals
     const { abilityBySubjectId, interestBySubjectId, metaBySubjectId } =
       await buildStudentSignalsBySubject(studentId, { minTrustedQuestions });
+    const gameBonusByDegreeId = await getGameCareerBonusByDegree(studentId);
 
     // 5) Student personality
     let studentTraits0to100 = null;
@@ -476,12 +478,28 @@ export async function recommendTopDegreesWithPersonality(studentId, options = {}
       };
     }
 
+    const evidence = {
+      hasAbilitySignals: abilityBySubjectId.size > 0,
+      hasInterestSignals: interestBySubjectId.size > 0,
+      hasPersonalitySignals: !!studentTraits0to100,
+      hasGameSignals: gameBonusByDegreeId.size > 0,
+    };
+    const hasCoreRecommendationEvidence =
+      evidence.hasAbilitySignals || evidence.hasInterestSignals || evidence.hasPersonalitySignals;
+
     // 6) Score degrees
     const scored = [];
 
     for (const d of degrees || []) {
       const subjWeights = d.degree_subject_weights || [];
       if (!subjWeights.length) continue;
+
+      const gameBonus = gameBonusByDegreeId.get(d.id) || null;
+      const hasDirectGameSignal = !!gameBonus;
+
+      if (!hasCoreRecommendationEvidence && !hasDirectGameSignal) {
+        continue;
+      }
 
       const abilityPart = computeDegreeSubjectScore({
         degreeSubjectWeights: subjWeights,
@@ -504,17 +522,18 @@ export async function recommendTopDegreesWithPersonality(studentId, options = {}
         fallbackScore01: 0.35,
       });
 
-      let finalScore01 =
+      const baseScore01 =
         W.ability * abilityPart.score01 +
         W.personality * personalityPart.score01 +
         W.interest * interestPart.score01;
 
-      finalScore01 = applyMismatchPenalty(
-        finalScore01,
+      const baseAfterPenalty01 = applyMismatchPenalty(
+        baseScore01,
         abilityPart.score01,
         personalityPart.score01,
         strict?.mismatch
       );
+      const finalScore01 = applyGameBonusToScore01(baseAfterPenalty01, gameBonus?.bonusPercent || 0);
 
       scored.push({
         degree_id: d.id,
@@ -524,6 +543,8 @@ export async function recommendTopDegreesWithPersonality(studentId, options = {}
         name_he: d.name_he,
         category: d.category,
         score: round6(finalScore01),
+        base_score: round6(baseAfterPenalty01),
+        game_signal_bonus: gameBonus?.bonusPercent || 0,
 
         breakdown: {
           ability: {
@@ -552,6 +573,16 @@ export async function recommendTopDegreesWithPersonality(studentId, options = {}
               };
             }),
           },
+          game: {
+            bonus_percent: gameBonus?.bonusPercent || 0,
+            average_signal: gameBonus?.averageSignal || 0,
+            explanations: gameBonus?.explanations || [],
+          },
+          evidence: {
+            ...evidence,
+            hasDirectGameSignal,
+            mode: hasCoreRecommendationEvidence ? 'profile_and_assessment' : 'game_only',
+          },
         },
       });
     }
@@ -570,6 +601,7 @@ export async function recommendTopDegreesWithPersonality(studentId, options = {}
       data: post.slice(0, clamp(limit, 1, 20)),
       usedWeights: W,
       hasPersonalityProfile: !!studentTraits0to100,
+      evidence,
       strictUsed: {
         mismatch: strict?.mismatch ?? null,
         spread: strict?.spread ?? null,

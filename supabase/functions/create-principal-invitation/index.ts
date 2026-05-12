@@ -1,5 +1,4 @@
 declare const Deno: {
-  env: { get(key: string): string | undefined };
   serve: (handler: (req: Request) => Response | Promise<Response>) => void;
 };
 
@@ -9,9 +8,10 @@ import {
   buildInviteLink,
   corsHeaders,
   json,
-  normalizeRole,
+  normalizeEmail,
+  normalizeLanguage,
+  randomInvitationCode,
   randomToken,
-  sendInvitationEmail,
 } from "../_shared/principalInvitation.ts";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,12 +25,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const email = String(body.email || "").trim().toLowerCase();
+    const invitedEmail = normalizeEmail(body.invited_email || body.email);
     const schoolId = String(body.school_id || body.schoolId || "").trim();
-    const role = normalizeRole(body.role);
-    const preferredLanguage = String(body.preferred_language || body.preferredLanguage || "ar").startsWith("he") ? "he" : "ar";
+    const preferredLanguage = normalizeLanguage(body.preferred_language || body.preferredLanguage || "ar");
 
-    if (!EMAIL_RE.test(email)) return json(400, { success: false, error: "Invalid email" });
+    if (!EMAIL_RE.test(invitedEmail)) return json(400, { success: false, error: "Invalid email" });
     if (!schoolId) return json(400, { success: false, error: "school_id is required" });
 
     const { data: school, error: schoolError } = await auth.admin
@@ -44,51 +43,75 @@ Deno.serve(async (req: Request) => {
 
     await auth.admin
       .from("principal_invitations")
-      .update({ status: "revoked" })
-      .eq("email", email)
+      .update({ status: "expired" })
+      .eq("invited_email", invitedEmail)
       .eq("school_id", schoolId)
       .eq("status", "pending");
 
-    const token = randomToken();
+    const inviteToken = randomToken();
+    const invitationCode = randomInvitationCode();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const schoolName = school.name_ar || school.name_he || "School";
+    const invitedName = String(body.invited_name || body.full_name || body.fullName || "").trim() || invitedEmail;
+    const invitedPhone = String(body.invited_phone || body.phone || "").trim() || null;
 
     const { data: invitation, error } = await auth.admin
       .from("principal_invitations")
       .insert([
         {
-          email,
-          full_name: body.full_name || body.fullName || null,
-          phone: body.phone || null,
           school_id: school.id,
-          school_name: schoolName,
-          role,
+          invited_email: invitedEmail,
+          invited_name: invitedName,
+          invited_phone: invitedPhone,
           preferred_language: preferredLanguage,
-          invitation_token: token,
+          role: "principal",
+          invite_token: inviteToken,
+          invitation_code: invitationCode,
           status: "pending",
-          invited_by: auth.user.id,
           expires_at: expiresAt,
+          created_by_admin_id: auth.user.id,
           notes: body.notes || null,
+          school_name: schoolName,
         },
       ])
-      .select("id, email, school_id, school_name, role, expires_at, invitation_token")
+      .select("id, school_id, invited_email, invited_name, invited_phone, preferred_language, role, expires_at, invite_token, invitation_code, school_name")
       .maybeSingle();
 
     if (error) return json(500, { success: false, error: error.message });
 
-    const inviteLink = buildInviteLink(token);
-    const emailResult = await sendInvitationEmail({
-      to: email,
-      fullName: body.full_name || body.fullName || "",
-      schoolName,
-      inviteLink,
+    const inviteLink = buildInviteLink(inviteToken);
+    const inviteLinkWithCode = `${inviteLink}${inviteLink.includes("?") ? "&" : "?"}code=${encodeURIComponent(invitationCode)}`;
+    const authInvite = await auth.admin.auth.admin.inviteUserByEmail(invitedEmail, {
+      data: {
+        role: "principal",
+        principal_invitation_id: invitation?.id,
+        principal_invitation_token: inviteToken,
+        invitation_code: invitationCode,
+        school_id: school.id,
+        school_name: schoolName,
+        preferred_language: preferredLanguage,
+        full_name: invitedName,
+        phone: invitedPhone,
+      },
+      redirectTo: inviteLinkWithCode,
+    });
+
+    const emailResult = authInvite.error
+      ? { sent: false, provider: "supabase-auth-smtp", error: authInvite.error.message }
+      : { sent: true, provider: "supabase-auth-smtp" };
+
+    console.log(emailResult.sent ? "principal invite sent with supabase smtp" : "principal invite email failed", {
+      to: invitedEmail,
+      provider: emailResult.provider,
+      error: "error" in emailResult ? emailResult.error : undefined,
     });
 
     return json(200, {
       success: true,
       invitationId: invitation?.id,
-      invitation: { ...invitation, invitation_token: undefined },
-      inviteLink,
+      invitation: { ...invitation, invite_token: undefined },
+      inviteLink: inviteLinkWithCode,
+      invitationCode,
       emailSent: emailResult.sent,
       emailProvider: emailResult.provider,
       emailError: "error" in emailResult ? emailResult.error : undefined,

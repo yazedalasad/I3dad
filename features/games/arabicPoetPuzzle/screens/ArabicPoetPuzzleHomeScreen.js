@@ -5,14 +5,23 @@ import { arabicPoetPuzzleLevels } from '../data/levels';
 import { desertTheme } from '../utils/theme';
 import desertThemeBgImage from '../assets/desert-theme-bg.png';
 import { getCompletedArabicPoetPuzzleLevels } from '../services/levelProgressService';
+import { getStudentGameSessions } from '../../shared/services/gameSessionService';
 
 export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = 'demo-student-id' }) {
   const colors = desertTheme.colors;
   const [completedLevels, setCompletedLevels] = useState([]);
 
   const loadCompletedLevels = useCallback(() => {
-    getCompletedArabicPoetPuzzleLevels(studentId)
-      .then((levels) => setCompletedLevels(levels))
+    Promise.all([
+      getCompletedArabicPoetPuzzleLevels(studentId),
+      getStudentGameSessions(studentId, 'arabic_poet_puzzle').catch(() => []),
+    ])
+      .then(([localLevels, gameSessions]) => {
+        const savedLevels = (gameSessions || [])
+          .filter((session) => session.status === 'completed' && session.level_id)
+          .map((session) => session.level_id);
+        setCompletedLevels(Array.from(new Set([...(localLevels || []), ...savedLevels])));
+      })
       .catch(() => setCompletedLevels([]));
   }, [studentId]);
 
@@ -31,6 +40,9 @@ export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = 'de
     >
       <ScreenContainer scroll style={styles.transparent}>
         <View style={styles.topBanner}>
+          <Pressable onPress={() => navigation?.navigate?.('games')} style={({ pressed }) => [styles.exitButton, pressed && styles.pressed]}>
+            <Text style={styles.exitButtonText}>{'\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0623\u0644\u0639\u0627\u0628'}</Text>
+          </Pressable>
           <Text style={styles.mainTitle}>{'\u0643\u0646\u0648\u0632 \u0627\u0644\u0623\u0644\u0641\u0627\u0638'}</Text>
           <Text style={styles.mainSubtitle}>
             {'\u0623\u0644\u0641\u0627\u0638 \u0634\u0639\u0631\u064a\u0629 \u0642\u062f\u064a\u0645\u0629 \u2022 \u0644\u0639\u0628\u0629 \u0643\u0644\u0645\u0627\u062a \u0639\u0631\u0628\u064a\u0629'}
@@ -115,6 +127,23 @@ const styles = StyleSheet.create({
   topBanner: {
     marginBottom: 14,
     paddingVertical: 10,
+    alignItems: 'center',
+  },
+  exitButton: {
+    alignSelf: 'flex-end',
+    borderRadius: 999,
+    backgroundColor: 'rgba(247, 228, 190, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(247, 228, 190, 0.42)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginBottom: 10,
+  },
+  exitButtonText: {
+    color: '#F7E4BE',
+    fontSize: 13,
+    fontWeight: '900',
+    writingDirection: 'rtl',
   },
   mainTitle: {
     color: '#F7E4BE',

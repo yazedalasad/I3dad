@@ -126,11 +126,6 @@ export default function SuccessStoriesScreen({ navigateTo }) {
 
           if (fallback.error) throw fallback.error;
           res = fallback;
-          console.warn(
-            '[SuccessStories] Supabase schema cache might not be refreshed yet. ' +
-              "If you just added columns, run: SELECT pg_notify('pgrst','reload schema'); " +
-              'or restart Supabase API from the dashboard.'
-          );
         } else {
           throw res.error;
         }

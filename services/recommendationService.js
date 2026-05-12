@@ -86,7 +86,9 @@ export async function recommendTopDegrees(studentId, options = {}) {
 
       // score
       score: Number((deg.score ?? 0).toFixed(6)), // 0..1
-      score_percent: Number(toPercent(deg.score).toFixed(2)), // 0..100
+      score_percent: Number((deg.score_percent ?? toPercent(deg.score)).toFixed(2)), // 0..100
+      base_score: deg.base_score ?? null,
+      game_signal_bonus: deg.game_signal_bonus ?? 0,
 
       // explanation / breakdown from new service
       breakdown: deg.breakdown ?? null,
@@ -97,6 +99,7 @@ export async function recommendTopDegrees(studentId, options = {}) {
       data: mapped,
       usedWeights: result.usedWeights ?? weights,
       hasPersonalityProfile: result.hasPersonalityProfile ?? null,
+      evidence: result.evidence ?? null,
     };
   } catch (error) {
     console.error('recommendTopDegrees error:', error);

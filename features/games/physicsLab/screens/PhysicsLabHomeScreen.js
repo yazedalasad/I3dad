@@ -14,8 +14,10 @@ const imageMap = {
   physics_lab_level_3: level3AccelerationImage,
 };
 
-export default function PhysicsLabHomeScreen({ navigation, studentId = 'demo-student-id' }) {
+export default function PhysicsLabHomeScreen({ navigation, studentId = null }) {
   const [completedLevels, setCompletedLevels] = useState([]);
+  const completedCount = completedLevels.length;
+  const progressPercent = Math.round((completedCount / physicsLabLevels.length) * 100);
 
   const loadCompletedLevels = useCallback(() => {
     getCompletedPhysicsLabLevels(studentId)
@@ -34,7 +36,7 @@ export default function PhysicsLabHomeScreen({ navigation, studentId = 'demo-stu
     <ScreenContainer scroll>
       <GameHeader
         title="Physics Lab"
-        subtitle="Choose a level."
+        subtitle="Choose a level, finish the animation, then unlock the next challenge."
         rightContent={
           <Pressable onPress={() => navigation?.navigate?.('games')} style={({ pressed }) => [styles.exitButton, pressed && styles.pressed]}>
             <Text style={styles.exitButtonText}>Exit Game</Text>
@@ -42,7 +44,15 @@ export default function PhysicsLabHomeScreen({ navigation, studentId = 'demo-stu
         }
       />
 
-      <Text style={styles.sectionTitle}>Levels</Text>
+      <View style={styles.progressPanel}>
+        <View>
+          <Text style={styles.progressTitle}>Level Map</Text>
+          <Text style={styles.progressSubtitle}>{completedCount} of {physicsLabLevels.length} completed</Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+        </View>
+      </View>
 
       <View style={styles.list}>
         {physicsLabLevels.map((level, index) => {
@@ -60,6 +70,8 @@ export default function PhysicsLabHomeScreen({ navigation, studentId = 'demo-stu
               disabled={!isUnlocked}
               completed={isCompleted}
               lockedLabel={!isUnlocked ? `Finish Level ${index} first` : ''}
+              statusLabel={isCompleted ? 'Completed' : isUnlocked ? 'Ready' : 'Locked'}
+              actionLabel={isCompleted ? 'Replay' : 'Start'}
               onPress={() =>
                 isUnlocked
                   ? navigation?.navigate?.('PhysicsLabLevel', {
@@ -77,12 +89,36 @@ export default function PhysicsLabHomeScreen({ navigation, studentId = 'demo-stu
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    marginTop: 4,
-    marginBottom: 12,
+  progressPanel: {
+    marginBottom: 16,
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#7DD3FC',
+    gap: 12,
+  },
+  progressTitle: {
     color: '#0F172A',
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  progressSubtitle: {
+    marginTop: 3,
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#BAE6FD',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#2563EB',
   },
   list: {
     flexDirection: 'row',

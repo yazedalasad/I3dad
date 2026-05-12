@@ -29,7 +29,7 @@ export default function LoginScreen({ navigateTo }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const isHebrew = String(i18n.language || '').toLowerCase().startsWith('he');
+  const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
 
   const heroTitle = isHebrew ? 'ברוכים השבים' : 'أهلًا بعودتك';
@@ -222,7 +222,7 @@ export default function LoginScreen({ navigateTo }) {
 
                   <TouchableOpacity
                     style={styles.principalFirstTime}
-                    onPress={() => navigateTo('principalSetPassword')}
+                    onPress={() => navigateTo('principalRegister')}
                   >
                     <Text style={styles.principalFirstTimeText}>
                       {t('login.principalFirstTime', { ns: 'auth' })}

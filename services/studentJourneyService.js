@@ -5,6 +5,7 @@ import {
   buildGameLearningHighlight,
   buildGameLearningSummary,
 } from '../features/games/shared/utils/gameLearningProfile';
+import { getStudentGameCareerSignalSummary } from './gameCareerSignalService';
 
 function safeNum(value, fallback = 0) {
   const numericValue = Number(value);
@@ -170,6 +171,8 @@ function localizeSubjectName(subject, language, fallbackIndex = 0) {
 function buildReasonLines(recommendation, language) {
   const topSubjects = recommendation?.breakdown?.ability?.top_subjects || [];
   const topTraits = recommendation?.breakdown?.personality?.top_traits || [];
+  const gameBonus = safeNum(recommendation?.breakdown?.game?.bonus_percent, 0);
+  const gameExplanation = recommendation?.breakdown?.game?.explanations?.[0];
 
   const subjectReasons = topSubjects.slice(0, 3).map((subject) => {
     const subjectName = localize(
@@ -215,7 +218,21 @@ function buildReasonLines(recommendation, language) {
     );
   });
 
-  return [...subjectReasons, ...traitReasons].filter(Boolean);
+  const gameReasons =
+    gameBonus > 0 && gameExplanation
+      ? [
+          localize(
+            {
+              ar: gameExplanation.reason_ar,
+              he: gameExplanation.reason_he,
+              en: gameExplanation.reason_en,
+            },
+            language
+          ),
+        ]
+      : [];
+
+  return [...subjectReasons, ...traitReasons, ...gameReasons].filter(Boolean);
 }
 
 function buildImprovementLines(recommendation, weakestAbilities, language) {
@@ -364,10 +381,11 @@ export async function getStudentJourneySnapshot(studentId, options = {}) {
   const language = normalizeLanguage(options.language);
 
   try {
-    const [abilityRes, recommendationRes, gameSessions] = await Promise.all([
+    const [abilityRes, recommendationRes, gameSessions, careerSignalSummary] = await Promise.all([
       getStudentAbilities(studentId),
       recommendTopDegrees(studentId, { language, limit: 3 }),
       getStudentGameSessions(studentId),
+      getStudentGameCareerSignalSummary(studentId),
     ]);
 
     const abilities = abilityRes?.success ? abilityRes.abilities || [] : [];
@@ -402,8 +420,8 @@ export async function getStudentJourneySnapshot(studentId, options = {}) {
         const baseScorePercent =
           recommendation?.score_percent ??
           Math.round(clamp(safeNum(recommendation?.score, 0) * 100, 0, 100));
-        const gameFitBoost = calculateGameDegreeFit(recommendation, gameHighlights);
-        const scorePercent = Math.round(clamp(baseScorePercent + gameFitBoost, 0, 100));
+        const gameFitBoost = safeNum(recommendation?.game_signal_bonus, 0);
+        const scorePercent = Math.round(clamp(baseScorePercent, 0, 100));
 
         return {
           ...recommendation,
@@ -425,6 +443,7 @@ export async function getStudentJourneySnapshot(studentId, options = {}) {
         strongestAbilities,
         weakestAbilities,
         gameHighlights,
+        gameCareerSignals: careerSignalSummary || { skills: [], topics: [], degrees: [], explanations: [] },
         recommendations: enrichedRecommendations,
         topRecommendation: topRecommendation
           ? {

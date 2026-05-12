@@ -25,13 +25,18 @@ jest.mock('react-i18next', () => ({
  */
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    Alert: {
+  const descriptors = Object.getOwnPropertyDescriptors(RN);
+  delete descriptors.DevMenu;
+  const mockRN = {};
+  Object.defineProperties(mockRN, descriptors);
+  Object.defineProperty(mockRN, 'Alert', {
+    configurable: true,
+    value: {
       ...RN.Alert,
       alert: jest.fn(),
     },
-  };
+  });
+  return mockRN;
 });
 
 const PersonalityResultsScreen = require('./PersonalityResultsScreen').default;

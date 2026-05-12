@@ -1,90 +1,73 @@
-// قائمة المدارس العربية في جنوب إسرائيل
 export const israeliSchools = [
-  // بئر السبع (Be'er Sheva)
-  { id: 1, name: 'مدرسة الأمل الثانوية - بئر السبع', city: 'بئر السبع', type: 'ثانوية' },
-  { id: 2, name: 'مدرسة النور الثانوية - بئر السبع', city: 'بئر السبع', type: 'ثانوية' },
-  { id: 3, name: 'المدرسة الشاملة - بئر السبع', city: 'بئر السبع', type: 'شاملة' },
-  
-  // الرهط (Rahat)
-  { id: 4, name: 'مدرسة الرهط الثانوية للبنين', city: 'الرهط', type: 'ثانوية' },
-  { id: 5, name: 'مدرسة الرهط الثانوية للبنات', city: 'الرهط', type: 'ثانوية' },
-  { id: 6, name: 'مدرسة الأمل الشاملة - الرهط', city: 'الرهط', type: 'شاملة' },
-  { id: 7, name: 'مدرسة الفارابي - الرهط', city: 'الرهط', type: 'ثانوية' },
-  
-  // كسيفة (Kuseife)
-  { id: 8, name: 'مدرسة كسيفة الثانوية', city: 'كسيفة', type: 'ثانوية' },
-  { id: 9, name: 'المدرسة الشاملة - كسيفة', city: 'كسيفة', type: 'شاملة' },
-  
-  // حورة (Hura)
-  { id: 10, name: 'مدرسة حورة الثانوية', city: 'حورة', type: 'ثانوية' },
-  { id: 11, name: 'مدرسة النهضة - حورة', city: 'حورة', type: 'شاملة' },
-  
-  // تل السبع (Tel Sheva)
-  { id: 12, name: 'مدرسة تل السبع الثانوية', city: 'تل السبع', type: 'ثانوية' },
-  { id: 13, name: 'المدرسة الشاملة - تل السبع', city: 'تل السبع', type: 'شاملة' },
-  
-  // عرعرة النقب (Ar'arat an-Naqab)
-  { id: 14, name: 'مدرسة عرعرة النقب الثانوية', city: 'عرعرة النقب', type: 'ثانوية' },
-  { id: 15, name: 'مدرسة الأفق - عرعرة النقب', city: 'عرعرة النقب', type: 'شاملة' },
-  
-  // لقية (Lakiya)
-  { id: 16, name: 'مدرسة لقية الثانوية', city: 'لقية', type: 'ثانوية' },
-  { id: 17, name: 'المدرسة الشاملة - لقية', city: 'لقية', type: 'شاملة' },
-  
-  // شقيب السلام (Segev Shalom)
-  { id: 18, name: 'مدرسة شقيب السلام الثانوية', city: 'شقيب السلام', type: 'ثانوية' },
-  { id: 19, name: 'مدرسة المستقبل - شقيب السلام', city: 'شقيب السلام', type: 'شاملة' },
-  
-  // القصوم (Al-Qassum)
-  { id: 20, name: 'مدرسة القصوم الثانوية', city: 'القصوم', type: 'ثانوية' },
-  
-  // أبو قرينات (Abu Qurainat)
-  { id: 21, name: 'مدرسة أبو قرينات الثانوية', city: 'أبو قرينات', type: 'ثانوية' },
-  
-  // مولدة (Mulada)
-  { id: 22, name: 'مدرسة مولدة الثانوية', city: 'مولدة', type: 'ثانوية' },
-  { id: 23, name: 'المدرسة الشاملة - مولدة', city: 'مولدة', type: 'شاملة' },
-  
-  // أم بطين (Umm Batin)
-  { id: 24, name: 'مدرسة أم بطين الثانوية', city: 'أم بطين', type: 'ثانوية' },
-  
-  // بير هداج (Bir Hadaj)
-  { id: 25, name: 'مدرسة بير هداج الثانوية', city: 'بير هداج', type: 'ثانوية' },
-  
-  // ديمونا (Dimona)
-  { id: 26, name: 'المدرسة الثانوية العربية - ديمونا', city: 'ديمونا', type: 'ثانوية' },
-  
-  // عرعرة (Ar'ara)
-  { id: 27, name: 'مدرسة عرعرة الثانوية', city: 'عرعرة', type: 'ثانوية' },
-  
-  // أبو تلول (Abu Tulul)
-  { id: 28, name: 'مدرسة أبو تلول الثانوية', city: 'أبو تلول', type: 'ثانوية' },
-  
-  // كحلة (Kahaleh)
-  { id: 29, name: 'مدرسة كحلة الثانوية', city: 'كحلة', type: 'ثانوية' },
-  
-  // وادي النعم (Wadi al-Na'am)
-  { id: 30, name: 'مدرسة وادي النعم الثانوية', city: 'وادي النعم', type: 'ثانوية' },
+  { id: 1, name: 'مدرسة الأمل الثانوية - بئر السبع', name_he: 'תיכון אל-אמל - באר שבע', city: 'بئر السبع', city_he: 'באר שבע', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 2, name: 'مدرسة النور الثانوية - بئر السبع', name_he: 'תיכון אל-נור - באר שבע', city: 'بئر السبع', city_he: 'באר שבע', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 3, name: 'المدرسة الشاملة - بئر السبع', name_he: 'בית הספר המקיף - באר שבע', city: 'بئر السبع', city_he: 'באר שבע', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 4, name: 'مدرسة الرهط الثانوية للبنين', name_he: 'תיכון רהט לבנים', city: 'الرهط', city_he: 'רהט', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 5, name: 'مدرسة الرهط الثانوية للبنات', name_he: 'תיכון רהט לבנות', city: 'الرهط', city_he: 'רהט', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 6, name: 'مدرسة الأمل الشاملة - الرهط', name_he: 'בית הספר המקיף אל-אמל - רהט', city: 'الرهط', city_he: 'רהט', type: 'شاملة', type_he: 'מקיף' },
+  { id: 7, name: 'مدرسة الفارابي - الرهط', name_he: 'בית ספר אל-פאראבי - רהט', city: 'الرهط', city_he: 'רהט', type: 'ثانوية', type_he: 'תיכון' },
+
+  { id: 8, name: 'مدرسة كسيفة الثانوية', name_he: 'תיכון כסייפה', city: 'كسيفة', city_he: 'כסייפה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 9, name: 'المدرسة الشاملة - كسيفة', name_he: 'בית הספר המקיף - כסייפה', city: 'كسيفة', city_he: 'כסייפה', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 10, name: 'مدرسة حورة الثانوية', name_he: 'תיכון חורה', city: 'حورة', city_he: 'חורה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 11, name: 'مدرسة النهضة - حورة', name_he: 'בית ספר אל-נהדה - חורה', city: 'حورة', city_he: 'חורה', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 12, name: 'مدرسة تل السبع الثانوية', name_he: 'תיכון תל שבע', city: 'تل السبع', city_he: 'תל שבע', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 13, name: 'المدرسة الشاملة - تل السبع', name_he: 'בית הספר המקיף - תל שבע', city: 'تل السبع', city_he: 'תל שבע', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 14, name: 'مدرسة عرعرة النقب الثانوية', name_he: 'תיכון ערערה בנגב', city: 'عرعرة النقب', city_he: 'ערערה בנגב', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 15, name: 'مدرسة الأفق - عرعرة النقب', name_he: 'בית ספר אל-אופק - ערערה בנגב', city: 'عرعرة النقب', city_he: 'ערערה בנגב', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 16, name: 'مدرسة لقية الثانوية', name_he: 'תיכון לקיה', city: 'لقية', city_he: 'לקיה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 17, name: 'المدرسة الشاملة - لقية', name_he: 'בית הספר המקיף - לקיה', city: 'لقية', city_he: 'לקיה', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 18, name: 'مدرسة شقيب السلام الثانوية', name_he: 'תיכון שגב שלום', city: 'شقيب السلام', city_he: 'שגב שלום', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 19, name: 'مدرسة المستقبل - شقيب السلام', name_he: 'בית ספר אל-מוסתקבל - שגב שלום', city: 'شقيب السلام', city_he: 'שגב שלום', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 20, name: 'مدرسة القصوم الثانوية', name_he: 'תיכון אל-קסום', city: 'القصوم', city_he: 'אל-קסום', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 21, name: 'مدرسة أبو قرينات الثانوية', name_he: 'תיכון אבו קרינאת', city: 'أبو قرينات', city_he: 'אבו קרינאת', type: 'ثانوية', type_he: 'תיכון' },
+
+  { id: 22, name: 'مدرسة مولدة الثانوية', name_he: 'תיכון מולדה', city: 'مولدة', city_he: 'מולדה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 23, name: 'المدرسة الشاملة - مولدة', name_he: 'בית הספר המקיף - מולדה', city: 'مولدة', city_he: 'מולדה', type: 'شاملة', type_he: 'מקיף' },
+
+  { id: 24, name: 'مدرسة أم بطين الثانوية', name_he: 'תיכון אום בטין', city: 'أم بطين', city_he: 'אום בטין', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 25, name: 'مدرسة بير هداج الثانوية', name_he: 'תיכון ביר הדאג׳', city: 'بير هداج', city_he: 'ביר הדאג׳', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 26, name: 'المدرسة الثانوية العربية - ديمونا', name_he: 'התיכון הערבי - דימונה', city: 'ديمونا', city_he: 'דימונה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 27, name: 'مدرسة عرعرة الثانوية', name_he: 'תיכון ערערה', city: 'عرعرة', city_he: 'ערערה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 28, name: 'مدرسة أبو تلول الثانوية', name_he: 'תיכון אבו תלול', city: 'أبو تلول', city_he: 'אבו תלול', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 29, name: 'مدرسة كحلة الثانوية', name_he: 'תיכון כחלה', city: 'كحلة', city_he: 'כחלה', type: 'ثانوية', type_he: 'תיכון' },
+  { id: 30, name: 'مدرسة وادي النعم الثانوية', name_he: 'תיכון ואדי אל-נעם', city: 'وادي النعم', city_he: 'ואדי אל-נעם', type: 'ثانوية', type_he: 'תיכון' },
 ];
 
-// دالة للبحث عن المدارس
+function searchableSchoolText(school) {
+  return [
+    school.name,
+    school.name_he,
+    school.city,
+    school.city_he,
+    school.type,
+    school.type_he,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
 export const searchSchools = (query) => {
-  if (!query) return israeliSchools;
-  
-  const lowerQuery = query.toLowerCase();
-  return israeliSchools.filter(school => 
-    school.name.toLowerCase().includes(lowerQuery) ||
-    school.city.toLowerCase().includes(lowerQuery)
-  );
+  const lowerQuery = String(query || '').trim().toLowerCase();
+  if (!lowerQuery) return israeliSchools;
+
+  return israeliSchools.filter((school) => searchableSchoolText(school).includes(lowerQuery));
 };
 
-// دالة للحصول على المدن
-export const getCities = () => {
-  const cities = [...new Set(israeliSchools.map(school => school.city))];
-  return cities.sort();
+export const getCities = (language = 'ar') => {
+  const cityKey = String(language || '').toLowerCase().startsWith('he') ? 'city_he' : 'city';
+  const cities = [...new Set(israeliSchools.map((school) => school[cityKey] || school.city).filter(Boolean))];
+  return cities.sort((a, b) => a.localeCompare(b));
 };
 
-// دالة للحصول على المدارس حسب المدينة
 export const getSchoolsByCity = (city) => {
-  return israeliSchools.filter(school => school.city === city);
+  return israeliSchools.filter((school) => school.city === city || school.city_he === city);
 };

@@ -333,8 +333,7 @@ export const AuthProvider = ({ children }) => {
 
     (async () => {
       try {
-        // ✅ Don’t wrap getSession in your own timeout (supabase already handles it)
-        const res = await supabase.auth.getSession();
+        const res = await withTimeout(supabase.auth.getSession(), 8000);
         const session0 = res?.data?.session ?? null;
         await applySession(session0);
       } catch (e) {

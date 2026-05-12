@@ -32,11 +32,17 @@ export default function WorldScene({
   motionDurationMs = 0,
   onPressObject,
 }) {
-  const worldWidth = 880;
-  const trackStartX = 48;
-  const trackEndX = worldWidth - 48;
+  const [worldWidth, setWorldWidth] = useState(880);
+  const compact = worldWidth < 560;
+  const trackStartX = compact ? 30 : 48;
+  const trackEndX = worldWidth - (compact ? 30 : 48);
   const trackLength = trackEndX - trackStartX;
-  const objectWrapWidth = 90;
+  const objectWrapWidth = compact ? 58 : 90;
+  const objectSize = compact ? 36 : level?.objectType === 'capsule' ? 54 : 46;
+  const surfaceHeight = compact ? 28 : 36;
+  const frictionHeight = compact ? 42 : 54;
+  const objectBottom = compact ? 58 : 78;
+  const goalBottom = compact ? 76 : 96;
 
   const rulerLength = level?.world?.rulerLength || level?.world?.mapLength || 15;
   const targetDistance = level?.world?.targetDistance || 0;
@@ -51,7 +57,7 @@ export default function WorldScene({
       const clampedMeters = Math.max(0, Math.min(meters, rulerLength));
       return trackStartX + (trackLength * clampedMeters) / rulerLength;
     },
-    [rulerLength, trackLength]
+    [rulerLength, trackLength, trackStartX]
   );
 
   const goalCenterX = getCenterXForDistance(targetDistance);
@@ -137,26 +143,37 @@ export default function WorldScene({
   );
 
   return (
-    <View style={styles.sceneWrap}>
-      <View style={styles.world}>
+    <View
+      style={styles.sceneWrap}
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width || 0);
+        if (nextWidth > 0 && Math.abs(nextWidth - worldWidth) > 2) {
+          setWorldWidth(nextWidth);
+        }
+      }}
+    >
+      <View style={[styles.world, compact && styles.worldCompact]}>
         <View style={styles.trackArea}>
-          <View style={[styles.startLabel, { left: trackStartX - 10 }]}>
-            <Text style={styles.startLabelText}>START</Text>
+          <View style={[styles.startLabel, compact && styles.startLabelCompact, { left: trackStartX - 8 }]}>
+            <Text style={[styles.startLabelText, compact && styles.startLabelTextCompact]}>START</Text>
           </View>
 
-          <Pressable onPress={onPressObject} style={[styles.objectWrap, { left: objectX }]}>
-            <ForceArrows />
-            <ObjectSprite type={level?.objectType} size={level?.objectType === 'capsule' ? 54 : 46} />
+          <Pressable
+            onPress={onPressObject}
+            style={[styles.objectWrap, compact && styles.objectWrapCompact, { left: objectX, bottom: objectBottom, width: objectWrapWidth }]}
+          >
+            {!compact ? <ForceArrows /> : null}
+            <ObjectSprite type={level?.objectType} size={objectSize} />
           </Pressable>
 
           {level?.world?.obstacleType === 'gap' ? (
-            <View style={styles.gapBlock}>
+            <View style={[styles.gapBlock, compact && styles.gapBlockCompact, { left: worldWidth * 0.48 }]}>
               <View style={styles.gapGlow} />
             </View>
           ) : null}
 
           {level?.world?.obstacleType === 'mountain' ? (
-            <View style={styles.mountainWrap}>
+            <View style={[styles.mountainWrap, compact && styles.mountainWrapCompact, { right: compact ? 28 : 120 }]}>
               <View style={styles.mountainOne} />
               <View style={styles.mountainTwo} />
             </View>
@@ -165,24 +182,26 @@ export default function WorldScene({
           <View
             style={[
               styles.goalColumn,
+              compact && styles.goalColumnCompact,
               {
                 left: goalCenterX - 7,
+                bottom: surfaceHeight,
               },
             ]}
           />
 
-          <View style={[styles.goalAbsolute, { left: goalCenterX }]}>
+          <View style={[styles.goalAbsolute, compact && styles.goalAbsoluteCompact, { left: goalCenterX, bottom: goalBottom }]}>
             <GoalFlag distanceLabel={`${targetDistance}${level?.world?.markerUnit || 'm'}`} />
           </View>
 
-          <View style={styles.surface} />
-          <View style={styles.frictionBand} />
-          <View style={[styles.markerLine, { left: trackStartX, right: worldWidth - trackEndX }]} />
+          <View style={[styles.surface, { height: surfaceHeight }]} />
+          <View style={[styles.frictionBand, { height: frictionHeight }]} />
+          <View style={[styles.markerLine, { left: trackStartX, right: worldWidth - trackEndX, bottom: frictionHeight }]} />
 
           {meterMarks.map((mark) => (
-            <View key={mark.meter} style={[styles.meterWrap, { left: mark.left - 12 }]}>
-              <View style={styles.marker} />
-              <Text style={styles.meterText}>{mark.meter}</Text>
+            <View key={mark.meter} style={[styles.meterWrap, compact && styles.meterWrapCompact, { left: mark.left - 12 }]}>
+              <View style={[styles.marker, compact && styles.markerCompact]} />
+              <Text style={[styles.meterText, compact && styles.meterTextCompact]}>{mark.meter}</Text>
             </View>
           ))}
         </View>
@@ -204,6 +223,9 @@ const styles = StyleSheet.create({
     height: 280,
     backgroundColor: '#0B2235',
   },
+  worldCompact: {
+    height: 210,
+  },
   trackArea: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -217,10 +239,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
+  startLabelCompact: {
+    top: 58,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
   startLabelText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
+  },
+  startLabelTextCompact: {
+    fontSize: 12,
   },
   objectWrap: {
     position: 'absolute',
@@ -228,6 +259,9 @@ const styles = StyleSheet.create({
     bottom: 78,
     width: 90,
     alignItems: 'center',
+  },
+  objectWrapCompact: {
+    width: 58,
   },
   arrowsRow: {
     position: 'absolute',
@@ -276,6 +310,11 @@ const styles = StyleSheet.create({
     borderRightWidth: 2,
     borderColor: '#8593A0',
   },
+  gapBlockCompact: {
+    bottom: 42,
+    width: 64,
+    height: 46,
+  },
   gapGlow: {
     position: 'absolute',
     left: 35,
@@ -292,6 +331,12 @@ const styles = StyleSheet.create({
     bottom: 92,
     width: 330,
     height: 180,
+  },
+  mountainWrapCompact: {
+    bottom: 70,
+    width: 210,
+    height: 130,
+    transform: [{ scale: 0.66 }],
   },
   mountainOne: {
     position: 'absolute',
@@ -325,6 +370,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 96,
   },
+  goalAbsoluteCompact: {
+    transform: [{ scale: 0.72 }],
+  },
   goalColumn: {
     position: 'absolute',
     bottom: 36,
@@ -338,6 +386,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 5,
+  },
+  goalColumnCompact: {
+    width: 10,
+    height: 58,
+    borderWidth: 2,
   },
   goalWrap: {
     alignItems: 'center',
@@ -390,15 +443,25 @@ const styles = StyleSheet.create({
     bottom: 8,
     alignItems: 'center',
   },
+  meterWrapCompact: {
+    bottom: 5,
+  },
   marker: {
     width: 3,
     height: 24,
     backgroundColor: '#D8E0E6',
+  },
+  markerCompact: {
+    width: 2,
+    height: 18,
   },
   meterText: {
     marginTop: 4,
     color: '#E2E8F0',
     fontSize: 11,
     fontWeight: '800',
+  },
+  meterTextCompact: {
+    fontSize: 9,
   },
 });

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import CustomButton from '../../components/Form/CustomButton';
 import CustomTextInput from '../../components/Form/CustomTextInput';
-import { supabase } from '../../config/supabase';
+import { sendPasswordResetCode } from '../../services/passwordResetService';
 import { validateEmail } from '../../utils/validation';
 
 export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }) {
@@ -29,7 +29,23 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
   const activeStepIndex = 0;
-  const forgotT = (key, options) => t(`forgotPassword.${key}`, { ns: 'auth', ...options });
+  const fallbackText = {
+    title: 'نسيت كلمة المرور',
+    subtitle: 'أدخل بريدك الإلكتروني لاسترجاع الوصول إلى حسابك.',
+    info: 'أدخل بريدك الإلكتروني وسنرسل لك رمزاً مكوّناً من 6 أرقام لإعادة تعيين كلمة المرور.',
+    emailLabel: 'البريد الإلكتروني',
+    sendCode: 'إرسال الرمز',
+    backToLogin: 'رجوع لتسجيل الدخول',
+    'alerts.sentTitle': 'تم إرسال الرمز',
+    'alerts.sentMessage': 'تحقق من بريدك الإلكتروني وأدخل رمز التحقق.',
+    'alerts.tooManyTitle': 'تم إرسال طلبات كثيرة',
+    'alerts.tooManyMessage': 'انتظر قليلًا ثم حاول مرة أخرى. إذا ظهر رمز 429 فهذا يعني أن الطلبات كثيرة.',
+  };
+  const forgotT = (key, options) => {
+    const scoped = t(`forgotPassword.${key}`, { ns: 'auth', ...(options || {}) });
+    if (typeof scoped !== 'string' || scoped === `forgotPassword.${key}`) return fallbackText[key] || key;
+    return scoped;
+  };
 
   useEffect(() => {
     if (initialEmail && !email) setEmail(initialEmail);
@@ -93,8 +109,8 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
-      if (error) throw error;
+      const result = await sendPasswordResetCode(cleanEmail, i18n?.language || 'ar');
+      if (!result.success) throw result.error;
 
       setLoading(false);
       navigateTo('verifyCode', { email: cleanEmail });

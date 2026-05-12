@@ -1,48 +1,80 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-function ControlCard({ control, value, accentColor, onDecrease, onIncrease, disabled = false }) {
-  const ratio = (Number(value) - control.min) / (control.max - control.min || 1);
-  const safeRatio = Math.max(0, Math.min(ratio, 1));
+function normalizeNumberText(value) {
+  return String(value ?? '').replace(',', '.').replace(/[^\d.-]/g, '');
+}
+
+function ControlCard({ control, value, accentColor, onDecrease, onIncrease, onChangeValue, disabled = false, compact = false }) {
+  const [draftValue, setDraftValue] = useState(String(value ?? ''));
+
+  useEffect(() => {
+    setDraftValue(String(value ?? ''));
+  }, [value]);
+
+  function commitDraft() {
+    const normalized = normalizeNumberText(draftValue);
+    const numeric = Number(normalized);
+
+    if (normalized === '') {
+      onChangeValue?.(control, '');
+      return;
+    }
+
+    if (!Number.isFinite(numeric)) {
+      setDraftValue(String(value ?? ''));
+      return;
+    }
+
+    onChangeValue?.(control, numeric);
+  }
+
+  function handleChangeText(text) {
+    const normalized = normalizeNumberText(text);
+    setDraftValue(normalized);
+
+    if (normalized === '' || Number.isFinite(Number(normalized))) {
+      onChangeValue?.(control, normalized);
+    }
+  }
 
   return (
-    <View style={styles.controlCard}>
+    <View style={[styles.controlCard, compact && styles.controlCardCompact]}>
       <View style={styles.topRow}>
-        <Text style={styles.controlLabel}>{control.label}</Text>
-        <Text style={styles.controlValue}>
+        <Text style={[styles.controlLabel, compact && styles.controlLabelCompact]}>{control.label}</Text>
+        <Text style={[styles.controlValue, compact && styles.controlValueCompact]}>
           {value}
           {control.unit ? ` ${control.unit}` : ''}
         </Text>
       </View>
 
-      <View style={styles.actionRow}>
-        <Pressable onPress={onDecrease} disabled={disabled} style={[styles.adjustButton, disabled && styles.disabled]}>
-          <Text style={styles.adjustLabel}>-</Text>
+      <View style={[styles.actionRow, compact && styles.actionRowCompact]}>
+        <Pressable onPress={onDecrease} disabled={disabled} style={[styles.adjustButton, compact && styles.adjustButtonCompact, disabled && styles.disabled]}>
+          <Text style={[styles.adjustLabel, compact && styles.adjustLabelCompact]}>-</Text>
         </Pressable>
 
-        <View style={styles.barWrap}>
-          <View style={styles.barBg} />
-          <View
-            style={[
-              styles.barFill,
-              {
-                width: `${safeRatio * 100}%`,
-                backgroundColor: accentColor,
-              },
-            ]}
+        <View style={[styles.numberInputWrap, compact && styles.numberInputWrapCompact, { borderColor: accentColor }]}>
+          <TextInput
+            value={draftValue}
+            placeholder="Enter number"
+            placeholderTextColor="#94A3B8"
+            onChangeText={handleChangeText}
+            onBlur={commitDraft}
+            onSubmitEditing={commitDraft}
+            editable={!disabled}
+            keyboardType="decimal-pad"
+            selectTextOnFocus
+            style={[styles.numberInput, compact && styles.numberInputCompact]}
+            accessibilityLabel={`${control.label} value`}
           />
-          <View
-            style={[
-              styles.knob,
-              {
-                left: `${safeRatio * 100}%`,
-              },
-            ]}
-          />
+          {!!control.unit && <Text style={[styles.unitLabel, compact && styles.unitLabelCompact]}>{control.unit}</Text>}
+          <Text style={[styles.rangeHint, compact && styles.rangeHintCompact]}>
+            {control.min}-{control.max}
+          </Text>
         </View>
 
-        <Pressable onPress={onIncrease} disabled={disabled} style={[styles.adjustButton, disabled && styles.disabled]}>
-          <Text style={styles.adjustLabel}>+</Text>
+        <Pressable onPress={onIncrease} disabled={disabled} style={[styles.adjustButton, compact && styles.adjustButtonCompact, disabled && styles.disabled]}>
+          <Text style={[styles.adjustLabel, compact && styles.adjustLabelCompact]}>+</Text>
         </Pressable>
       </View>
     </View>
@@ -54,6 +86,7 @@ export default function PhysicsControlPanel({
   params,
   onDecrease,
   onIncrease,
+  onChangeValue,
   onRun,
   onRetry,
   onPressConcept,
@@ -61,6 +94,7 @@ export default function PhysicsControlPanel({
   disabled = false,
   mainActionLabel,
   mainActionDisabled,
+  compact = false,
 }) {
   const accentColor = level?.themeColor || '#3FA7FF';
   const resolvedMainActionLabel = mainActionLabel || (showRetry ? 'RETRY' : 'RUN');
@@ -69,25 +103,25 @@ export default function PhysicsControlPanel({
   const resolvedMainActionDisabled = typeof mainActionDisabled === 'boolean' ? mainActionDisabled : disabled;
 
   return (
-    <View style={styles.panel}>
-      <View style={styles.headerStrip}>
+    <View style={[styles.panel, compact && styles.panelCompact]}>
+      <View style={[styles.headerStrip, compact && styles.headerStripCompact]}>
         <View>
-          <Text style={styles.panelEyebrow}>Compact Controls</Text>
-          <Text style={styles.panelTitle}>Control Panel</Text>
+          <Text style={[styles.panelEyebrow, compact && styles.panelEyebrowCompact]}>Compact Controls</Text>
+          <Text style={[styles.panelTitle, compact && styles.panelTitleCompact]}>Control Panel</Text>
         </View>
 
         <Pressable
           onPress={onPressConcept}
           disabled={disabled}
-          style={({ pressed }) => [styles.conceptBadge, disabled && styles.disabled, pressed && onPressConcept && styles.pressedSmall]}
+          style={({ pressed }) => [styles.conceptBadge, compact && styles.conceptBadgeCompact, disabled && styles.disabled, pressed && onPressConcept && styles.pressedSmall]}
         >
-          <Text style={styles.panelValue}>
+          <Text style={[styles.panelValue, compact && styles.panelValueCompact]}>
             {level?.concept?.charAt(0)?.toUpperCase() + level?.concept?.slice(1)}
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.controlsGrid}>
+      <View style={[styles.controlsGrid, compact && styles.controlsGridCompact]}>
         {(level?.controls || []).map((control) => (
           <ControlCard
             key={control.key}
@@ -97,6 +131,8 @@ export default function PhysicsControlPanel({
             disabled={disabled}
             onDecrease={() => onDecrease(control)}
             onIncrease={() => onIncrease(control)}
+            onChangeValue={onChangeValue}
+            compact={compact}
           />
         ))}
       </View>
@@ -107,10 +143,11 @@ export default function PhysicsControlPanel({
         style={({ pressed }) => [
           mainActionStyle,
           resolvedMainActionDisabled && styles.disabled,
+          compact && styles.runButtonCompact,
           pressed && !resolvedMainActionDisabled && styles.pressed,
         ]}
       >
-        <Text style={styles.runLabel}>{resolvedMainActionLabel}</Text>
+        <Text style={[styles.runLabel, compact && styles.runLabelCompact]}>{resolvedMainActionLabel}</Text>
       </Pressable>
     </View>
   );
@@ -129,6 +166,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
+  panelCompact: {
+    borderRadius: 18,
+    padding: 8,
+  },
   headerStrip: {
     backgroundColor: '#2D3745',
     borderRadius: 18,
@@ -139,6 +180,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerStripCompact: {
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
   panelEyebrow: {
     color: '#9FB3C8',
     fontSize: 10,
@@ -146,10 +193,16 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  panelEyebrowCompact: {
+    fontSize: 8,
+  },
   panelTitle: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
+  },
+  panelTitleCompact: {
+    fontSize: 13,
   },
   conceptBadge: {
     backgroundColor: '#101A27',
@@ -159,15 +212,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#465465',
   },
+  conceptBadgeCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
   panelValue: {
     color: '#FFD36C',
     fontSize: 12,
     fontWeight: '800',
   },
+  panelValueCompact: {
+    fontSize: 10,
+  },
   controlsGrid: {
     flexDirection: 'row',
     gap: 10,
     flexWrap: 'wrap',
+  },
+  controlsGridCompact: {
+    gap: 6,
   },
   controlCard: {
     flex: 1,
@@ -177,6 +240,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 10,
+  },
+  controlCardCompact: {
+    minWidth: 0,
+    marginBottom: 8,
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   topRow: {
     flexDirection: 'row',
@@ -189,14 +259,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#17212B',
   },
+  controlLabelCompact: {
+    fontSize: 12,
+  },
   controlValue: {
     fontSize: 14,
     fontWeight: '800',
     color: '#17212B',
   },
+  controlValueCompact: {
+    fontSize: 12,
+  },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  actionRowCompact: {
+    gap: 6,
   },
   adjustButton: {
     width: 32,
@@ -206,41 +286,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  adjustButtonCompact: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+  },
   adjustLabel: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
     marginTop: -1,
   },
-  barWrap: {
+  adjustLabelCompact: {
+    fontSize: 17,
+  },
+  numberInputWrap: {
     flex: 1,
-    height: 20,
-    marginHorizontal: 8,
-    justifyContent: 'center',
-  },
-  barBg: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#5B6676',
-  },
-  barFill: {
-    position: 'absolute',
-    left: 0,
-    height: 10,
-    borderRadius: 999,
-  },
-  knob: {
-    position: 'absolute',
-    marginLeft: -10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#F7F8FA',
+    minHeight: 48,
     borderWidth: 2,
-    borderColor: '#616B79',
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  numberInputWrapCompact: {
+    minHeight: 42,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+  },
+  numberInput: {
+    flex: 1,
+    minWidth: 70,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+    color: '#17212B',
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+    outlineStyle: 'none',
+  },
+  numberInputCompact: {
+    minWidth: 44,
+    fontSize: 18,
+  },
+  unitLabel: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '800',
+    marginLeft: 8,
+  },
+  unitLabelCompact: {
+    fontSize: 11,
+    marginLeft: 5,
+  },
+  rangeHint: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '800',
+    marginLeft: 10,
+  },
+  rangeHintCompact: {
+    fontSize: 9,
+    marginLeft: 6,
   },
   runButton: {
     marginTop: 2,
@@ -250,6 +358,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#117321',
+  },
+  runButtonCompact: {
+    borderRadius: 13,
+    paddingVertical: 9,
   },
   retryMainButton: {
     marginTop: 2,
@@ -265,6 +377,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  runLabelCompact: {
+    fontSize: 15,
   },
   disabled: {
     opacity: 0.55,

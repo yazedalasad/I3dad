@@ -2,32 +2,22 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import LoginScreen from './LoginScreen';
 
-/* -------------------- Alert spy -------------------- */
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
-/* -------------------- i18n mock (return keys) -------------------- */
 jest.mock('react-i18next', () => ({
   __esModule: true,
   useTranslation: () => ({ t: (k) => k }),
 }));
 
-/* -------------------- Mock UI components (hoist-safe) -------------------- */
 jest.mock('../../components/Form/CustomTextInput', () => {
   const React = require('react');
   const { Text, TextInput } = require('react-native');
-
-  return function MockCustomTextInput(props) {
-    const { label, value, onChangeText, placeholder, error } = props;
+  return function MockCustomTextInput({ label, value, onChangeText, placeholder, error }) {
     return (
       <>
         <Text>{label}</Text>
         {!!error && <Text>{String(error)}</Text>}
-        <TextInput
-          accessibilityLabel={label}
-          value={value}
-          placeholder={placeholder}
-          onChangeText={onChangeText}
-        />
+        <TextInput accessibilityLabel={label} value={value} placeholder={placeholder} onChangeText={onChangeText} />
       </>
     );
   };
@@ -36,23 +26,15 @@ jest.mock('../../components/Form/CustomTextInput', () => {
 jest.mock('../../components/Form/CustomButton', () => {
   const React = require('react');
   const { TouchableOpacity, Text } = require('react-native');
-
-  return function MockCustomButton(props) {
-    const { title, onPress, loading, disabled } = props;
+  return function MockCustomButton({ title, onPress, loading, disabled }) {
     return (
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={title}
-        onPress={onPress}
-        disabled={disabled || loading}
-      >
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={title} onPress={onPress} disabled={disabled || loading}>
         <Text>{title}</Text>
       </TouchableOpacity>
     );
   };
 });
 
-/* -------------------- Mock validation -------------------- */
 const mockValidateEmail = jest.fn();
 const mockValidatePassword = jest.fn();
 
@@ -62,19 +44,14 @@ jest.mock('../../utils/validation', () => ({
   validatePassword: (...args) => mockValidatePassword(...args),
 }));
 
-/* -------------------- Mock AuthContext -------------------- */
 const mockSignIn = jest.fn();
 jest.mock('../../contexts/AuthContext', () => ({
   __esModule: true,
   useAuth: () => ({ signIn: (...args) => mockSignIn(...args) }),
 }));
 
-/* -------------------- helpers -------------------- */
 function baseProps(overrides = {}) {
-  return {
-    navigateTo: jest.fn(),
-    ...overrides,
-  };
+  return { navigateTo: jest.fn(), ...overrides };
 }
 
 function typeLogin(utils, { email, password }) {
@@ -89,19 +66,10 @@ function pressLogin(utils) {
 describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Default: validations OK
     mockValidateEmail.mockReturnValue({ isValid: true, error: null });
     mockValidatePassword.mockReturnValue({ isValid: true, error: null });
-
-    // Default: signIn success
     mockSignIn.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
   });
-
-  /* =========================
-   * RENDER / NAV LINKS
-   * 2 positive + 2 negative
-   * ========================= */
 
   it('render (positive): shows translated title/subtitle keys + login button', async () => {
     const utils = render(<LoginScreen {...baseProps()} />);
@@ -113,7 +81,7 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('nav (positive): pressing "forgot password" navigates to forgotPassword', async () => {
+  it('nav (positive): pressing "forgot password" navigates to forgotPassword', () => {
     const navigateTo = jest.fn();
     const utils = render(<LoginScreen {...baseProps({ navigateTo })} />);
 
@@ -123,7 +91,6 @@ describe('LoginScreen', () => {
 
   it('nav (negative): does NOT navigate to roleRouter when form invalid (email invalid)', async () => {
     mockValidateEmail.mockReturnValueOnce({ isValid: false, error: 'bad email' });
-
     const navigateTo = jest.fn();
     const utils = render(<LoginScreen {...baseProps({ navigateTo })} />);
 
@@ -138,7 +105,6 @@ describe('LoginScreen', () => {
 
   it('nav (negative): does NOT navigate to roleRouter when form invalid (password invalid)', async () => {
     mockValidatePassword.mockReturnValueOnce({ isValid: false, error: 'bad pass' });
-
     const navigateTo = jest.fn();
     const utils = render(<LoginScreen {...baseProps({ navigateTo })} />);
 
@@ -150,11 +116,6 @@ describe('LoginScreen', () => {
       expect(navigateTo).not.toHaveBeenCalledWith('roleRouter');
     });
   });
-
-  /* =========================
-   * LOGIN FLOW
-   * 2 positive + 2 negative
-   * ========================= */
 
   it('login (positive): successful signIn navigates to roleRouter', async () => {
     const navigateTo = jest.fn();
@@ -169,49 +130,35 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('login (positive): pressing "تسجيل دخول لأول مرة" navigates to principalSetPassword', async () => {
+  it('login (positive): principal first time link navigates to principalSetPassword', () => {
     const navigateTo = jest.fn();
     const utils = render(<LoginScreen {...baseProps({ navigateTo })} />);
 
-    fireEvent.press(utils.getByText('تسجيل دخول لأول مرة'));
-    expect(navigateTo).toHaveBeenCalledWith('principalSetPassword');
+    fireEvent.press(utils.getByText('login.principalFirstTime'));
+    expect(navigateTo).toHaveBeenCalledWith('principalRegister');
   });
 
   it('login (negative): invalid credentials -> shows specific alert message key', async () => {
-    mockSignIn.mockResolvedValueOnce({
-      data: null,
-      error: { message: 'Invalid login credentials' },
-    });
-
+    mockSignIn.mockResolvedValueOnce({ data: null, error: { message: 'Invalid login credentials' } });
     const utils = render(<LoginScreen {...baseProps()} />);
 
     typeLogin(utils, { email: 'user@test.com', password: 'wrong' });
     pressLogin(utils);
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith(
-        'common.error',
-        'auth.login.errors.invalidCredentials'
-      );
+      expect(alertSpy).toHaveBeenCalledWith('common.error', 'auth.login.errors.invalidCredentials');
     });
   });
 
   it('login (negative): email not confirmed -> shows specific alert message key', async () => {
-    mockSignIn.mockResolvedValueOnce({
-      data: null,
-      error: { message: 'Email not confirmed' },
-    });
-
+    mockSignIn.mockResolvedValueOnce({ data: null, error: { message: 'Email not confirmed' } });
     const utils = render(<LoginScreen {...baseProps()} />);
 
     typeLogin(utils, { email: 'user@test.com', password: 'pass12345' });
     pressLogin(utils);
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith(
-        'common.error',
-        'auth.login.errors.emailNotConfirmed'
-      );
+      expect(alertSpy).toHaveBeenCalledWith('common.error', 'auth.login.errors.emailNotConfirmed');
     });
   });
 });

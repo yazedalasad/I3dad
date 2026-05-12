@@ -1,9 +1,11 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { getGameHubItems } from '../../features/games/catalog';
+import { getVisibleGameHubItems } from '../../features/games/shared/services/gameCatalogService';
 
 function GameCard({ item, onPress, launchLabel, isRTL }) {
   const gradient = item.gradient || [item.iconBg, item.buttonBg];
@@ -51,11 +53,28 @@ function GameCard({ item, onPress, launchLabel, isRTL }) {
 
 export default function GamesScreen({ navigateTo }) {
   const { t, i18n } = useTranslation('home');
+  const [gameHubItems, setGameHubItems] = useState([]);
   const isRTL =
     String(i18n.language).toLowerCase().startsWith('ar') ||
     String(i18n.language).toLowerCase().startsWith('he');
-  const gameHubItems = getGameHubItems(i18n.language);
   const launchLabel = t('games.launch') === 'games.launch' ? (isRTL ? 'ابدأ اللعبة' : 'Start game') : t('games.launch');
+
+  useEffect(() => {
+    let mounted = true;
+    const fallbackItems = getGameHubItems(i18n.language);
+    getVisibleGameHubItems(i18n.language)
+      .then((items) => {
+        if (mounted) setGameHubItems(items);
+      })
+      .catch((error) => {
+        console.warn('Failed to load visible games:', error?.message || error);
+        if (mounted) setGameHubItems(fallbackItems);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [i18n.language]);
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>

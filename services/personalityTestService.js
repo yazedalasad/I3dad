@@ -775,7 +775,7 @@ export async function getStudentPersonalityProfile(studentId) {
       .from('v_student_personality_latest')
       .select('*')
       .eq('student_id', studentId)
-      .single();
+      .maybeSingle();
 
     if (!viewErr && viewRow) {
       latestProfile = viewRow;
@@ -786,9 +786,12 @@ export async function getStudentPersonalityProfile(studentId) {
         .eq('student_id', studentId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (profileErr) throw profileErr;
+      if (!profileRow) {
+        return { success: true, profile: null, insights: null };
+      }
       latestProfile = profileRow;
     }
 
@@ -799,7 +802,7 @@ export async function getStudentPersonalityProfile(studentId) {
       .eq('student_id', studentId)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const latestInsights = insightsError ? null : insights;
 

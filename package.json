@@ -9,6 +9,8 @@
     "ios": "expo start --ios",
     "web": "node scripts/expo-offline.cjs start --web",
     "web:clear": "node scripts/expo-offline.cjs start --web --clear",
+    "email:server": "node server/emailServer.cjs",
+    "email:test": "node server/sendTestEmail.cjs",
     "generate-questions": "node scripts/questionGenerator.js",
     "seed-subjects": "node scripts/seedSubjects.js",
     "test": "jest",

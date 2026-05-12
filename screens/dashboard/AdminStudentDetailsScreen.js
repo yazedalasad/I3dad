@@ -12,9 +12,11 @@ import {
   StatCard,
 } from '../../components/Admin/AdminLayout';
 import { adminColors } from '../../components/Admin/adminTheme';
+import { useAdminTranslator } from '../../components/Admin/adminTranslations';
 import { getAdminStudentDetails } from '../../services/adminPanelService';
 
 export default function AdminStudentDetailsScreen({ navigateTo, route }) {
+  const tr = useAdminTranslator();
   const studentId = route?.params?.studentId;
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState(null);
@@ -51,7 +53,7 @@ export default function AdminStudentDetailsScreen({ navigateTo, route }) {
       primaryAction={
         <TouchableOpacity style={styles.backButton} onPress={() => navigateTo?.('adminStudents')}>
           <FontAwesome name="arrow-right" size={14} color="#fff" />
-          <Text style={styles.backText}>رجوع للطلاب</Text>
+          <Text style={styles.backText}>{tr('رجوع للطلاب')}</Text>
         </TouchableOpacity>
       }
     >
@@ -102,7 +104,7 @@ export default function AdminStudentDetailsScreen({ navigateTo, route }) {
                 <Info key={item.id || index} label={`توصية ${index + 1}`} value={item.recommendation_text || item.major_key || JSON.stringify(item)} />
               ))
             ) : (
-              <Text style={styles.emptyText}>لا توجد توصيات محفوظة بعد.</Text>
+              <Text style={styles.emptyText}>{tr('لا توجد توصيات محفوظة بعد.')}</Text>
             )}
           </AdminCard>
         </>
@@ -112,10 +114,11 @@ export default function AdminStudentDetailsScreen({ navigateTo, route }) {
 }
 
 function Info({ label, value }) {
+  const tr = useAdminTranslator();
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoValue}>{value || '-'}</Text>
-      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoLabel}>{tr(label)}</Text>
     </View>
   );
 }

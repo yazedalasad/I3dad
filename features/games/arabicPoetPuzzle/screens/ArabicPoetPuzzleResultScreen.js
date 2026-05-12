@@ -47,6 +47,12 @@ export default function ArabicPoetPuzzleResultScreen({ route, navigation }) {
           description="شاشة اللعبة الرئيسية"
           onPress={() => navigation?.navigate?.('ArabicPoetPuzzleHome', { studentId })}
         />
+        <ChoiceButton
+          title="العودة للألعاب"
+          description="صفحة الألعاب التعليمية"
+          variant="secondary"
+          onPress={() => navigation?.navigate?.('games')}
+        />
       </ScreenContainer>
     </ImageBackground>
   );

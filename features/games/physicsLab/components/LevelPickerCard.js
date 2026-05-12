@@ -10,6 +10,8 @@ export default function LevelPickerCard({
   disabled = false,
   completed = false,
   lockedLabel = '',
+  statusLabel = '',
+  actionLabel = 'Start',
 }) {
   return (
     <Pressable
@@ -19,12 +21,18 @@ export default function LevelPickerCard({
     >
       <Image source={imageSource} style={styles.image} resizeMode="cover" />
       <View style={styles.overlay}>
-        <View style={[styles.levelBadge, { backgroundColor: accentColor || '#3FA7FF' }]}>
-          <Text style={styles.levelBadgeText}>Level {levelNumber}</Text>
+        <View style={styles.topRow}>
+          <View style={[styles.levelBadge, { backgroundColor: accentColor || '#3FA7FF' }]}>
+            <Text style={styles.levelBadgeText}>Level {levelNumber}</Text>
+          </View>
+          <View style={[styles.statusBadge, completed && styles.statusCompleted, disabled && styles.statusLocked]}>
+            <Text style={[styles.statusText, disabled && styles.statusLockedText]}>{statusLabel}</Text>
+          </View>
         </View>
-        {completed ? <Text style={styles.completedText}>Completed ✓</Text> : null}
+
         {disabled && lockedLabel ? <Text style={styles.lockedText}>{lockedLabel}</Text> : null}
         <Text style={styles.title}>{title}</Text>
+        {!disabled ? <Text style={styles.actionText}>{actionLabel}</Text> : null}
       </View>
     </Pressable>
   );
@@ -34,17 +42,18 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#0E2233',
     width: 260,
-    borderRadius: 22,
+    borderRadius: 18,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#26506E',
+    borderWidth: 2,
+    borderColor: '#1D4ED8',
     marginBottom: 12,
   },
   pressed: {
     transform: [{ scale: 0.985 }],
   },
   cardDisabled: {
-    opacity: 0.58,
+    opacity: 0.7,
+    borderColor: '#94A3B8',
   },
   image: {
     width: '100%',
@@ -60,17 +69,43 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: 'rgba(8, 24, 38, 0.76)',
   },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   levelBadge: {
     alignSelf: 'flex-start',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    marginBottom: 8,
   },
   levelBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
+  },
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#DBEAFE',
+  },
+  statusCompleted: {
+    backgroundColor: '#BBF7D0',
+  },
+  statusLocked: {
+    backgroundColor: '#E2E8F0',
+  },
+  statusText: {
+    color: '#1E3A8A',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  statusLockedText: {
+    color: '#475569',
   },
   title: {
     color: '#FFFFFF',
@@ -80,16 +115,16 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  completedText: {
-    color: '#86EFAC',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
   lockedText: {
     color: '#FFD7A3',
     fontSize: 12,
     fontWeight: '800',
     marginBottom: 4,
+  },
+  actionText: {
+    marginTop: 8,
+    color: '#BAE6FD',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });

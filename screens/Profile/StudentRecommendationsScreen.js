@@ -138,6 +138,7 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
   const topRecommendation = snapshot?.topRecommendation || null;
   const strongestAbilities = snapshot?.strongestAbilities || [];
   const gameHighlights = snapshot?.gameHighlights || [];
+  const gameCareerSignals = snapshot?.gameCareerSignals || { skills: [], topics: [], degrees: [], explanations: [] };
 
   return (
     <View style={styles.container}>
@@ -203,11 +204,45 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
 
             <View style={styles.signalBlock}>
               <Text style={[styles.signalTitle, isRtl && styles.rtlText]}>{copy.gameSignals}</Text>
-              {gameHighlights.length === 0 ? (
+              {gameHighlights.length === 0 && !gameCareerSignals.skills?.length ? (
                 <Text style={[styles.signalFallback, isRtl && styles.rtlText]}>{copy.noGames}</Text>
               ) : (
-                gameHighlights.slice(0, 2).map((game) => (
-                  <View key={game.gameId} style={[styles.gameRow, isRtl && styles.gameRowRtl]}>
+                <>
+                  {gameCareerSignals.skills?.length ? (
+                    <View style={[styles.chipsRow, isRtl && styles.chipsRowRtl]}>
+                      {gameCareerSignals.skills.slice(0, 4).map((skill) => (
+                        <View key={skill.skill_tag} style={styles.signalChip}>
+                          <Text style={styles.signalChipScore}>{skill.score}%</Text>
+                          <Text style={[styles.signalChipText, isRtl && styles.rtlText]}>{skill.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {gameCareerSignals.topics?.slice(0, 3).map((topic) => (
+                    <Text key={topic.topic_key} style={[styles.gameHint, isRtl && styles.rtlText]}>
+                      {topic.label}: {topic.score}
+                    </Text>
+                  ))}
+
+                  {gameCareerSignals.degrees?.slice(0, 3).map((degree) => (
+                    <Text key={degree.degree_id || degree.degree_code} style={[styles.gameHint, isRtl && styles.rtlText]}>
+                      {degree.name_ar || degree.name_he || degree.name_en || degree.degree_code}
+                    </Text>
+                  ))}
+
+                  {gameCareerSignals.explanations?.[0] ? (
+                    <Text style={[styles.gameHint, isRtl && styles.rtlText]}>
+                      {isHebrew
+                        ? gameCareerSignals.explanations[0].reason_he
+                        : isArabic
+                          ? gameCareerSignals.explanations[0].reason_ar
+                          : gameCareerSignals.explanations[0].reason_en}
+                    </Text>
+                  ) : null}
+
+                  {gameHighlights.slice(0, 2).map((game) => (
+                    <View key={game.gameId} style={[styles.gameRow, isRtl && styles.gameRowRtl]}>
                     <View style={styles.gameLead}>
                       <Text style={[styles.gameName, isRtl && styles.rtlText]}>{game.title}</Text>
                       <Text style={[styles.gameHint, isRtl && styles.rtlText]}>{game.focusArea}</Text>
@@ -226,8 +261,9 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                       ) : null}
                     </View>
                     <Text style={styles.gameScore}>{game.score}%</Text>
-                  </View>
-                ))
+                    </View>
+                  ))}
+                </>
               )}
             </View>
           </View>

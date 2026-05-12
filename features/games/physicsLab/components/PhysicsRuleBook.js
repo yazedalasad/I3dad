@@ -13,24 +13,26 @@ const GENERAL_PHYSICS_RULES = [
 const GENERAL_SYMBOLS =
   'F: force, m: mass, a: acceleration, W: weight, g: gravity, v: speed, t: time, d: distance';
 
-export default function PhysicsRuleBook({ teaching, compact = false }) {
+export default function PhysicsRuleBook({ teaching, compact = false, collapsed = false }) {
   if (!teaching) return null;
   const generalRules = teaching.generalRules || GENERAL_PHYSICS_RULES;
   const generalSymbols = teaching.generalSymbols || GENERAL_SYMBOLS;
 
   return (
-    <View style={[styles.card, compact && styles.cardCompact]}>
+    <View style={[styles.card, compact && styles.cardCompact, collapsed && styles.cardCollapsed]}>
       <Text style={styles.kicker}>PHYSICS RULEBOOK</Text>
-      <Text style={styles.title}>{teaching.title || 'How to win'}</Text>
+      <Text style={[styles.title, collapsed && styles.titleCollapsed]}>{teaching.title || 'How to win'}</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Win Condition</Text>
-        <Text style={styles.body}>{teaching.winCondition}</Text>
-      </View>
+      {!collapsed ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Win Condition</Text>
+          <Text style={styles.body}>{teaching.winCondition}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Core Law</Text>
-        <Text style={styles.body}>{teaching.physicsRule}</Text>
+        <Text style={[styles.body, collapsed && styles.bodyCollapsed]}>{teaching.physicsRule}</Text>
       </View>
 
       {Array.isArray(teaching.formulas) && teaching.formulas.length ? (
@@ -44,6 +46,7 @@ export default function PhysicsRuleBook({ teaching, compact = false }) {
         </View>
       ) : null}
 
+      {!collapsed ? (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>General Physics Laws</Text>
         {generalRules.map((formula) => (
@@ -52,6 +55,7 @@ export default function PhysicsRuleBook({ teaching, compact = false }) {
           </Text>
         ))}
       </View>
+      ) : null}
 
       {teaching.symbols ? (
         <View style={styles.section}>
@@ -60,14 +64,16 @@ export default function PhysicsRuleBook({ teaching, compact = false }) {
         </View>
       ) : null}
 
+      {!collapsed ? (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>General Symbols</Text>
         <Text style={styles.body}>{generalSymbols}</Text>
       </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>How to Adjust</Text>
-        <Text style={styles.body}>{teaching.strategy}</Text>
+        <Text style={[styles.body, collapsed && styles.bodyCollapsed]}>{teaching.strategy}</Text>
       </View>
     </View>
   );
@@ -88,6 +94,11 @@ const styles = StyleSheet.create({
   cardCompact: {
     marginTop: 14,
   },
+  cardCollapsed: {
+    marginTop: 10,
+    borderRadius: 16,
+    padding: 12,
+  },
   kicker: {
     color: '#8A5A14',
     fontSize: 12,
@@ -99,6 +110,9 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     fontSize: 22,
     fontWeight: '900',
+  },
+  titleCollapsed: {
+    fontSize: 17,
   },
   section: {
     marginTop: 14,
@@ -118,6 +132,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '600',
+  },
+  bodyCollapsed: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   formula: {
     marginTop: 8,

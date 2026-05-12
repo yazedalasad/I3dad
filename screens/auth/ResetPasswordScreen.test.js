@@ -8,7 +8,10 @@ const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 /* -------------------- i18n mock (return keys) -------------------- */
 jest.mock('react-i18next', () => ({
   __esModule: true,
-  useTranslation: () => ({ t: (k) => k }),
+  useTranslation: () => ({
+    t: (k) => k,
+    i18n: { language: 'ar' },
+  }),
 }));
 
 /* -------------------- Mock UI components (hoist-safe) -------------------- */
@@ -85,12 +88,12 @@ function baseProps(overrides = {}) {
 }
 
 function typePasswords(utils, { pass, confirm }) {
-  fireEvent.changeText(utils.getByLabelText('auth.resetPassword.newPassword'), pass);
-  fireEvent.changeText(utils.getByLabelText('auth.resetPassword.confirmPassword'), confirm);
+  fireEvent.changeText(utils.getByLabelText('resetPassword.newPassword'), pass);
+  fireEvent.changeText(utils.getByLabelText('resetPassword.confirmPassword'), confirm);
 }
 
 function pressSave(utils) {
-  fireEvent.press(utils.getByLabelText('auth.resetPassword.changePassword'));
+  fireEvent.press(utils.getByLabelText('resetPassword.changePassword'));
 }
 
 function lastAlert() {
@@ -120,9 +123,9 @@ describe('ResetPasswordScreen', () => {
     const utils = render(<ResetPasswordScreen {...baseProps()} />);
 
     await waitFor(() => {
-      expect(utils.getByText('auth.resetPassword.title')).toBeTruthy();
-      expect(utils.getByText('auth.resetPassword.subtitle')).toBeTruthy();
-      expect(utils.getByLabelText('auth.resetPassword.changePassword')).toBeTruthy();
+      expect(utils.getAllByText('resetPassword.title').length).toBeGreaterThan(0);
+      expect(utils.getByText('resetPassword.subtitle')).toBeTruthy();
+      expect(utils.getByLabelText('resetPassword.changePassword')).toBeTruthy();
     });
   });
 
@@ -130,8 +133,8 @@ describe('ResetPasswordScreen', () => {
     const utils = render(<ResetPasswordScreen {...baseProps()} />);
 
     await waitFor(() => {
-      expect(utils.getByText('auth.resetPassword.info')).toBeTruthy();
-      expect(utils.getByText('auth.resetPassword.backToLogin')).toBeTruthy();
+      expect(utils.getByText('resetPassword.info')).toBeTruthy();
+      expect(utils.getByText('resetPassword.backToLogin')).toBeTruthy();
     });
   });
 
@@ -181,11 +184,11 @@ describe('ResetPasswordScreen', () => {
     });
 
     const [title, msg, buttons] = lastAlert();
-    expect(title).toBe('auth.resetPassword.success.title');
-    expect(msg).toBe('auth.resetPassword.success.message');
+    expect(title).toBe('resetPassword.success.title');
+    expect(msg).toBe('resetPassword.success.message');
     expect(Array.isArray(buttons)).toBe(true);
 
-    const loginBtn = buttons.find((b) => b.text === 'auth.resetPassword.success.loginButton');
+    const loginBtn = buttons.find((b) => b.text === 'resetPassword.success.loginButton');
     expect(loginBtn).toBeTruthy();
     loginBtn.onPress && loginBtn.onPress();
 
@@ -196,7 +199,7 @@ describe('ResetPasswordScreen', () => {
     const navigateTo = jest.fn();
     const utils = render(<ResetPasswordScreen {...baseProps({ navigateTo })} />);
 
-    fireEvent.press(utils.getByText('auth.resetPassword.backToLogin'));
+    fireEvent.press(utils.getByText('resetPassword.backToLogin'));
     expect(navigateTo).toHaveBeenCalledWith('login');
   });
 
@@ -228,8 +231,8 @@ describe('ResetPasswordScreen', () => {
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
-        'common.error',
-        'auth.resetPassword.errors.samePassword'
+        'خطأ',
+        'resetPassword.errors.samePassword'
       );
     });
   });

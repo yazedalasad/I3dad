@@ -17,6 +17,7 @@ import WordAnswerPanel from '../components/WordAnswerPanel';
 import WordListChips from '../components/WordListChips';
 import desertThemeBgImage from '../assets/desert-theme-bg.png';
 import { useArabicPoetPuzzle } from '../hooks/useArabicPoetPuzzle';
+import { markArabicPoetPuzzleLevelCompleted } from '../services/levelProgressService';
 import { isHorizontalWord } from '../utils/puzzleHelpers';
 import { desertTheme } from '../utils/theme';
 
@@ -63,6 +64,8 @@ export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
     remainingAttempts,
     startLevel,
     submitAnswer,
+    abandonSession,
+    session,
     selectedWordId,
   } = useArabicPoetPuzzle({ levelId });
 
@@ -128,6 +131,30 @@ export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
     clearSelectedWord();
   }
 
+  async function handleBackToLevels() {
+    try {
+      if (session?.id) {
+        await abandonSession?.({ currentSceneId: level.id });
+      }
+    } catch (error) {
+      console.warn('Arabic puzzle abandonSession failed:', error?.message || error);
+    } finally {
+      navigation?.navigate?.('ArabicPoetPuzzleHome', { studentId });
+    }
+  }
+
+  async function handleBackToGames() {
+    try {
+      if (session?.id) {
+        await abandonSession?.({ currentSceneId: level.id });
+      }
+    } catch (error) {
+      console.warn('Arabic puzzle abandonSession failed:', error?.message || error);
+    } finally {
+      navigation?.navigate?.('games');
+    }
+  }
+
   async function handleSubmit() {
     try {
       setSubmitting(true);
@@ -135,6 +162,7 @@ export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
 
       if (result?.completed) {
         setWinCelebrationTick((prev) => prev + 1);
+        await markArabicPoetPuzzleLevelCompleted(level.id, studentId);
         await new Promise((resolve) => {
           setTimeout(resolve, WIN_CELEBRATION_DURATION_MS);
         });
@@ -168,6 +196,12 @@ export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
           ]}
         >
           <View style={styles.titleGlow} />
+          <Pressable style={styles.levelsBackButton} onPress={handleBackToLevels}>
+            <Text style={styles.levelsBackText}>{'\u0631\u062c\u0648\u0639 \u0644\u0644\u0645\u0633\u062a\u0648\u064a\u0627\u062a'}</Text>
+          </Pressable>
+          <Pressable style={[styles.levelsBackButton, styles.gamesBackButton]} onPress={handleBackToGames}>
+            <Text style={styles.levelsBackText}>{'\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0623\u0644\u0639\u0627\u0628'}</Text>
+          </Pressable>
           <Text style={[styles.title, { color: colors.ink }]}>{level.title}</Text>
           <Text style={[styles.subtitle, { color: colors.accentDark }]}>{level.subtitle}</Text>
           <Text style={[styles.instruction, { color: colors.ink }]}>
@@ -361,6 +395,26 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     backgroundColor: 'rgba(255, 244, 214, 0.45)',
+  },
+  levelsBackButton: {
+    alignSelf: 'flex-end',
+    borderRadius: 999,
+    backgroundColor: 'rgba(112, 72, 37, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(112, 72, 37, 0.28)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  levelsBackText: {
+    color: '#6E4727',
+    fontSize: 13,
+    fontWeight: '900',
+    writingDirection: 'rtl',
+  },
+  gamesBackButton: {
+    marginTop: -4,
+    marginBottom: 10,
   },
   title: {
     fontSize: 30,

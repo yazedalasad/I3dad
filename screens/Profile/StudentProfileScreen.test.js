@@ -9,47 +9,78 @@ jest.mock('../../services/studentJourneyService', () => ({
   getStudentJourneySnapshot: jest.fn(),
 }));
 
+jest.mock('../../services/studentProfileSummaryService', () => ({
+  buildStudentProfileSummary: jest.fn(),
+}));
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    i18n: { language: 'ar', changeLanguage: jest.fn() },
+  }),
+}));
+
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
-  return { FontAwesome: ({ name }) => <Text>{name}</Text> };
+  return {
+    FontAwesome: ({ name }) => <Text>{name}</Text>,
+    Ionicons: ({ name }) => <Text>{name}</Text>,
+  };
 });
 
 const { useAuth } = require('../../contexts/AuthContext');
 const { getStudentJourneySnapshot } = require('../../services/studentJourneyService');
+const { buildStudentProfileSummary } = require('../../services/studentProfileSummaryService');
 
 describe('StudentProfileScreen', () => {
   const navigateTo = jest.fn();
 
-  test('renders student name and stats', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    buildStudentProfileSummary.mockResolvedValue({
+      student: { id: 'student-1', first_name: 'Ali', last_name: 'Ahmad' },
+      profileCompletion: 25,
+      confidenceLevel: { level: 'low', label: 'Low', message: 'Needs more data' },
+      abilityHighlights: [],
+      interestHighlights: [],
+      gameHighlights: { skills: [] },
+      strengths: [],
+      improvements: [],
+      topFields: [],
+      nextSteps: [],
+      dataQuality: {},
+    });
+  });
+
+  test('renders student name and profile action', async () => {
     getStudentJourneySnapshot.mockResolvedValue({ success: true, data: {} });
     useAuth.mockReturnValue({
       user: { email: 'a@test.com' },
-      studentData: { first_name: 'Ali', last_name: 'Ahmad', points: 10 },
+      studentData: { id: 'student-1', first_name: 'Ali', last_name: 'Ahmad', points: 10 },
       signOut: jest.fn(),
     });
 
-    const { getByText } = render(
+    const { findByText } = render(
       <StudentProfileScreen navigateTo={navigateTo} />
     );
 
-    expect(getByText('Ali Ahmad')).toBeTruthy();
-    expect(getByText('Points')).toBeTruthy();
+    expect(await findByText(/Ali Ahmad/)).toBeTruthy();
+    expect(await findByText('تعديل بياناتي')).toBeTruthy();
   });
 
-  test('navigate to edit profile', () => {
+  test('navigate to edit profile', async () => {
     getStudentJourneySnapshot.mockResolvedValue({ success: true, data: {} });
     useAuth.mockReturnValue({
       user: {},
-      studentData: {},
+      studentData: { id: 'student-1' },
       signOut: jest.fn(),
     });
 
-    const { getByText } = render(
+    const { findByText } = render(
       <StudentProfileScreen navigateTo={navigateTo} />
     );
 
-    fireEvent.press(getByText('Edit'));
-    expect(navigateTo).toHaveBeenCalledWith('editProfile');
+    fireEvent.press(await findByText('تعديل بياناتي'));
+    expect(navigateTo).toHaveBeenCalledWith('editProfile', {});
   });
 });

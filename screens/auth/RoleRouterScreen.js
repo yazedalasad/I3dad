@@ -18,6 +18,11 @@ function roleFromUser(user) {
   return normalizeRole(user?.app_metadata?.role || user?.user_metadata?.role);
 }
 
+function safeT(t, key, fallback) {
+  const value = t?.(key);
+  return value && value !== key ? value : fallback;
+}
+
 async function getFreshAuthUser() {
   try {
     const { data: sessionData } = await supabase.auth.getSession?.();
@@ -46,26 +51,6 @@ async function getProfileRole(userId) {
     return normalizeRole(data?.role);
   } catch (_error) {
     return '';
-  }
-}
-
-async function getPrincipalDestination(user) {
-  try {
-    const { data: principal } = await supabase
-      .from('principals')
-      .select('full_name, school_id, is_active')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    const needsSetup =
-      !principal?.full_name ||
-      principal.full_name === user.email ||
-      !principal?.school_id ||
-      principal.is_active === false;
-
-    return needsSetup ? 'principalOnboarding' : 'principalDashboard';
-  } catch (_error) {
-    return 'principalDashboard';
   }
 }
 
@@ -115,8 +100,7 @@ export default function RoleRouterScreen({ navigateTo }) {
 
       if (PRINCIPAL_ROLES.has(role)) {
         setStatusText('Loading principal dashboard...');
-        const destination = await getPrincipalDestination(authUser);
-        if (!cancelled) navRef.current(destination, {}, { replace: true });
+        navRef.current('principalDashboard', {}, { replace: true });
         return;
       }
 
@@ -142,13 +126,13 @@ export default function RoleRouterScreen({ navigateTo }) {
         <View style={styles.logoContainer}>
           <FontAwesome name="shield" size={56} color="#fff" />
         </View>
-        <Text style={styles.title}>{t?.('common.loading') || 'Please wait'}</Text>
+        <Text style={styles.title}>{safeT(t, 'common.loading', 'جاري التحميل...')}</Text>
         <Text style={styles.subtitle}>{statusText}</Text>
       </LinearGradient>
 
       <View style={styles.content}>
         <ActivityIndicator size="large" color="#27ae60" />
-        <Text style={styles.hint}>{t?.('common.pleaseWait') || 'Redirecting...'}</Text>
+        <Text style={styles.hint}>{safeT(t, 'common.pleaseWait', 'الرجاء الانتظار...')}</Text>
       </View>
     </View>
   );

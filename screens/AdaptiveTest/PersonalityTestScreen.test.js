@@ -29,32 +29,43 @@ jest.mock('react-i18next', () => ({
 // ✅ HARD FIX for "remove" crashes (AppState/Keyboard/Dimensions)
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
+  const descriptors = Object.getOwnPropertyDescriptors(RN);
+  delete descriptors.DevMenu;
+  const mockRN = {};
+  Object.defineProperties(mockRN, descriptors);
   const makeSub = () => ({ remove: jest.fn() });
 
-  return {
-    ...RN,
-
-    AppState: {
+  Object.defineProperty(mockRN, 'AppState', {
+    configurable: true,
+    value: {
       ...RN.AppState,
       currentState: 'active',
       addEventListener: jest.fn(() => makeSub()),
       removeEventListener: jest.fn(),
     },
+  });
 
-    Keyboard: {
+  Object.defineProperty(mockRN, 'Keyboard', {
+    configurable: true,
+    value: {
       ...RN.Keyboard,
       addListener: jest.fn(() => makeSub()),
       removeListener: jest.fn(),
       removeAllListeners: jest.fn(),
       dismiss: jest.fn(),
     },
+  });
 
-    Dimensions: {
+  Object.defineProperty(mockRN, 'Dimensions', {
+    configurable: true,
+    value: {
       ...RN.Dimensions,
       addEventListener: jest.fn(() => makeSub()),
       removeEventListener: jest.fn(),
     },
-  };
+  });
+
+  return mockRN;
 });
 
 // ✅ Expo LinearGradient mock

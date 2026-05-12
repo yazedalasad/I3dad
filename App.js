@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import i18n from './i18n'; // ✅ from index.js
 import { initI18n } from './i18n/config'; // ✅ from config.js
@@ -54,9 +55,11 @@ export default function App() {
 
   return (
     <I18nextProvider i18n={i18n}>
-      <AuthProvider>
-        <ManualNavigator />
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <ManualNavigator />
+        </AuthProvider>
+      </SafeAreaProvider>
     </I18nextProvider>
   );
 }

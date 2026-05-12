@@ -1,1313 +1,832 @@
-import { FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { getStudentJourneySnapshot } from '../../services/studentJourneyService';
+import { buildStudentProfileSummary } from '../../services/studentProfileSummaryService';
+
+const colors = {
+  bg: '#F7FBF9',
+  card: '#FFFFFF',
+  text: '#12312B',
+  muted: '#667085',
+  green: '#16A34A',
+  greenDark: '#047857',
+  blue: '#2563EB',
+  softGreen: '#DCFCE7',
+  softBlue: '#EAF2FF',
+  border: '#D9EEE4',
+  warning: '#F59E0B',
+};
+
+function pct(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+  return Math.max(0, Math.min(100, Math.round(num)));
+}
+
+const profileCopy = {
+  ar: {
+    studentFallback: 'الطالب',
+    grade: 'الصف',
+    section: 'الشعبة',
+    loadErrorTitle: 'تعذر تحميل البروفايل',
+    loadErrorMessage: 'حدث خطأ غير متوقع.',
+    deleteTitle: 'حذف الحساب؟',
+    deleteMessage: 'سيتم حذف بيانات حسابك من النظام.',
+    cancel: 'إلغاء',
+    delete: 'حذف',
+    deleteError: 'تعذر الحذف',
+    loading: 'جاري بناء بروفايلك الشخصي...',
+    noProfileTitle: 'لا يوجد بروفايل طالب جاهز',
+    noProfileText: 'أكمل بيانات الطالب أولاً حتى تظهر لوحة البروفايل.',
+    examPower: 'قوة الامتحان',
+    interests: 'ميولك',
+    gameSignals: 'إشارات الألعاب',
+    editProfile: 'تعديل بياناتي',
+    logout: 'تسجيل الخروج',
+    deleteAccount: 'حذف الحساب',
+    profileTitle: 'بروفايل الطالب',
+    headerTitle: (name) => `أهلاً ${name}، هذا ملخص رحلتك التعليمية`,
+    headerSubtitle: 'هنا ترى صورتك التعليمية بناءً على الامتحان، الشخصية، الاهتمامات، والألعاب.',
+    completion: (value) => `اكتملت ${value}% من بياناتك`,
+    completionHint: 'كلما أنهيت اختباراً أو لعبة، تصبح التوصية أدق.',
+    bestPath: 'أفضل مسار لك حالياً',
+    noRecommendation: 'لا توجد توصية جاهزة بعد. أكمل الاختبار الشامل أولاً.',
+    match: 'ملاءمة',
+    whyPath: 'لماذا هذا المسار؟',
+    breakdownTitle: 'كيف وصلنا لهذه النتيجة؟',
+    breakdownHint: 'الامتحان هو الأساس. الألعاب تضيف إشارة داعمة فقط ولا تحدد مستقبلك وحدها.',
+    abilitiesFromExam: 'القدرات من الامتحان',
+    personality: 'الشخصية',
+    bonus: (value) => `إشارات الألعاب: ${value > 0 ? `+${value}` : value} نقاط داعمة فقط`,
+    strengths: 'نقاط قوتك',
+    strengthsEmpty: 'ستظهر نقاط قوتك بعد إكمال الاختبار الشامل أو بعض الألعاب.',
+    improvements: 'مجالات يمكن تقويتها',
+    improvementsEmpty: 'لا توجد ملاحظات تطوير واضحة الآن. استمر، بروفايلك يتحسن مع كل محاولة.',
+    gameHint: 'الألعاب لا تحدد مستقبلك وحدها، لكنها تساعدنا نفهم طريقة تفكيرك بشكل عملي.',
+    gameEmpty: 'لم تلعب ألعاباً كافية بعد. جرّب الألعاب للحصول على توصية أذكى.',
+    topFields: 'أفضل المسارات المقترحة',
+    majorDetails: 'تفاصيل التخصص',
+    nearbyUniversities: 'جامعات قريبة',
+    shortTask: 'جرّب مهمة قصيرة',
+    suitableWith: (subject) => `مناسب بسبب قوة ${subject} وإشارة داعمة من الألعاب.`,
+    suitableExam: (subject) => `مناسب بسبب قوة ${subject} في الامتحان.`,
+    gameSupportOnly: 'الألعاب أعطت إشارة داعمة، لكنها ليست المصدر الأساسي للتوصية.',
+    generalReason: 'مناسب حسب نتائج الامتحان والشخصية والاهتمامات المتاحة.',
+    learningPotential: 'إمكانات التعلم',
+    learningFallback: 'إمكانات التعلم تظهر كلما زادت محاولاتك وتجاربك.',
+    persistence: 'المثابرة',
+    improvement: 'التحسن',
+    focus: 'التركيز',
+    speedStability: 'ثبات السرعة',
+    nextSteps: 'خطواتك التالية',
+    improveAccuracy: 'لزيادة دقة التوصية',
+    fullAssessment: 'الاختبار الشامل',
+    personalityTest: 'اختبار الشخصية',
+    games: 'الألعاب',
+    miniTasks: 'المهام القصيرة',
+  },
+  he: {
+    studentFallback: 'התלמיד',
+    grade: 'כיתה',
+    section: 'קבוצה',
+    loadErrorTitle: 'טעינת הפרופיל נכשלה',
+    loadErrorMessage: 'אירעה שגיאה לא צפויה.',
+    deleteTitle: 'למחוק חשבון?',
+    deleteMessage: 'נתוני החשבון שלך יימחקו מהמערכת.',
+    cancel: 'ביטול',
+    delete: 'מחיקה',
+    deleteError: 'המחיקה נכשלה',
+    loading: 'בונה את הפרופיל האישי שלך...',
+    noProfileTitle: 'אין עדיין פרופיל תלמיד מוכן',
+    noProfileText: 'השלם קודם את פרטי התלמיד כדי להציג את לוח הפרופיל.',
+    examPower: 'חוזק המבחן',
+    interests: 'תחומי העניין שלך',
+    gameSignals: 'אותות משחקים',
+    editProfile: 'עריכת הפרטים שלי',
+    logout: 'יציאה',
+    deleteAccount: 'מחיקת חשבון',
+    profileTitle: 'פרופיל תלמיד',
+    headerTitle: (name) => `שלום ${name}, זה סיכום המסע הלימודי שלך`,
+    headerSubtitle: 'כאן מוצגת התמונה הלימודית שלך לפי המבחן, האישיות, תחומי העניין והמשחקים.',
+    completion: (value) => `${value}% מהנתונים שלך הושלמו`,
+    completionHint: 'ככל שתסיים מבחן או משחק, ההמלצה תהיה מדויקת יותר.',
+    bestPath: 'המסלול המתאים ביותר כרגע',
+    noRecommendation: 'אין עדיין המלצה מוכנה. השלם קודם את המבחן המקיף.',
+    match: 'התאמה',
+    whyPath: 'למה המסלול הזה?',
+    breakdownTitle: 'איך הגענו לתוצאה הזאת?',
+    breakdownHint: 'המבחן הוא הבסיס. המשחקים מוסיפים אות תומך בלבד ולא קובעים לבד את העתיד שלך.',
+    abilitiesFromExam: 'יכולות מהמבחן',
+    personality: 'אישיות',
+    bonus: (value) => `אותות משחקים: ${value > 0 ? `+${value}` : value} נקודות תמיכה בלבד`,
+    strengths: 'נקודות החוזק שלך',
+    strengthsEmpty: 'נקודות החוזק יופיעו אחרי השלמת המבחן המקיף או כמה משחקים.',
+    improvements: 'תחומים שאפשר לחזק',
+    improvementsEmpty: 'אין כרגע הערות שיפור ברורות. המשך להתקדם, הפרופיל משתפר מכל ניסיון.',
+    gameHint: 'המשחקים לא קובעים לבד את העתיד שלך, אבל הם עוזרים להבין את דרך החשיבה שלך בצורה מעשית.',
+    gameEmpty: 'עדיין אין מספיק נתוני משחקים. נסה משחקים כדי לקבל המלצה חכמה יותר.',
+    topFields: 'המסלולים המומלצים ביותר',
+    majorDetails: 'פרטי תחום',
+    nearbyUniversities: 'אוניברסיטאות קרובות',
+    shortTask: 'נסה משימה קצרה',
+    suitableWith: (subject) => `מתאים בגלל חוזק ב${subject} ואות תומך מהמשחקים.`,
+    suitableExam: (subject) => `מתאים בגלל חוזק ב${subject} במבחן.`,
+    gameSupportOnly: 'המשחקים נתנו אות תומך, אך הם לא המקור המרכזי להמלצה.',
+    generalReason: 'מתאים לפי תוצאות המבחן, האישיות ותחומי העניין הזמינים.',
+    learningPotential: 'פוטנציאל למידה',
+    learningFallback: 'פוטנציאל הלמידה מתבהר ככל שיש יותר ניסיונות והתנסויות.',
+    persistence: 'התמדה',
+    improvement: 'שיפור',
+    focus: 'מיקוד',
+    speedStability: 'יציבות מהירות',
+    nextSteps: 'הצעדים הבאים שלך',
+    improveAccuracy: 'כדי לשפר את דיוק ההמלצה',
+    fullAssessment: 'המבחן המקיף',
+    personalityTest: 'מבחן אישיות',
+    games: 'משחקים',
+    miniTasks: 'משימות קצרות',
+  },
+};
+
+function localizeConfidence(confidence, copy, language) {
+  if (!confidence) {
+    return {
+      label: language === 'he' ? 'אמון נמוך' : 'ثقة منخفضة',
+      message: language === 'he' ? 'צריך עוד נתונים לפני בניית המלצה חזקה.' : 'نحتاج بيانات أكثر قبل بناء توصية قوية.',
+    };
+  }
+  if (language !== 'he') return confidence;
+  const labels = {
+    high: 'אמון גבוה',
+    medium: 'אמון בינוני',
+    low: 'אמון נמוך',
+  };
+  const messages = {
+    high: 'המבחן, האישיות ואותות המשחקים נתנו תמונה עקבית.',
+    medium: 'המבחן נתן תמונה טובה, והשלמת האישיות או המשחקים תשפר את הדיוק.',
+    low: 'צריך עוד נתונים לפני בניית המלצה חזקה.',
+  };
+  return {
+    ...confidence,
+    label: labels[confidence.level] || confidence.label,
+    message: messages[confidence.level] || confidence.message,
+  };
+}
 
 export default function StudentProfileScreen({ navigateTo }) {
-  const { user, studentData, profile, studentIdentity, signOut, deleteAccount, refreshUserData } = useAuth();
-  const { i18n = { language: 'en' } } = useTranslation();
-  const { width } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState('about');
-  const [imgFailed, setImgFailed] = useState(false);
-  const [localizedSchoolName, setLocalizedSchoolName] = useState('');
-  const [journeySnapshot, setJourneySnapshot] = useState(null);
+  const { user, studentData, signOut, deleteAccount } = useAuth();
+  const { i18n } = useTranslation();
+  const language = String(i18n.language || '').toLowerCase().startsWith('he') ? 'he' : 'ar';
+  const copy = profileCopy[language];
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const isArabic = String(i18n?.language || '').toLowerCase().startsWith('ar');
-  const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
-  const isRtl = isArabic || isHebrew;
-  const isWide = width >= 980;
-  const isMedium = width >= 720;
-
-  useEffect(() => {
-    if (user?.id) {
-      refreshUserData?.(user);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const copy = isHebrew
-    ? {
-        student: 'תלמיד/ה',
-        notSet: 'לא הוגדר',
-        noEmail: 'ללא אימייל',
-        noPhone: 'ללא טלפון',
-        heroSubtitle: 'כל פרופיל הלמידה שלך במקום אחד, עם גישה מהירה להתקדמות ולכלים.',
-        points: 'נקודות',
-        completed: 'הושלם',
-        level: 'רמה',
-        continue: 'המשך',
-        edit: 'עריכה',
-        details: 'פרטי הפרופיל',
-        detailsSubtitle: 'תצוגה מסודרת של המידע האישי והלימודי שלך',
-        about: 'אודות',
-        contact: 'יצירת קשר',
-        birthday: 'תאריך לידה',
-        address: 'כתובת',
-        gender: 'מגדר',
-        school: 'בית ספר',
-        grade: 'כיתה',
-        track: 'מסלול',
-        email: 'אימייל',
-        phone: 'טלפון',
-        quickActions: 'פעולות מהירות',
-        quickSubtitle: 'קיצורי דרך לעמודים החשובים ביותר',
-        recommendations: 'המלצות',
-        recommendationsSubtitle: 'צפייה במסלולים מומלצים והשלבים הבאים',
-        institutions: 'מוסדות לימוד',
-        institutionsSubtitle: 'חיפוש אוניברסיטאות ומכללות לפי תחום ועיר',
-        examHistory: 'היסטוריית מבחנים',
-        examHistorySubtitle: 'סקירה של מבחנים ותוצאות קודמות',
-        changePassword: 'שינוי סיסמה',
-        changePasswordSubtitle: 'עדכון הסיסמה והאבטחה שלך',
-        signOut: 'התנתקות',
-        deleteAccount: 'מחיקת חשבון',
-        deleteTitle: 'למחוק את החשבון?',
-        deleteMessage: 'הנתונים האישיים והפרופיל שלך יימחקו מהמערכת.',
-        deleteConfirm: 'מחיקה',
-        deleteFailed: 'מחיקת החשבון נכשלה',
-        gradePrefix: 'כיתה',
-        male: 'זכר',
-        female: 'נקבה',
-      }
-    : isArabic
-      ? {
-          student: 'طالب',
-          notSet: 'غير محدد',
-          noEmail: 'بدون بريد',
-          noPhone: 'بدون هاتف',
-          heroSubtitle: 'كل ملفك التعليمي في مكان واحد، مع وصول سريع للتقدم والأدوات.',
-          points: 'النقاط',
-          completed: 'المكتمل',
-          level: 'المستوى',
-          continue: 'متابعة',
-          edit: 'تعديل',
-          details: 'تفاصيل الحساب',
-          detailsSubtitle: 'عرض مرتب لمعلوماتك الشخصية والدراسية',
-          about: 'حول',
-          contact: 'التواصل',
-          birthday: 'تاريخ الميلاد',
-          address: 'العنوان',
-          gender: 'الجنس',
-          school: 'المدرسة',
-          grade: 'الصف',
-          track: 'المسار',
-          email: 'البريد الإلكتروني',
-          phone: 'الهاتف',
-          quickActions: 'إجراءات سريعة',
-          quickSubtitle: 'اختصارات للصفحات الأكثر استخدامًا',
-          recommendations: 'التوصيات',
-          recommendationsSubtitle: 'عرض المسارات المقترحة والخطوات القادمة',
-          institutions: 'المؤسسات التعليمية',
-          institutionsSubtitle: 'ابحث عن الجامعات والكليات حسب التخصص والمدينة',
-          examHistory: 'سجل الاختبارات',
-          examHistorySubtitle: 'مراجعة الاختبارات والنتائج السابقة',
-          changePassword: 'تغيير كلمة المرور',
-          changePasswordSubtitle: 'تحديث كلمة المرور والحماية',
-          signOut: 'تسجيل الخروج',
-          deleteAccount: 'حذف الحساب',
-          deleteTitle: 'حذف الحساب؟',
-          deleteMessage: 'سيتم حذف بياناتك الشخصية وبروفايل الطالب من النظام.',
-          deleteConfirm: 'حذف',
-          deleteFailed: 'فشل حذف الحساب',
-          gradePrefix: 'الصف',
-          male: 'ذكر',
-          female: 'أنثى',
-        }
-      : {
-          student: 'Student',
-          notSet: 'Not set',
-          noEmail: 'No email',
-          noPhone: 'No phone',
-          heroSubtitle: 'Your learning profile in one place, with quick access to progress and tools.',
-          points: 'Points',
-          completed: 'Completed',
-          level: 'Level',
-          continue: 'Continue',
-          edit: 'Edit',
-          details: 'Profile Details',
-          detailsSubtitle: 'Clean overview of your personal and school information',
-          about: 'About',
-          contact: 'Contact',
-          birthday: 'Birthday',
-          address: 'Address',
-          gender: 'Gender',
-          school: 'School',
-          grade: 'Grade',
-          track: 'Track',
-          email: 'Email',
-          phone: 'Phone',
-          quickActions: 'Quick Actions',
-          quickSubtitle: 'Shortcuts for the pages you use most',
-          recommendations: 'Recommendations',
-          recommendationsSubtitle: 'View suggested paths and next steps',
-          institutions: 'Institutions',
-          institutionsSubtitle: 'Browse universities and colleges by field and city',
-          examHistory: 'Exam History',
-          examHistorySubtitle: 'Review tests and previous results',
-          changePassword: 'Change Password',
-          changePasswordSubtitle: 'Update your password and security',
-          signOut: 'Sign Out',
-          deleteAccount: 'Delete Account',
-          deleteTitle: 'Delete account?',
-          deleteMessage: 'Your personal student data and profile will be removed from the system.',
-          deleteConfirm: 'Delete',
-          deleteFailed: 'Account deletion failed',
-          gradePrefix: 'Grade',
-          male: 'Male',
-          female: 'Female',
-        };
-
-  const journeyCopy = isHebrew
-    ? {
-        insightReport: 'דו"ח אישי',
-        insightReportSubtitle: 'סיכום משולב של המבחן, המשחקים וההמלצות',
-        profileSummary: 'פרופיל תלמיד',
-        profileSummarySubtitle: 'כאן המערכת מחברת בין המבחן, המשחקים והתאמת המסלול.',
-        topMatch: 'המסלול המתאים לך',
-        strongestAreas: 'חוזקות מובילות',
-        gameSignals: 'אותות מהמשחקים',
-        openFullReport: 'פתח דו"ח מלא',
-        noJourneyData: 'עדיין אין נתונים משולבים.',
-      }
-    : isArabic
-      ? {
-          insightReport: 'التقرير الشخصي',
-          insightReportSubtitle: 'ملخص موحّد يجمع الاختبار والألعاب والتوصيات',
-          profileSummary: 'ملف الطالب',
-          profileSummarySubtitle: 'هنا النظام يربط بين الاختبار والألعاب وتوافق المسار.',
-          topMatch: 'المسار الأنسب لك',
-          strongestAreas: 'أقوى نقاطك',
-          gameSignals: 'إشارات من الألعاب',
-          openFullReport: 'فتح التقرير الكامل',
-          noJourneyData: 'لا توجد بيانات موحّدة بعد.',
-        }
-      : {
-          insightReport: 'Insight Report',
-          insightReportSubtitle: 'Unified summary of test, games, and recommendations',
-          profileSummary: 'Student Profile',
-          profileSummarySubtitle: 'The system connects the exam, games, and path matching here.',
-          topMatch: 'Best-fit path',
-          strongestAreas: 'Top strengths',
-          gameSignals: 'Game signals',
-          openFullReport: 'Open full report',
-          noJourneyData: 'No unified data yet.',
-        };
-
-  const accountDisplayName = useMemo(
-    () => {
-      const studentFullName = `${studentData?.first_name || ''} ${studentData?.last_name || ''}`
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      return studentIdentity?.fullName || studentFullName || copy.student;
-    },
-    [copy.student, studentData?.first_name, studentData?.last_name, studentIdentity?.fullName]
-  );
-
-  const fullName = accountDisplayName;
-
-  const smartBirthdayValue = useMemo(
-    () =>
-      studentData?.birthday ||
-      studentData?.birth_date ||
-      studentData?.date_of_birth ||
-      profile?.birthday ||
-      profile?.birth_date ||
-      '',
-    [
-      profile?.birth_date,
-      profile?.birthday,
-      studentData?.birth_date,
-      studentData?.birthday,
-      studentData?.date_of_birth,
-    ]
-  );
-
-  const smartGradeValue = useMemo(
-    () =>
-      studentData?.grade ||
-      studentData?.grade_level ||
-      studentData?.class_grade ||
-      profile?.grade ||
-      profile?.grade_level ||
-      '',
-    [
-      profile?.grade,
-      profile?.grade_level,
-      studentData?.class_grade,
-      studentData?.grade,
-      studentData?.grade_level,
-    ]
-  );
-
-  const smartSchoolName = useMemo(
-    () =>
-      studentData?.school_name ||
-      studentData?.schoolName ||
-      studentData?.school ||
-      profile?.school_name ||
-      profile?.schoolName ||
-      profile?.school ||
-      '',
-    [
-      profile?.school,
-      profile?.schoolName,
-      profile?.school_name,
-      studentData?.school,
-      studentData?.schoolName,
-      studentData?.school_name,
-    ]
-  );
-
-  const smartTrackValue = useMemo(
-    () =>
-      studentData?.track ||
-      studentData?.pathway ||
-      studentData?.major_track ||
-      profile?.track ||
-      profile?.pathway ||
-      '',
-    [
-      profile?.pathway,
-      profile?.track,
-      studentData?.major_track,
-      studentData?.pathway,
-      studentData?.track,
-    ]
-  );
-
-  const smartAddressText = useMemo(() => {
-    const parts = [
-      studentData?.city || profile?.city,
-      studentData?.street || profile?.street,
-      studentData?.house_number || profile?.house_number,
-      studentData?.address || profile?.address,
-    ]
-      .filter(Boolean)
-      .join(', ');
-    return parts || '';
-  }, [
-    profile?.address,
-    profile?.city,
-    profile?.house_number,
-    profile?.street,
-    studentData?.address,
-    studentData?.city,
-    studentData?.house_number,
-    studentData?.street,
-  ]);
-
-  const smartGenderRaw = String(studentData?.gender || profile?.gender || '').trim().toLowerCase();
-
-  const gradeText = smartGradeValue ? `${copy.gradePrefix} ${smartGradeValue}` : copy.notSet;
-  const birthText = smartBirthdayValue
-    ? new Date(smartBirthdayValue).toLocaleDateString('en-US')
-    : copy.notSet;
-
-  const addressText = useMemo(
-    () => smartAddressText || copy.notSet,
-    [copy.notSet, smartAddressText]
-  );
-
-  const genderText = useMemo(() => {
-    const raw = smartGenderRaw;
-    if (!raw) return copy.notSet;
-    if (['male', 'm', 'boy', 'ذكر', 'זכר'].includes(raw)) return copy.male;
-    if (['female', 'f', 'girl', 'أنثى', 'נקבה'].includes(raw)) return copy.female;
-    return studentData?.gender || profile?.gender || copy.notSet;
-  }, [copy.female, copy.male, copy.notSet, profile?.gender, smartGenderRaw, studentData?.gender]);
+  const studentId = studentData?.id;
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadLocalizedSchoolName = async () => {
-      const fallbackName = smartSchoolName || copy.notSet;
-      if (!studentData?.school_id && !smartSchoolName) {
-        setLocalizedSchoolName(copy.notSet);
+    async function load() {
+      if (!studentId) {
+        setLoading(false);
         return;
       }
-
       try {
-        let school = null;
-
-        if (studentData?.school_id) {
-          const { data } = await supabase
-            .from('schools')
-            .select('name_ar,name_he')
-            .eq('id', studentData.school_id)
-            .maybeSingle();
-          school = data || null;
+        setLoading(true);
+        const data = await buildStudentProfileSummary(studentId, { language });
+        if (!cancelled) setSummary(data);
+      } catch (error) {
+        if (!cancelled) {
+          Alert.alert(copy.loadErrorTitle, error.message || copy.loadErrorMessage);
         }
-
-        if (!school && smartSchoolName) {
-          const { data } = await supabase
-            .from('schools')
-            .select('name_ar,name_he')
-            .or(`name_ar.eq.${smartSchoolName},name_he.eq.${smartSchoolName}`)
-            .maybeSingle();
-          school = data || null;
-        }
-
-        if (cancelled) return;
-
-        if (school) {
-          setLocalizedSchoolName(isHebrew ? school.name_he || fallbackName : school.name_ar || fallbackName);
-          return;
-        }
-
-        setLocalizedSchoolName(fallbackName);
-      } catch (_error) {
-        if (!cancelled) setLocalizedSchoolName(fallbackName);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    };
-
-    loadLocalizedSchoolName();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [copy.notSet, isHebrew, smartSchoolName, studentData?.school_id]);
-
-  const avatarUrlRaw =
-    (studentData?.avatar_url || studentData?.image_url || studentData?.profile_image_url || '')
-      ?.toString()
-      .replace(/[\s"]/g, '')
-      .trim() || '';
-
-  const avatarUrl = avatarUrlRaw
-    ? `${avatarUrlRaw}${avatarUrlRaw.includes('?') ? '&' : '?'}v=${studentData?.updated_at || Date.now()}`
-    : null;
-
-  useEffect(() => {
-    setImgFailed(false);
-  }, [avatarUrlRaw]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadJourneySnapshot() {
-      if (!studentData?.id) return;
-
-      const result = await getStudentJourneySnapshot(studentData.id, {
-        language: i18n.language,
-      });
-
-      if (cancelled || !result?.success) return;
-      setJourneySnapshot(result.data || null);
     }
 
-    loadJourneySnapshot();
-
+    load();
     return () => {
       cancelled = true;
     };
-  }, [studentData?.id, i18n.language]);
+  }, [studentId, language]);
 
-  const showImage = avatarUrl && !imgFailed;
+  const student = summary?.student || studentData || {};
+  const displayName = student.display_name || `${student.first_name || ''} ${student.last_name || ''}`.trim() || copy.studentFallback;
+  const best = summary?.bestRecommendation || null;
+  const completion = pct(summary?.profileCompletion);
+  const confidence = localizeConfidence(summary?.confidenceLevel, copy, language);
 
-  const infoRows =
-    activeTab === 'about'
-      ? [
-          { icon: 'birthday-cake', label: copy.birthday, value: birthText },
-          { icon: 'map-marker', label: copy.address, value: addressText },
-          { icon: 'venus-mars', label: copy.gender, value: genderText },
-          { icon: 'building', label: copy.school, value: localizedSchoolName || copy.notSet },
-          { icon: 'graduation-cap', label: copy.grade, value: smartGradeValue || copy.notSet },
-          { icon: 'compass', label: copy.track, value: smartTrackValue || copy.notSet },
-        ]
-      : [
-          { icon: 'envelope', label: copy.email, value: user?.email || studentData?.email || copy.notSet },
-          { icon: 'phone', label: copy.phone, value: studentData?.phone || profile?.phone || copy.notSet },
-          { icon: 'building-o', label: copy.school, value: localizedSchoolName || copy.notSet },
-        ];
+  const classLabel = useMemo(() => {
+    const grade = student.grade ? `${copy.grade} ${student.grade}` : '';
+    const section = student.class_section ? `${copy.section} ${student.class_section}` : '';
+    return [grade, section].filter(Boolean).join(' | ');
+  }, [copy.grade, copy.section, student.grade, student.class_section]);
 
-  const quickLinks = [
-    {
-      key: 'recommendations',
-      title: copy.recommendations,
-      subtitle: copy.recommendationsSubtitle,
-      icon: 'graduation-cap',
-      accent: '#27ae60',
-      onPress: () => navigateTo('recommendations'),
-    },
-    {
-      key: 'institutions',
-      title: copy.institutions,
-      subtitle: copy.institutionsSubtitle,
-      icon: 'university',
-      accent: '#1d4ed8',
-      onPress: () =>
-        navigateTo('universitiesAndColleges', {
-          majorName: journeySnapshot?.topRecommendation?.name || '',
-        }),
-    },
-    {
-      key: 'examHistory',
-      title: copy.examHistory,
-      subtitle: copy.examHistorySubtitle,
-      icon: 'history',
-      accent: '#38bdf8',
-      onPress: () => navigateTo('examHistory'),
-    },
-    {
-      key: 'skillsProfile',
-      title: isHebrew ? 'פרופיל מיומנויות' : 'ملف المهارات',
-      subtitle: isHebrew
-        ? 'מבט רדאר על לוגיקה, ריכוז, שפה וחשיבה מדעית'
-        : 'عرض رادار للمنطق، التركيز، اللغة، والتفكير العلمي',
-      icon: 'area-chart',
-      accent: '#14b8a6',
-      onPress: () => navigateTo('skillsProfile'),
-    },
-    {
-      key: 'insightReport',
-      title: journeyCopy.insightReport,
-      subtitle: journeyCopy.insightReportSubtitle,
-      icon: 'file-text',
-      accent: '#8b5cf6',
-      onPress: () =>
-        navigateTo('studentInsightReport', {
-          studentId: studentData?.id,
-          language: i18n.language,
-        }),
-    },
-    {
-      key: 'changePassword',
-      title: copy.changePassword,
-      subtitle: copy.changePasswordSubtitle,
-      icon: 'lock',
-      accent: '#f59e0b',
-      onPress: () => navigateTo('changePassword'),
-    },
-  ];
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigateTo('login');
-    } catch (e) {}
-  };
-
-  const handleDeleteAccount = () => {
+  const handleDelete = () => {
     Alert.alert(copy.deleteTitle, copy.deleteMessage, [
-      { text: isHebrew ? 'ביטול' : isArabic ? 'إلغاء' : 'Cancel', style: 'cancel' },
+      { text: copy.cancel, style: 'cancel' },
       {
-        text: copy.deleteConfirm,
+        text: copy.delete,
         style: 'destructive',
-        onPress: async () => {
-          const { error } = await deleteAccount();
-          if (error) {
-            Alert.alert(copy.deleteFailed, error.message || copy.deleteFailed);
-            return;
-          }
-          navigateTo('home');
-        },
+        onPress: () => deleteAccount?.().catch((error) => Alert.alert(copy.deleteError, error.message)),
       },
     ]);
   };
 
-  const topRecommendation = journeySnapshot?.topRecommendation || null;
-  const strongestAbilities = journeySnapshot?.strongestAbilities || [];
-  const gameHighlights = journeySnapshot?.gameHighlights || [];
+  function go(route, params = {}) {
+    navigateTo?.(route, params);
+  }
 
-  const InfoRow = ({ icon, label, value }) => (
-    <View style={styles.infoRow}>
-      <View style={[styles.infoLead, isRtl && styles.infoLeadRtl]}>
-        <View style={styles.infoIconWrap}>
-          <FontAwesome name={icon} size={14} color="#27ae60" />
-        </View>
-        <View style={styles.infoTextGroup}>
-          <Text style={[styles.infoLabel, isRtl && styles.rtlText]}>{label}</Text>
-          <Text style={[styles.infoValue, isRtl && styles.rtlText]}>{value}</Text>
-        </View>
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.green} />
+        <Text style={styles.loadingText}>{copy.loading}</Text>
       </View>
-    </View>
-  );
+    );
+  }
 
-  const missingStudentProfile = !studentData?.id;
+  if (!studentId) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyTitle}>{copy.noProfileTitle}</Text>
+        <Text style={styles.emptyText}>{copy.noProfileText}</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.shell}>
-          <View style={styles.heroCard}>
-            <View style={styles.heroGlowLarge} />
-            <View style={styles.heroGlowSmall} />
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <HeaderCard
+        name={displayName}
+        school={student.school_name}
+        classLabel={classLabel}
+        completion={completion}
+        bestName={best?.name}
+        copy={copy}
+      />
 
-            <View style={styles.heroTopRow}>
-              <TouchableOpacity
-                style={styles.settingsButton}
-                onPress={() => navigateTo('settings')}
-                activeOpacity={0.88}
-              >
-                <FontAwesome name="cog" size={18} color="#dbeafe" />
-              </TouchableOpacity>
+      <BestMatchCard best={best} confidence={confidence} explanation={localizedExplanation(summary?.explanation, language)} copy={copy} />
 
-              <View style={styles.gradePill}>
-                <FontAwesome name="bookmark" size={12} color="#0b1223" />
-                <Text style={styles.gradePillText}>{gradeText}</Text>
-              </View>
-            </View>
+      <BreakdownCard summary={summary} copy={copy} />
 
-            <View style={[styles.profileHeader, isWide && styles.profileHeaderWide, isRtl && styles.profileHeaderRtl]}>
-              <View style={styles.avatarShell}>
-                {showImage ? (
-                  <Image
-                    source={{ uri: avatarUrl }}
-                    style={styles.avatarImage}
-                    resizeMode="cover"
-                    onError={() => setImgFailed(true)}
-                  />
-                ) : (
-                  <View style={styles.avatarFallback}>
-                    <FontAwesome name="user" size={32} color="#27ae60" />
-                  </View>
-                )}
-              </View>
+      <View style={styles.threeGrid}>
+        <MiniStat title={copy.examPower} value={`${summary?.abilityHighlights?.[0]?.score || 0}%`} icon="analytics-outline" tone="blue" />
+        <MiniStat title={copy.interests} value={`${summary?.interestHighlights?.[0]?.score || 0}%`} icon="heart-outline" tone="green" />
+        <MiniStat title={copy.gameSignals} value={`${summary?.gameHighlights?.skills?.length || 0}`} icon="game-controller-outline" tone="blue" />
+      </View>
 
-              <View style={styles.heroTextArea}>
-                <View style={[styles.heroNameRow, isRtl && styles.heroNameRowRtl]}>
-                  <View style={styles.onlineDot} />
-                  <Text style={[styles.heroName, isRtl && styles.rtlText]}>{fullName}</Text>
-                </View>
-                <Text style={[styles.heroSubtitle, isRtl && styles.rtlText]}>{copy.heroSubtitle}</Text>
+      <StrengthsCard strengths={summary?.strengths || []} copy={copy} language={language} />
+      <ImprovementCard improvements={summary?.improvements || []} copy={copy} language={language} />
+      <GameSignalsCard signals={summary?.gameHighlights || {}} copy={copy} language={language} />
+      <TopFieldsCard fields={summary?.topFields || []} onNavigate={go} copy={copy} language={language} />
+      <LearningPotentialCard data={summary?.learningPotential} copy={copy} language={language} />
+      <NextStepsCard steps={summary?.nextSteps || []} onNavigate={go} studentId={studentId} best={best} language={language} copy={copy} />
+      <DataQualityCard quality={summary?.dataQuality} copy={copy} language={language} />
 
-                <View style={[styles.metaRow, !isMedium && styles.metaRowStacked, isRtl && styles.metaRowRtl]}>
-                  <View style={[styles.metaChip, isRtl && styles.metaChipRtl]}>
-                    <FontAwesome name="envelope" size={12} color="#86efac" />
-                    <Text style={styles.metaChipText}>{user?.email || copy.noEmail}</Text>
-                  </View>
+      <View style={styles.accountActions}>
+        <TouchableOpacity style={styles.lightButton} onPress={() => go('editProfile')}>
+          <Ionicons name="create-outline" size={18} color={colors.greenDark} />
+          <Text style={styles.lightButtonText}>{copy.editProfile}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.lightButton} onPress={() => signOut?.()}>
+          <Ionicons name="log-out-outline" size={18} color="#B42318" />
+          <Text style={[styles.lightButtonText, { color: '#B42318' }]}>{copy.logout}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.dangerGhost} onPress={handleDelete}>
+          <Text style={styles.dangerGhostText}>{copy.deleteAccount}</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
 
-                  <View style={[styles.metaChip, isRtl && styles.metaChipRtl]}>
-                    <FontAwesome name="phone" size={12} color="#86efac" />
-                    <Text style={styles.metaChipText}>{studentData?.phone || copy.noPhone}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
+function localizedExplanation(explanation, language) {
+  if (!explanation) return '';
+  if (typeof explanation === 'string') {
+    if (language === 'he') {
+      return 'ההמלצה מבוססת על המבחן, האישיות ותחומי העניין. המשחקים מוסיפים אות תומך בלבד ואינם מחליפים את תוצאות המבחן.';
+    }
+    return explanation;
+  }
+  if (language === 'he') return explanation.he || explanation.text_he || explanation.ar || explanation.text_ar || '';
+  return explanation.ar || explanation.text_ar || explanation.he || explanation.text_he || '';
+}
 
-          <View style={[styles.statsGrid, isMedium && styles.statsGridWide]}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{studentData?.points ?? 0}</Text>
-              <Text style={styles.statLabel}>{copy.points}</Text>
-            </View>
+function localizedName(item, language) {
+  if (!item) return '';
+  if (language === 'he') {
+    return item.name_he || item.subject_name_he || item.label_he || item.name || item.name_ar || item.subject_name_ar || item.label || '';
+  }
+  return item.name_ar || item.subject_name_ar || item.label_ar || item.name || item.name_he || item.subject_name_he || item.label || '';
+}
 
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{studentData?.completed_tasks ?? 0}</Text>
-              <Text style={styles.statLabel}>{copy.completed}</Text>
-            </View>
+function localizedStrength(item, language) {
+  if (language !== 'he') return item;
+  const sourceMap = {
+    exam: 'מהמבחן',
+    game: 'מהמשחקים',
+    both: 'מהמבחן ומהמשחקים',
+  };
+  return {
+    ...item,
+    label: localizedName(item, language) || item.label,
+    source: sourceMap[item.sourceType] || sourceMap[item.source] || item.source || '',
+  };
+}
 
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{studentData?.level ?? 1}</Text>
-              <Text style={styles.statLabel}>{copy.level}</Text>
-            </View>
-          </View>
+function localizedImprovement(item, language) {
+  if (language !== 'he') return item;
+  if (item.icon === 'person-outline' || item.key === 'personality') {
+    return {
+      ...item,
+      title: 'מבחן האישיות עדיין לא הושלם',
+      hint: 'השלמתו תעזור לנו להבין טוב יותר את דרך החשיבה שלך.',
+    };
+  }
+  if (item.icon === 'game-controller-outline' || item.key === 'games') {
+    return {
+      ...item,
+      title: 'אפשר להוסיף עוד אותות משחקים',
+      hint: 'משחק אחד או שניים נוספים ישפרו את דיוק הפרופיל.',
+    };
+  }
+  return {
+    ...item,
+    title: item.title_he || 'תחום שאפשר לחזק',
+    hint: item.hint_he || 'תרגול קצר וניסיון נוסף יכולים לשפר את התוצאה.',
+  };
+}
 
-          {missingStudentProfile && (
-            <View style={styles.missingProfileCard}>
-              <Text style={[styles.missingProfileTitle, isRtl && styles.rtlText]}>
-                {isHebrew ? 'פרטי הפרופיל עדיין לא נטענו' : 'بيانات البروفايل غير مكتملة'}
-              </Text>
-              <Text style={[styles.missingProfileText, isRtl && styles.rtlText]}>
-                {isHebrew
-                  ? 'אפשר להשלים את הפרטים עכשיו כדי שהמבחן וההמלצות יעבדו נכון.'
-                  : 'أكمل بيانات الطالب الآن حتى يعمل الامتحان والتوصيات بشكل صحيح.'}
-              </Text>
-              <TouchableOpacity
-                style={styles.missingProfileBtn}
-                onPress={() => navigateTo('editProfile')}
-                activeOpacity={0.9}
-              >
-                <FontAwesome name="pencil" size={15} color="#0b1223" />
-                <Text style={styles.missingProfileBtnText}>
-                  {isHebrew ? 'עריכת פרופיל' : 'تعديل البروفايل'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+function nextStepTitle(step, language) {
+  if (language !== 'he') return step.title;
+  const titles = {
+    report: 'פתח את הדוח המלא',
+    recommendations: 'ראה את כל ההמלצות',
+    miniTasks: 'נסה משימה קצרה',
+    games: 'שחק משחק חדש',
+    universities: 'ראה אוניברסיטאות קרובות',
+    personality: 'השלם מבחן אישיות',
+    moreGames: 'שחק עוד שני משחקים',
+  };
+  return titles[step.key] || step.title_he || step.title;
+}
 
-          <View style={[styles.primaryActions, isMedium && styles.primaryActionsWide]}>
-            <TouchableOpacity
-              style={styles.primaryAction}
-              onPress={() => navigateTo('studentDashboard')}
-              activeOpacity={0.9}
-            >
-              <FontAwesome name="home" size={16} color="#0b1223" />
-              <Text style={styles.primaryActionText}>{copy.continue}</Text>
-            </TouchableOpacity>
+function localizedMissingItems(items, language) {
+  if (language !== 'he') return items;
+  return items.map((item) => {
+    const text = String(item);
+    if (text.includes('الشامل')) return 'השלם את המבחן המקיף';
+    if (text.includes('الشخصية')) return 'השלם את מבחן האישיות';
+    if (text.includes('لعبة') || text.includes('الألعاب')) return 'שחק משחק אחד או שניים כדי לשפר את דיוק הפרופיל';
+    return item;
+  });
+}
 
-            <TouchableOpacity
-              style={styles.secondaryAction}
-              onPress={() => navigateTo('editProfile')}
-              activeOpacity={0.9}
-            >
-              <FontAwesome name="pencil" size={16} color="#27ae60" />
-              <Text style={styles.secondaryActionText}>{copy.edit}</Text>
-            </TouchableOpacity>
-          </View>
+function HeaderCard({ name, school, classLabel, completion, bestName, copy }) {
+  return (
+    <View style={styles.headerCard}>
+      <View style={styles.headerIcon}>
+        <Ionicons name="school-outline" size={30} color="#fff" />
+      </View>
+      <Text style={styles.kicker}>{copy.profileTitle}</Text>
+      <Text style={styles.headerTitle}>{copy.headerTitle(name)}</Text>
+      <Text style={styles.headerSubtitle}>{copy.headerSubtitle}</Text>
 
-          <View style={[styles.mainGrid, isWide && styles.mainGridWide]}>
-            <View style={styles.detailsColumn}>
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{journeyCopy.profileSummary}</Text>
-                    <Text style={[styles.sectionSubtitle, isRtl && styles.rtlText]}>
-                      {journeyCopy.profileSummarySubtitle}
-                    </Text>
-                  </View>
-                </View>
+      <View style={styles.metaWrap}>
+        {!!school && <MetaChip icon="business-outline" text={school} />}
+        {!!classLabel && <MetaChip icon="people-outline" text={classLabel} />}
+        {!!bestName && <MetaChip icon="trophy-outline" text={bestName} />}
+      </View>
 
-                {!topRecommendation && strongestAbilities.length === 0 && gameHighlights.length === 0 ? (
-                  <Text style={[styles.sectionSubtitle, isRtl && styles.rtlText]}>{journeyCopy.noJourneyData}</Text>
-                ) : (
-                  <View style={styles.journeyGrid}>
-                    <View style={styles.journeyCard}>
-                      <Text style={[styles.journeyLabel, isRtl && styles.rtlText]}>{journeyCopy.topMatch}</Text>
-                      <Text style={[styles.journeyValue, isRtl && styles.rtlText]}>
-                        {topRecommendation?.name || copy.notSet}
-                      </Text>
-                      {topRecommendation ? (
-                        <Text style={[styles.journeyHint, isRtl && styles.rtlText]}>
-                          {topRecommendation.scorePercent}%
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    <View style={styles.journeyCard}>
-                      <Text style={[styles.journeyLabel, isRtl && styles.rtlText]}>
-                        {journeyCopy.strongestAreas}
-                      </Text>
-                      {strongestAbilities.slice(0, 3).map((item) => (
-                        <Text key={item.subjectId || item.label} style={[styles.journeyListItem, isRtl && styles.rtlText]}>
-                          • {item.label} ({item.score}%)
-                        </Text>
-                      ))}
-                    </View>
-
-                    <View style={styles.journeyCard}>
-                      <Text style={[styles.journeyLabel, isRtl && styles.rtlText]}>{journeyCopy.gameSignals}</Text>
-                      {gameHighlights.slice(0, 2).map((game) => (
-                        <Text key={game.gameId} style={[styles.journeyListItem, isRtl && styles.rtlText]}>
-                          • {game.title} - {game.focusArea} ({game.score}%) - {game.playCount || 1} plays
-                        </Text>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={styles.reportBtn}
-                  onPress={() =>
-                    navigateTo('studentInsightReport', {
-                      studentId: studentData?.id,
-                      language: i18n.language,
-                    })
-                  }
-                  activeOpacity={0.9}
-                >
-                  <FontAwesome name="file-text" size={16} color="#0b1223" />
-                  <Text style={styles.reportBtnText}>{journeyCopy.openFullReport}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{copy.details}</Text>
-                    <Text style={[styles.sectionSubtitle, isRtl && styles.rtlText]}>{copy.detailsSubtitle}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.tabs}>
-                  <TouchableOpacity
-                    onPress={() => setActiveTab('about')}
-                    style={[styles.tab, activeTab === 'about' && styles.tabActive]}
-                    activeOpacity={0.9}
-                  >
-                    <FontAwesome
-                      name="info-circle"
-                      size={14}
-                      color={activeTab === 'about' ? '#0b1223' : '#94a3b8'}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'about' && styles.tabTextActive]}>
-                      {copy.about}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => setActiveTab('contact')}
-                    style={[styles.tab, activeTab === 'contact' && styles.tabActive]}
-                    activeOpacity={0.9}
-                  >
-                    <FontAwesome
-                      name="phone"
-                      size={14}
-                      color={activeTab === 'contact' ? '#0b1223' : '#94a3b8'}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'contact' && styles.tabTextActive]}>
-                      {copy.contact}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.infoList}>
-                  {infoRows.map((item) => (
-                    <InfoRow key={`${activeTab}-${item.label}`} {...item} />
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.linksColumn}>
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionHeader}>
-                  <View>
-                    <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{copy.quickActions}</Text>
-                    <Text style={[styles.sectionSubtitle, isRtl && styles.rtlText]}>{copy.quickSubtitle}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.quickLinksList}>
-                  {quickLinks.map((item) => (
-                    <TouchableOpacity
-                      key={item.key}
-                      style={styles.quickLinkCard}
-                      onPress={item.onPress}
-                      activeOpacity={0.9}
-                    >
-                      <View style={[styles.quickIconWrap, { backgroundColor: `${item.accent}22` }]}>
-                        <FontAwesome name={item.icon} size={18} color={item.accent} />
-                      </View>
-
-                      <View style={styles.quickTextBlock}>
-                        <Text style={[styles.quickLinkTitle, isRtl && styles.rtlText]}>{item.title}</Text>
-                        <Text style={[styles.quickLinkSubtitle, isRtl && styles.rtlText]}>{item.subtitle}</Text>
-                      </View>
-
-                      <FontAwesome name={isRtl ? 'angle-right' : 'angle-left'} size={18} color="#64748b" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.9}>
-                  <FontAwesome name="sign-out" size={18} color="#f87171" />
-                  <Text style={styles.logoutText}>{copy.signOut}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.9}>
-                  <FontAwesome name="trash" size={18} color="#fecaca" />
-                  <Text style={styles.deleteText}>{copy.deleteAccount}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+      <View style={styles.completionBox}>
+        <View style={styles.completionTop}>
+          <Text style={styles.completionText}>{copy.completion(completion)}</Text>
+          <Text style={styles.completionHint}>{copy.completionHint}</Text>
         </View>
-      </ScrollView>
+        <Progress value={completion} color="#fff" track="rgba(255,255,255,0.28)" />
+      </View>
     </View>
   );
 }
 
+function BestMatchCard({ best, confidence, explanation, copy }) {
+  if (!best) {
+    return (
+      <Card icon="trophy-outline" title={copy.bestPath}>
+        <Text style={styles.emptyText}>{copy.noRecommendation}</Text>
+      </Card>
+    );
+  }
+
+  return (
+    <Card icon="trophy-outline" title={copy.bestPath} accent>
+      <Text style={styles.bestName}>{best.name}</Text>
+      <View style={styles.matchRow}>
+        <View style={styles.matchCircle}>
+          <Text style={styles.matchNumber}>{pct(best.score_percent)}%</Text>
+          <Text style={styles.matchLabel}>{copy.match}</Text>
+        </View>
+        <View style={styles.matchTextBlock}>
+          <Text style={styles.reasonTitle}>{copy.whyPath}</Text>
+          <Text style={styles.reasonText}>{explanation}</Text>
+          <View style={styles.confidencePill}>
+            <Ionicons name="shield-checkmark-outline" size={15} color={colors.greenDark} />
+            <Text style={styles.confidenceText}>{confidence.label}</Text>
+          </View>
+          <Text style={styles.confidenceHint}>{confidence.message}</Text>
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+function BreakdownCard({ summary, copy }) {
+  const best = summary?.bestRecommendation;
+  const ability = pct((best?.breakdown?.ability?.score || 0) * 100);
+  const personality = pct((best?.breakdown?.personality?.score || 0) * 100);
+  const interest = pct((best?.breakdown?.interest?.score || 0) * 100);
+  const gameBonus = Number(best?.game_signal_bonus || 0);
+
+  return (
+    <Card icon="stats-chart-outline" title={copy.breakdownTitle}>
+      <Text style={styles.cardHint}>{copy.breakdownHint}</Text>
+      <SignalBar label={copy.abilitiesFromExam} weight="40%" value={ability} color={colors.blue} />
+      <SignalBar label={copy.personality} weight="40%" value={personality} color={colors.green} />
+      <SignalBar label={copy.interests} weight="20%" value={interest} color="#0EA5E9" />
+      <View style={styles.bonusRow}>
+        <Ionicons name="game-controller-outline" size={18} color={colors.greenDark} />
+        <Text style={styles.bonusText}>{copy.bonus(gameBonus)}</Text>
+      </View>
+    </Card>
+  );
+}
+
+function StrengthsCard({ strengths, copy, language }) {
+  return (
+    <Card icon="bulb-outline" title={copy.strengths}>
+      {!strengths.length ? (
+        <Text style={styles.emptyText}>{copy.strengthsEmpty}</Text>
+      ) : (
+        <View style={styles.chipList}>
+          {strengths.map((rawItem) => {
+            const item = localizedStrength(rawItem, language);
+            return (
+            <View key={`${item.label}-${item.source}`} style={styles.strengthChip}>
+              <Text style={styles.strengthText}>{item.label}</Text>
+              <Text style={styles.sourceText}>{item.source}</Text>
+            </View>
+            );
+          })}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+function ImprovementCard({ improvements, copy, language }) {
+  return (
+    <Card icon="trending-up-outline" title={copy.improvements}>
+      {!improvements.length ? (
+        <Text style={styles.emptyText}>{copy.improvementsEmpty}</Text>
+      ) : (
+        improvements.map((rawItem, index) => {
+          const item = localizedImprovement(rawItem, language);
+          return (
+          <View key={`${item.title}-${rawItem.title || ''}-${index}`} style={styles.improvementRow}>
+            <View style={styles.smallIcon}>
+              <Ionicons name={item.icon || 'sparkles-outline'} size={17} color={colors.greenDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.improvementTitle}>{item.title}</Text>
+              <Text style={styles.improvementHint}>{item.hint}</Text>
+            </View>
+          </View>
+          );
+        })
+      )}
+    </Card>
+  );
+}
+
+function GameSignalsCard({ signals, copy, language }) {
+  const hasSignals = signals?.skills?.length || signals?.topics?.length || signals?.degrees?.length;
+  return (
+    <Card icon="game-controller-outline" title={copy.gameSignals}>
+      <Text style={styles.cardHint}>{copy.gameHint}</Text>
+      {!hasSignals ? (
+        <Text style={styles.emptyText}>{copy.gameEmpty}</Text>
+      ) : (
+        <>
+          <View style={styles.chipList}>
+            {(signals.skills || []).slice(0, 4).map((skill) => (
+              <View key={skill.skill_tag} style={styles.gameSkillChip}>
+                <Text style={styles.strengthText}>{skill.label}</Text>
+                <Text style={styles.sourceText}>{skill.score}%</Text>
+              </View>
+            ))}
+          </View>
+          {(signals.explanations || []).slice(0, 2).map((item, index) => (
+            <Text key={`${item.topic_key}-${index}`} style={styles.gameReason}>
+              {language === 'he' ? item.reason_he || item.reason_en || item.reason_ar : item.reason_ar || item.reason_he || item.reason_en}
+            </Text>
+          ))}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function TopFieldsCard({ fields, onNavigate, copy, language }) {
+  return (
+    <Card icon="compass-outline" title={copy.topFields}>
+      {!fields.length ? (
+        <Text style={styles.emptyText}>{copy.noRecommendation}</Text>
+      ) : (
+        fields.slice(0, 5).map((field, index) => (
+          <View key={field.degree_id || field.name} style={styles.fieldCard}>
+            <View style={styles.fieldTop}>
+              <Text style={styles.rank}>#{index + 1}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldName}>{field.name}</Text>
+                <Text style={styles.fieldReason}>{buildFieldReason(field, copy, language)}</Text>
+              </View>
+              <Text style={styles.fieldScore}>{pct(field.score_percent)}%</Text>
+            </View>
+            <View style={styles.fieldActions}>
+              <SmallButton text={copy.majorDetails} onPress={() => onNavigate('majorDetails', { majorName: field.name })} />
+              <SmallButton text={copy.nearbyUniversities} onPress={() => onNavigate('universitiesAndColleges', { majorName: field.name })} />
+              <SmallButton text={copy.shortTask} onPress={() => onNavigate('miniTasks', { majorName: field.name })} />
+            </View>
+          </View>
+        ))
+      )}
+    </Card>
+  );
+}
+
+function buildFieldReason(field, copy, language) {
+  const abilitySubject = field.breakdown?.ability?.top_subjects?.[0];
+  const gameBonus = Number(field.game_signal_bonus || 0);
+  const subjectName = localizedName(abilitySubject, language);
+  if (subjectName && gameBonus > 0) {
+    return copy.suitableWith(subjectName);
+  }
+  if (subjectName) return copy.suitableExam(subjectName);
+  if (gameBonus > 0) return copy.gameSupportOnly;
+  return copy.generalReason;
+}
+
+function LearningPotentialCard({ data, copy, language }) {
+  const message = language === 'he' ? copy.learningFallback : data?.message || copy.learningFallback;
+  return (
+    <Card icon="leaf-outline" title={copy.learningPotential}>
+      <Text style={styles.cardHint}>{message}</Text>
+      <SignalBar label={copy.persistence} value={pct(data?.persistence)} color={colors.green} />
+      <SignalBar label={copy.improvement} value={pct(data?.improvement)} color={colors.blue} />
+      <SignalBar label={copy.focus} value={pct(data?.focus)} color="#0EA5E9" />
+      <SignalBar label={copy.speedStability} value={pct(data?.speedStability)} color="#F59E0B" />
+    </Card>
+  );
+}
+
+function NextStepsCard({ steps, onNavigate, studentId, best, language, copy }) {
+  return (
+    <Card icon="map-outline" title={copy.nextSteps}>
+      <View style={styles.nextGrid}>
+        {steps.map((step) => (
+          <TouchableOpacity
+            key={step.key}
+            style={styles.nextButton}
+            onPress={() =>
+              onNavigate(step.route, {
+                studentId,
+                majorName: best?.name,
+                language,
+              })
+            }
+          >
+            <Ionicons name={step.icon} size={19} color={colors.greenDark} />
+            <Text style={styles.nextButtonText}>{nextStepTitle(step, language)}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function DataQualityCard({ quality, copy, language }) {
+  const rows = [
+    { label: copy.fullAssessment, done: quality?.fullAssessmentCompleted },
+    { label: copy.personalityTest, done: quality?.personalityCompleted },
+    { label: copy.games, done: quality?.gamesPlayed },
+    { label: copy.miniTasks, done: quality?.miniTasksCompleted },
+  ];
+  return (
+    <Card icon="checkmark-circle-outline" title={copy.improveAccuracy}>
+      {rows.map((row) => (
+        <View key={row.label} style={styles.qualityRow}>
+          <Ionicons
+            name={row.done ? 'checkmark-circle' : 'ellipse-outline'}
+            size={18}
+            color={row.done ? colors.green : colors.warning}
+          />
+          <Text style={styles.qualityText}>{row.label}</Text>
+        </View>
+      ))}
+      {localizedMissingItems(quality?.missing || [], language).map((item) => (
+        <Text key={item} style={styles.missingItem}>- {item}</Text>
+      ))}
+    </Card>
+  );
+}
+
+function Card({ title, icon, children, accent }) {
+  return (
+    <View style={[styles.card, accent && styles.accentCard]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardIcon}>
+          <Ionicons name={icon} size={19} color={colors.greenDark} />
+        </View>
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function MetaChip({ icon, text }) {
+  return (
+    <View style={styles.metaChip}>
+      <Ionicons name={icon} size={15} color="#fff" />
+      <Text style={styles.metaText}>{text}</Text>
+    </View>
+  );
+}
+
+function MiniStat({ title, value, icon, tone }) {
+  const color = tone === 'blue' ? colors.blue : colors.green;
+  return (
+    <View style={styles.miniStat}>
+      <Ionicons name={icon} size={22} color={color} />
+      <Text style={styles.miniValue}>{value}</Text>
+      <Text style={styles.miniTitle}>{title}</Text>
+    </View>
+  );
+}
+
+function SignalBar({ label, value, weight, color }) {
+  const width = pct(value);
+  return (
+    <View style={styles.signalRow}>
+      <View style={styles.signalLabelRow}>
+        <Text style={styles.signalLabel}>{label}</Text>
+        <Text style={styles.signalValue}>{weight ? `${weight} | ` : ''}{width}%</Text>
+      </View>
+      <Progress value={width} color={color} />
+    </View>
+  );
+}
+
+function Progress({ value, color = colors.green, track = '#EEF4F0' }) {
+  return (
+    <View style={[styles.progressTrack, { backgroundColor: track }]}>
+      <View style={[styles.progressFill, { width: `${pct(value)}%`, backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function SmallButton({ text, onPress }) {
+  return (
+    <TouchableOpacity style={styles.smallButton} onPress={onPress}>
+      <Text style={styles.smallButtonText}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#08111f',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 28,
-  },
-  shell: {
-    width: '100%',
-    maxWidth: 1320,
-    alignSelf: 'center',
-  },
-  heroCard: {
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: '#101a2f',
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 16, paddingBottom: 34 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.bg },
+  loadingText: { marginTop: 10, color: colors.text, fontWeight: '800' },
+  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  emptyText: { color: colors.muted, fontWeight: '700', lineHeight: 21, textAlign: 'right' },
+
+  headerCard: {
     borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.15)',
-    shadowColor: '#020617',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.28,
-    shadowRadius: 30,
-    elevation: 8,
+    padding: 20,
+    backgroundColor: colors.green,
+    marginBottom: 14,
+    shadowColor: '#064E3B',
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 4,
   },
-  heroGlowLarge: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(39,174,96,0.16)',
-    top: -120,
-    right: -60,
-  },
-  heroGlowSmall: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(56,189,248,0.08)',
-    bottom: -80,
-    left: -40,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  settingsButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15,23,42,0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.16)',
-  },
-  gradePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#86efac',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  gradePillText: {
-    color: '#0b1223',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  profileHeader: {
-    gap: 14,
-    alignItems: 'flex-start',
-  },
-  profileHeaderWide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profileHeaderRtl: {
-    flexDirection: 'row-reverse',
-  },
-  avatarShell: {
-    width: 92,
-    height: 92,
-    borderRadius: 28,
-    overflow: 'hidden',
-    backgroundColor: '#0b1223',
-    borderWidth: 3,
-    borderColor: 'rgba(39,174,96,0.32)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarFallback: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroTextArea: {
-    flex: 1,
-  },
-  heroNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  heroNameRowRtl: {
-    flexDirection: 'row-reverse',
-  },
-  heroName: {
-    color: '#f8fafc',
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  onlineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: '#22c55e',
-  },
-  heroSubtitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 6,
-    maxWidth: 560,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 14,
-  },
-  metaRowStacked: {
-    flexDirection: 'column',
-  },
-  metaRowRtl: {
-    alignItems: 'flex-end',
-  },
-  metaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(15,23,42,0.72)',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(134,239,172,0.12)',
-  },
-  metaChipRtl: {
-    flexDirection: 'row-reverse',
-  },
-  metaChipText: {
-    color: '#dbeafe',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  statsGrid: {
-    marginTop: 14,
-    gap: 12,
-  },
-  statsGridWide: {
-    flexDirection: 'row',
-  },
-  statCard: {
-    flex: 1,
-    minHeight: 94,
-    borderRadius: 18,
-    backgroundColor: '#0f172a',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.14)',
-    padding: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statNumber: {
-    color: '#f8fafc',
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  statLabel: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  missingProfileCard: {
-    marginTop: 14,
-    borderRadius: 18,
-    backgroundColor: 'rgba(245,158,11,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
-    padding: 14,
-    gap: 10,
-  },
-  missingProfileTitle: {
-    color: '#fef3c7',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  missingProfileText: {
-    color: '#fde68a',
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
-  missingProfileBtn: {
-    alignSelf: 'flex-start',
-    minHeight: 42,
-    borderRadius: 14,
-    backgroundColor: '#fbbf24',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-  },
-  missingProfileBtnText: {
-    color: '#0b1223',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  primaryActions: {
-    gap: 12,
-    marginTop: 14,
-  },
-  primaryActionsWide: {
-    flexDirection: 'row',
-  },
-  primaryAction: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 15,
-    backgroundColor: '#27ae60',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 18,
-  },
-  primaryActionText: {
-    color: '#0b1223',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  secondaryAction: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 15,
-    backgroundColor: '#0f172a',
-    borderWidth: 1.5,
-    borderColor: 'rgba(39,174,96,0.42)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 18,
-  },
-  secondaryActionText: {
-    color: '#27ae60',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  mainGrid: {
-    gap: 14,
-    marginTop: 14,
-  },
-  mainGridWide: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  detailsColumn: {
-    flex: 1.15,
-  },
-  linksColumn: {
-    flex: 0.85,
-  },
-  sectionCard: {
-    backgroundColor: '#0f172a',
+  headerIcon: {
+    width: 58,
+    height: 58,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  kicker: { color: '#E7FFF1', fontWeight: '900', textAlign: 'right' },
+  headerTitle: { color: '#fff', fontSize: 25, lineHeight: 34, fontWeight: '900', textAlign: 'right', marginTop: 6 },
+  headerSubtitle: { color: '#E7FFF1', lineHeight: 22, fontWeight: '700', textAlign: 'right', marginTop: 8 },
+  metaWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  metaChip: { flexDirection: 'row-reverse', gap: 7, alignItems: 'center', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.18)' },
+  metaText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  completionBox: { marginTop: 16, gap: 10 },
+  completionTop: { gap: 3 },
+  completionText: { color: '#fff', fontWeight: '900', textAlign: 'right' },
+  completionHint: { color: '#E7FFF1', fontSize: 12, fontWeight: '700', textAlign: 'right' },
+
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.14)',
-    padding: 14,
+    borderColor: colors.border,
+    shadowColor: '#063A2E',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 1,
   },
-  sectionHeader: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: '#f8fafc',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  sectionSubtitle: {
-    color: '#94a3b8',
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  tabs: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 1,
-    minHeight: 42,
-    borderRadius: 13,
-    backgroundColor: '#111c31',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.12)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  tabActive: {
-    backgroundColor: '#86efac',
-    borderColor: '#86efac',
-  },
-  tabText: {
-    color: '#94a3b8',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  tabTextActive: {
-    color: '#0b1223',
-  },
-  infoList: {
-    gap: 10,
-  },
-  infoRow: {
-    borderRadius: 15,
-    backgroundColor: '#111c31',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-  },
-  infoLead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoLeadRtl: {
-    flexDirection: 'row-reverse',
-  },
-  infoIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(39,174,96,0.12)',
-  },
-  infoTextGroup: {
-    flex: 1,
-  },
-  infoLabel: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  infoValue: {
-    color: '#f8fafc',
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  quickLinksList: {
-    gap: 10,
-  },
-  quickLinkCard: {
-    borderRadius: 15,
-    backgroundColor: '#111c31',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.1)',
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  quickIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickTextBlock: {
-    flex: 1,
-  },
-  quickLinkTitle: {
-    color: '#f8fafc',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  quickLinkSubtitle: {
-    color: '#94a3b8',
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  journeyGrid: {
-    gap: 10,
-  },
-  journeyCard: {
-    borderRadius: 15,
-    backgroundColor: '#111c31',
-    borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.1)',
-    padding: 12,
-  },
-  journeyLabel: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  journeyValue: {
-    marginTop: 6,
-    color: '#f8fafc',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  journeyHint: {
-    marginTop: 6,
-    color: '#86efac',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  journeyListItem: {
-    marginTop: 8,
-    color: '#dbeafe',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  reportBtn: {
-    marginTop: 14,
-    minHeight: 48,
-    borderRadius: 15,
-    backgroundColor: '#86efac',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  reportBtnText: {
-    color: '#0b1223',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  logoutBtn: {
-    marginTop: 14,
-    minHeight: 48,
-    borderRadius: 15,
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(248,113,113,0.55)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  logoutText: {
-    color: '#f87171',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  deleteBtn: {
-    marginTop: 10,
-    minHeight: 48,
-    borderRadius: 15,
-    backgroundColor: 'rgba(127,29,29,0.28)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(252,165,165,0.45)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  deleteText: {
-    color: '#fecaca',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  rtlText: {
-    textAlign: 'right',
-  },
+  accentCard: { borderColor: '#A7F3D0' },
+  cardHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, marginBottom: 12 },
+  cardIcon: { width: 38, height: 38, borderRadius: 14, backgroundColor: colors.softGreen, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { flex: 1, color: colors.text, fontSize: 19, fontWeight: '900', textAlign: 'right' },
+  cardHint: { color: colors.muted, lineHeight: 21, fontWeight: '700', textAlign: 'right', marginBottom: 12 },
+
+  bestName: { color: colors.text, fontSize: 24, fontWeight: '900', textAlign: 'right', marginBottom: 12 },
+  matchRow: { gap: 14 },
+  matchCircle: { alignSelf: 'center', width: 132, height: 132, borderRadius: 66, backgroundColor: colors.softBlue, borderWidth: 8, borderColor: '#BFDBFE', alignItems: 'center', justifyContent: 'center' },
+  matchNumber: { color: colors.blue, fontSize: 28, fontWeight: '900' },
+  matchLabel: { color: colors.muted, fontWeight: '800' },
+  matchTextBlock: { gap: 8 },
+  reasonTitle: { color: colors.text, fontWeight: '900', fontSize: 15, textAlign: 'right' },
+  reasonText: { color: colors.muted, fontWeight: '700', lineHeight: 22, textAlign: 'right' },
+  confidencePill: { alignSelf: 'flex-end', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.softGreen, paddingHorizontal: 10, paddingVertical: 7 },
+  confidenceText: { color: colors.greenDark, fontWeight: '900' },
+  confidenceHint: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' },
+
+  threeGrid: { flexDirection: 'row-reverse', gap: 10, marginBottom: 14 },
+  miniStat: { flex: 1, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 12, alignItems: 'center', minHeight: 106 },
+  miniValue: { color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 8 },
+  miniTitle: { color: colors.muted, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+
+  signalRow: { marginBottom: 12 },
+  signalLabelRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
+  signalLabel: { color: colors.text, fontWeight: '900', textAlign: 'right' },
+  signalValue: { color: colors.muted, fontWeight: '900' },
+  progressTrack: { height: 10, borderRadius: 999, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 999 },
+  bonusRow: { flexDirection: 'row-reverse', gap: 8, alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 14, padding: 11 },
+  bonusText: { flex: 1, color: colors.text, fontWeight: '800', textAlign: 'right' },
+
+  chipList: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 9 },
+  strengthChip: { borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10 },
+  gameSkillChip: { borderRadius: 16, backgroundColor: colors.softBlue, borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 12, paddingVertical: 10 },
+  strengthText: { color: colors.text, fontWeight: '900', textAlign: 'right' },
+  sourceText: { color: colors.muted, fontSize: 11, fontWeight: '800', marginTop: 4, textAlign: 'right' },
+  improvementRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#EEF4F0' },
+  smallIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.softGreen, alignItems: 'center', justifyContent: 'center' },
+  improvementTitle: { color: colors.text, fontWeight: '900', textAlign: 'right' },
+  improvementHint: { color: colors.muted, lineHeight: 19, fontSize: 12, fontWeight: '700', textAlign: 'right', marginTop: 3 },
+  gameReason: { marginTop: 10, color: colors.text, lineHeight: 22, fontWeight: '700', textAlign: 'right' },
+
+  fieldCard: { borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#FBFEFC', padding: 12, marginBottom: 10 },
+  fieldTop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10 },
+  rank: { color: colors.greenDark, fontWeight: '900', backgroundColor: colors.softGreen, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 },
+  fieldName: { color: colors.text, fontWeight: '900', fontSize: 16, textAlign: 'right' },
+  fieldReason: { color: colors.muted, lineHeight: 19, fontWeight: '700', fontSize: 12, textAlign: 'right', marginTop: 4 },
+  fieldScore: { color: colors.blue, fontSize: 18, fontWeight: '900' },
+  fieldActions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  smallButton: { borderRadius: 999, backgroundColor: colors.softBlue, paddingHorizontal: 10, paddingVertical: 8 },
+  smallButtonText: { color: colors.blue, fontSize: 12, fontWeight: '900' },
+
+  nextGrid: { gap: 9 },
+  nextButton: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, padding: 12 },
+  nextButtonText: { flex: 1, color: colors.text, fontWeight: '900', textAlign: 'right' },
+  qualityRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  qualityText: { color: colors.text, fontWeight: '800', textAlign: 'right' },
+  missingItem: { color: colors.muted, fontWeight: '700', textAlign: 'right', marginTop: 4 },
+
+  accountActions: { gap: 9, marginBottom: 8 },
+  lightButton: { minHeight: 48, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.border, flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  lightButtonText: { color: colors.greenDark, fontWeight: '900' },
+  dangerGhost: { alignItems: 'center', padding: 12 },
+  dangerGhostText: { color: '#B42318', fontWeight: '900' },
 });

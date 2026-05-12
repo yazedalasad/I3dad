@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import CustomButton from '../../components/Form/CustomButton';
 import { supabase } from '../../config/supabase';
+import { sendPasswordResetCode } from '../../services/passwordResetService';
 
 export default function VerifyCodeScreen({ navigateTo, email }) {
   const { t, i18n } = useTranslation();
@@ -30,9 +31,29 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
   const activeStepIndex = 1;
+  const fallbackText = {
+    title: 'التحقق من الرمز',
+    subtitle: 'أدخل الرمز المكوّن من 6 أرقام الذي وصل إلى بريدك.',
+    verify: 'تحقق',
+    formTitle: 'أدخل رمز التحقق',
+    back: 'رجوع',
+    resend: 'إعادة إرسال الرمز',
+    sending: 'جاري الإرسال...',
+    resendAfter: ({ seconds }) => `إعادة الإرسال بعد ${seconds} ثانية`,
+    'errors.missingEmail': 'البريد الإلكتروني غير موجود.',
+    'errors.need6Digits': 'الرجاء إدخال رمز مكوّن من 6 أرقام.',
+    'alerts.verifiedTitle': 'تم التحقق',
+    'alerts.verifiedMessage': 'يمكنك الآن تعيين كلمة مرور جديدة.',
+    'alerts.expiredTitle': 'انتهت صلاحية الرمز',
+    'alerts.expiredMessage': 'أعد إرسال الرمز وحاول مرة أخرى.',
+  };
   const verifyT = (key, options) => {
     const scoped = t(`verifyCode.${key}`, { ns: 'auth', ...(options || {}) });
-    return typeof scoped === 'string' ? scoped : t(`auth.verifyCode.${key}`, options);
+    if (typeof scoped !== 'string' || scoped === `verifyCode.${key}`) {
+      const fallback = fallbackText[key];
+      return typeof fallback === 'function' ? fallback(options || {}) : fallback || key;
+    }
+    return scoped;
   };
 
   const cleanEmail = String(email || '').trim().toLowerCase();
@@ -200,8 +221,8 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
     setResendLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
-      if (error) throw error;
+      const result = await sendPasswordResetCode(cleanEmail, i18n?.language || 'ar');
+      if (!result.success) throw result.error;
 
       setResendLoading(false);
       setCode(['', '', '', '', '', '']);
@@ -340,7 +361,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
                 <Text style={styles.formBadgeText}>I3dad</Text>
               </View>
 
-              <Text style={[styles.formTitle, isHebrew && styles.rtlText]}>{verifyT('title')}</Text>
+              <Text style={[styles.formTitle, isHebrew && styles.rtlText]}>{verifyT('formTitle')}</Text>
               <Text style={[styles.formLead, isHebrew && styles.rtlText]}>{verifyT('subtitle')}</Text>
               <Text style={[styles.formEmail, isHebrew && styles.rtlText]}>{cleanEmail || email}</Text>
 

@@ -6,10 +6,15 @@
 /* -------------------- react-native partial mock -------------------- */
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    useWindowDimensions: () => ({ width: 360, height: 800, scale: 2, fontScale: 2 }),
-  };
+  const descriptors = Object.getOwnPropertyDescriptors(RN);
+  delete descriptors.DevMenu;
+  const mockRN = {};
+  Object.defineProperties(mockRN, descriptors);
+  Object.defineProperty(mockRN, 'useWindowDimensions', {
+    configurable: true,
+    value: () => ({ width: 360, height: 800, scale: 2, fontScale: 2 }),
+  });
+  return mockRN;
 });
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useGameSession, useGameTimer } from '../../shared';
 import { physicsLabLevels } from '../data/levels';
-import { buildDefaultParams, roundToStep, simulateLevel } from '../utils/physicsEngine';
+import { roundToStep, simulateLevel } from '../utils/physicsEngine';
 import { getAttemptFeedback, getLevelSummary } from '../utils/feedbackEngine';
 import { getLevelById, getNextLevel } from '../utils/worldHelpers';
 
@@ -10,14 +10,30 @@ export function usePhysicsLabGame({ levelId = 'physics_lab_level_1' } = {}) {
   const timerApi = useGameTimer(false);
 
   const level = useMemo(() => getLevelById(physicsLabLevels, levelId) || physicsLabLevels[0], [levelId]);
-  const [params, setParams] = useState(buildDefaultParams(level));
+  const [params, setParams] = useState(() =>
+    Object.fromEntries((level?.controls || []).map((control) => [control.key, '']))
+  );
   const [attempts, setAttempts] = useState([]);
   const [lastAttempt, setLastAttempt] = useState(null);
 
   function updateParam(control, direction) {
-    const current = Number(params[control.key]) || 0;
+    const rawCurrent = Number(params[control.key]);
+    const current = Number.isFinite(rawCurrent) ? rawCurrent : control.min;
     const delta = direction === 'increase' ? control.step : -control.step;
     const nextValue = roundToStep(current + delta, control.step, control.min, control.max);
+    setParams((prev) => ({ ...prev, [control.key]: Number(nextValue.toFixed(2)) }));
+  }
+
+  function setParamValue(control, value) {
+    if (value === '') {
+      setParams((prev) => ({ ...prev, [control.key]: '' }));
+      return;
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return;
+
+    const nextValue = roundToStep(numericValue, control.step, control.min, control.max);
     setParams((prev) => ({ ...prev, [control.key]: Number(nextValue.toFixed(2)) }));
   }
 
@@ -94,6 +110,7 @@ export function usePhysicsLabGame({ levelId = 'physics_lab_level_1' } = {}) {
     attempts,
     lastAttempt,
     updateParam,
+    setParamValue,
     startLevel,
     runAttempt,
     resetAttempt,

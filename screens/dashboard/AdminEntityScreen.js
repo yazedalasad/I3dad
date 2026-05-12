@@ -13,8 +13,10 @@ import {
   LoadingState,
   StatCard,
   StatusBadge,
+  useAdminLocale,
 } from '../../components/Admin/AdminLayout';
 import { adminColors } from '../../components/Admin/adminTheme';
+import { useAdminTranslator } from '../../components/Admin/adminTranslations';
 import { supabase } from '../../config/supabase';
 import { israeliSchools } from '../../data/israeliSchools';
 import {
@@ -24,6 +26,7 @@ import {
   deleteAdminInstitution,
   deleteAdminStudent,
   getAdminRows,
+  updateAdminGameVisibility,
   updateAdminInstitution,
   updateAdminStudent,
 } from '../../services/adminPanelService';
@@ -197,7 +200,6 @@ export const adminEntityConfigs = {
     addLabel: 'إضافة مؤسسة',
     empty: 'لا توجد مؤسسات أكاديمية',
     columns: [
-      { key: 'name_ar', label: 'العربية', width: 210 },
       { key: 'name_he', label: 'العبرية', width: 210 },
       { key: 'name_en', label: 'الإنجليزية', width: 210 },
       { key: 'type', label: 'النوع', width: 150 },
@@ -268,12 +270,228 @@ export const adminEntityConfigs = {
   },
 };
 
+const sectionLabels = {
+  ar: { alef: 'ألف', bet: 'باء', gimel: 'جيم', dalet: 'دال' },
+  he: { alef: 'א', bet: 'ב', gimel: 'ג', dalet: 'ד' },
+};
+
+const languageLabels = {
+  ar: { ar: 'العربية', he: 'العبرية', en: 'الإنجليزية' },
+  he: { ar: 'ערבית', he: 'עברית', en: 'אנגלית' },
+};
+
+const statusLabels = {
+  ar: { active: 'نشط', inactive: 'موقوف' },
+  he: { active: 'פעיל', inactive: 'לא פעיל' },
+};
+
+const adminGameCopy = {
+  'doctor-soroka': {
+    ar: {
+      title: 'طبيب في سوروكا',
+      description: 'لعبة تشخيص سريري فيها حالات وأسئلة وقرارات سريعة.',
+    },
+    he: {
+      title: 'רופא בסורוקה',
+      description: 'משחק אבחון קליני עם מקרים, שאלות והחלטות מהירות.',
+    },
+  },
+  'physics-lab': {
+    ar: {
+      title: 'مختبر الفيزياء',
+      description: 'جرّب القوة والسرعة والتسارع في تجربة تفاعلية.',
+    },
+    he: {
+      title: 'מעבדת פיזיקה',
+      description: 'התנסות בכוח, מהירות ותאוצה בחוויה אינטראקטיבית.',
+    },
+  },
+  'arabic-poet-puzzle': {
+    ar: {
+      title: 'كنوز الألفاظ',
+      description: 'لعبة كلمات عربية بطابع شعري ومستوى جاهز للبدء.',
+    },
+    he: {
+      title: 'אוצר המילים',
+      description: 'משחק מילים בערבית עם אופי פיוטי ורמה מוכנה להתחלה.',
+    },
+  },
+  'physics-bridge-game': {
+    ar: {
+      title: 'مهندس الجسور',
+      description: 'ابنِ جسراً ثابتاً ثم اختبره ضمن ميزانية محدودة.',
+    },
+    he: {
+      title: 'מהנדס הגשרים',
+      description: 'בנו גשר יציב ובדקו אותו במסגרת תקציב מוגבל.',
+    },
+  },
+};
+
+function normalizeSearch(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function getAdminGameText(game, isHebrew = false) {
+  const copy = adminGameCopy[game.key]?.[isHebrew ? 'he' : 'ar'];
+  return {
+    title: copy?.title || game.title || '-',
+    description: copy?.description || game.description || '-',
+  };
+}
+
+function getStudentSchoolName(row, isHebrew = false) {
+  if (isHebrew) {
+    return row.school_name_he || row.schools?.name_he || row.school_name_ar || row.school_name || row.schools?.name_ar || '-';
+  }
+  return row.school_name_ar || row.school_name || row.schools?.name_ar || row.school_name_he || row.schools?.name_he || '-';
+}
+
+function getSchoolName(row, isHebrew = false) {
+  return isHebrew ? row.name_he || row.name_ar || '-' : row.name_ar || row.name_he || '-';
+}
+
+function getSchoolCity(row, isHebrew = false) {
+  return isHebrew ? row.city_he || row.city_ar || '-' : row.city_ar || row.city_he || '-';
+}
+
+function getSchoolRegion(row, isHebrew = false) {
+  return isHebrew ? row.region_he || row.region_ar || row.region || '-' : row.region_ar || row.region || row.region_he || '-';
+}
+
+function getReportSubjectName(row, isHebrew = false) {
+  return isHebrew ? row.subject_name_he || row.subject_name_ar || row.subject_name || '-' : row.subject_name_ar || row.subject_name || row.subject_name_he || '-';
+}
+
+function formatAdminDate(value, isHebrew = false) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(isHebrew ? 'he-IL' : 'ar', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+}
+
+function getStudentSectionLabel(value, isHebrew = false) {
+  const key = normalizeSearch(value);
+  return (isHebrew ? sectionLabels.he : sectionLabels.ar)[key] || value || '-';
+}
+
+function getStudentLanguageLabel(value, isHebrew = false) {
+  const key = normalizeSearch(value);
+  return (isHebrew ? languageLabels.he : languageLabels.ar)[key] || value || '-';
+}
+
+function getStudentStatusKey(row) {
+  return row.is_active === false ? 'inactive' : 'active';
+}
+
+function getStudentStatusLabel(row, isHebrew = false) {
+  const key = getStudentStatusKey(row);
+  return (isHebrew ? statusLabels.he : statusLabels.ar)[key];
+}
+
+function buildStudentSearchText(row, isHebrew) {
+  return [
+    fullName(row),
+    row.email,
+    row.identity_number,
+    row.student_id,
+    row.student_code,
+    row.phone,
+    row.grade,
+    row.class_section,
+    getStudentSectionLabel(row.class_section, isHebrew),
+    row.preferred_language,
+    getStudentLanguageLabel(row.preferred_language, isHebrew),
+    getStudentStatusLabel(row, isHebrew),
+    row.school_name,
+    row.school_name_ar,
+    row.school_name_he,
+    row.schools?.name_ar,
+    row.schools?.name_he,
+  ].join(' ');
+}
+
+function uniqueOptions(values) {
+  const seen = new Set();
+  return values.filter((option) => {
+    if (!option?.value || seen.has(option.value)) return false;
+    seen.add(option.value);
+    return true;
+  });
+}
+
+function nextFilterValue(options, currentValue) {
+  if (!options.length) return '';
+  const currentIndex = options.findIndex((option) => option.value === currentValue);
+  if (currentIndex < 0) return options[0].value;
+  if (currentIndex === options.length - 1) return '';
+  return options[currentIndex + 1].value;
+}
+
+function buildStudentFilterChips(rows, activeFilters, setActiveFilters, isHebrew) {
+  const copy = isHebrew
+    ? { school: 'בית ספר', grade: 'כיתה', status: 'סטטוס', language: 'שפה' }
+    : { school: 'المدرسة', grade: 'الصف', status: 'الحالة', language: 'اللغة' };
+
+  const schoolOptions = uniqueOptions(rows.map((row) => ({
+    value: row.school_id || getStudentSchoolName(row, false),
+    label: getStudentSchoolName(row, isHebrew),
+  })));
+  const gradeOptions = uniqueOptions(rows.map((row) => ({
+    value: String(row.grade || ''),
+    label: String(row.grade || ''),
+  }))).sort((a, b) => Number(a.value) - Number(b.value));
+  const statusOptions = ['active', 'inactive'].map((value) => ({
+    value,
+    label: (isHebrew ? statusLabels.he : statusLabels.ar)[value],
+  }));
+  const languageOptions = uniqueOptions(rows.map((row) => {
+    const value = normalizeSearch(row.preferred_language);
+    return { value, label: getStudentLanguageLabel(value, isHebrew) };
+  }));
+
+  return [
+    { key: 'school', baseLabel: copy.school, options: schoolOptions },
+    { key: 'grade', baseLabel: copy.grade, options: gradeOptions },
+    { key: 'status', baseLabel: copy.status, options: statusOptions },
+    { key: 'language', baseLabel: copy.language, options: languageOptions },
+  ].map((spec) => {
+    const selected = spec.options.find((option) => option.value === activeFilters[spec.key]);
+    return {
+      label: selected ? `${spec.baseLabel}: ${selected.label}` : spec.baseLabel,
+      onPress: () => {
+        const value = nextFilterValue(spec.options, activeFilters[spec.key]);
+        setActiveFilters((current) => ({ ...current, [spec.key]: value }));
+      },
+    };
+  });
+}
+
+function filterStudentRows(rows, search, activeFilters, isHebrew) {
+  const q = normalizeSearch(search);
+  return rows.filter((row) => {
+    if (q && !normalizeSearch(buildStudentSearchText(row, isHebrew)).includes(q)) return false;
+    if (activeFilters.school && String(row.school_id || getStudentSchoolName(row, false)) !== activeFilters.school) return false;
+    if (activeFilters.grade && String(row.grade || '') !== activeFilters.grade) return false;
+    if (activeFilters.status && getStudentStatusKey(row) !== activeFilters.status) return false;
+    if (activeFilters.language && normalizeSearch(row.preferred_language) !== activeFilters.language) return false;
+    return true;
+  });
+}
+
 export default function AdminEntityScreen({ entity, navigateTo }) {
   const config = adminEntityConfigs[entity];
+  const tr = useAdminTranslator();
+  const { isHebrew } = useAdminLocale();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
+  const [activeFilters, setActiveFilters] = useState({});
   const [editingStudent, setEditingStudent] = useState(null);
   const [studentToDelete, setStudentToDelete] = useState(null);
   const [savingStudent, setSavingStudent] = useState(false);
@@ -282,15 +500,19 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
   const [institutionForm, setInstitutionForm] = useState(null);
   const [institutionToDelete, setInstitutionToDelete] = useState(null);
   const [savingInstitution, setSavingInstitution] = useState(false);
+  const [savingGameKey, setSavingGameKey] = useState(null);
 
   useEffect(() => {
+    setSearch('');
+    setActiveFilters({});
     let mounted = true;
     setLoading(true);
     getAdminRows(entity)
       .then((result) => {
         if (!mounted) return;
-        setRows(result.rows || []);
-        setError(result.error?.message || null);
+        const nextRows = result.rows || [];
+        setRows(nextRows);
+        setError(!nextRows.length ? result.error?.message || null : null);
       })
       .catch((err) => mounted && setError(err?.message || 'تعذر تحميل البيانات'))
       .finally(() => mounted && setLoading(false));
@@ -301,9 +523,22 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
+    if (entity === 'students') {
+      return filterStudentRows(rows, search, activeFilters, isHebrew);
+    }
     if (!q) return rows;
     return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
-  }, [rows, search]);
+  }, [activeFilters, entity, isHebrew, rows, search]);
+
+  const filterChips = useMemo(() => {
+    if (entity === 'students') {
+      return buildStudentFilterChips(rows, activeFilters, setActiveFilters, isHebrew);
+    }
+    return (config.filters || []).map((label) => ({
+      label,
+      onPress: () => Alert.alert(tr('ÙÙ„ØªØ±'), tr(`Ø±Ø¨Ø· ÙÙ„ØªØ± ${label} Ù…Ø¹ Ø§Ù„Ø§Ø³ØªØ¹Ù„Ø§Ù…`)),
+    }));
+  }, [activeFilters, config.filters, entity, isHebrew, rows, tr]);
 
   const primaryAction = config.addLabel ? (
     <TouchableOpacity
@@ -311,7 +546,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
       onPress={handleAddAction}
     >
       <FontAwesome name="plus" size={14} color="#fff" />
-      <Text style={styles.primaryButtonText}>{config.addLabel}</Text>
+      <Text style={styles.primaryButtonText}>{tr(config.addLabel)}</Text>
     </TouchableOpacity>
   ) : null;
 
@@ -344,7 +579,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     setSavingStudent(false);
 
     if (!result.success) {
-      Alert.alert('تعذر حفظ الطالب', result.error?.message || 'حدث خطأ غير متوقع');
+      Alert.alert(tr('تعذر حفظ الطالب'), result.error?.message || tr('حدث خطأ غير متوقع'));
       return;
     }
 
@@ -354,7 +589,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
         : current.map((row) => (row.id === editingStudent.id ? result.row : row))
     ));
     setEditingStudent(null);
-    Alert.alert('تم الحفظ', 'تم تحديث بيانات الطالب بنجاح.');
+    Alert.alert(tr('تم الحفظ'), tr('تم تحديث بيانات الطالب بنجاح.'));
   };
 
   const confirmDeleteStudent = (student) => {
@@ -368,16 +603,86 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     setSavingStudent(false);
 
     if (!result.success) {
-      Alert.alert('تعذر حذف الطالب', result.error?.message || 'تأكد من صلاحيات RLS ثم حاول مرة أخرى.');
+      Alert.alert(tr('تعذر حذف الطالب'), result.error?.message || tr('تأكد من صلاحيات RLS ثم حاول مرة أخرى.'));
       return;
     }
 
     setRows((current) => current.filter((row) => row.id !== studentToDelete.id));
     setStudentToDelete(null);
-    Alert.alert('تم الحذف', 'تم حذف الطالب من جدول الطلاب.');
+    Alert.alert(tr('تم الحذف'), tr('تم حذف الطالب من جدول الطلاب.'));
   };
 
   const columns = (config.columns || []).map((column) => {
+    if (entity === 'students' && column.key === 'school_name') {
+      return {
+        ...column,
+        render: (row) => <StudentSchoolCell row={row} />,
+      };
+    }
+
+    if (entity === 'managers' && column.key === 'school_name') {
+      return {
+        ...column,
+        render: (row) => <StudentSchoolCell row={row} />,
+      };
+    }
+
+    if (entity === 'schools' && (column.key === 'name_ar' || column.key === 'name_he')) {
+      return {
+        ...column,
+        render: (row) => <SchoolNameCell row={row} />,
+      };
+    }
+
+    if (entity === 'schools' && column.key === 'city_ar') {
+      return {
+        ...column,
+        render: (row) => <SchoolCityCell row={row} />,
+      };
+    }
+
+    if (entity === 'schools' && column.key === 'region') {
+      return {
+        ...column,
+        render: (row) => <SchoolRegionCell row={row} />,
+      };
+    }
+
+    if (entity === 'reports' && column.key === 'subject_name') {
+      return {
+        ...column,
+        render: (row) => <ReportSubjectCell row={row} />,
+      };
+    }
+
+    if (entity === 'reports' && column.key === 'updated_at') {
+      return {
+        ...column,
+        render: (row) => <AdminDateCell value={row.updated_at} />,
+      };
+    }
+
+    if (entity === 'reports' && column.key === 'actions') {
+      return {
+        ...column,
+        render: () => <Actions labels={isHebrew ? ['דוח', 'PDF'] : ['تقرير', 'PDF']} />,
+      };
+    }
+
+    if (entity === 'students' && column.key === 'class_section') {
+      return {
+        ...column,
+        render: (row) => <StudentSectionCell value={row.class_section} />,
+      };
+    }
+
+    if (entity === 'students' && column.key === 'preferred_language') {
+      return {
+        ...column,
+        render: (row) => <StudentLanguageCell value={row.preferred_language} />,
+      };
+    }
+
     if (entity === 'students' && column.key === 'actions') {
       return {
         ...column,
@@ -429,7 +734,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
       navigateTo?.(config.addScreen, { section: entity });
       return;
     }
-    Alert.alert('قريبًا', 'TODO: ربط نموذج الإضافة بهذه الصفحة');
+    Alert.alert(tr('قريبًا'), tr('TODO: ربط نموذج الإضافة بهذه الصفحة'));
   }
 
   const saveSubject = async () => {
@@ -439,18 +744,18 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     setSavingSubject(false);
 
     if (!result.success) {
-      Alert.alert('تعذر حفظ المادة', result.error?.message || 'تأكد من صلاحيات جدول subjects.');
+      Alert.alert(tr('تعذر حفظ المادة'), result.error?.message || tr('تأكد من صلاحيات جدول subjects.'));
       return;
     }
 
     setRows((current) => [result.row, ...current]);
     setSubjectForm(null);
-    Alert.alert('تم الحفظ', 'تمت إضافة المادة بنجاح.');
+    Alert.alert(tr('تم الحفظ'), tr('تمت إضافة المادة بنجاح.'));
   };
 
   const openInstitutionEditor = (institution = null) => {
     if (String(institution?.id || '').startsWith('catalog-')) {
-      Alert.alert('مؤسسة من الملف المحلي', 'هذه المؤسسة ظاهرة من ملف الجامعات المحلي. شغّل ملف seed الخاص بالمؤسسات أولًا حتى تقدر تعدلها من لوحة الأدمن.');
+      Alert.alert(tr('مؤسسة من الملف المحلي'), tr('هذه المؤسسة ظاهرة من ملف الجامعات المحلي. شغّل ملف seed الخاص بالمؤسسات أولًا حتى تقدر تعدلها من لوحة الأدمن.'));
       return;
     }
 
@@ -469,12 +774,12 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
 
   const showInstitutionDetails = (institution) => {
     Alert.alert(
-      institution?.name_ar || institution?.name_en || 'المؤسسة',
+      institution?.name_ar || institution?.name_en || tr('المؤسسة'),
       [
-        `العبرية: ${institution?.name_he || '-'}`,
-        `الإنجليزية: ${institution?.name_en || '-'}`,
-        `النوع: ${institution?.type || '-'}`,
-        `الموقع: ${institution?.website || '-'}`,
+        `${tr('العبرية')}: ${institution?.name_he || '-'}`,
+        `${tr('الإنجليزية')}: ${institution?.name_en || '-'}`,
+        `${tr('النوع')}: ${institution?.type || '-'}`,
+        `${tr('الموقع')}: ${institution?.website || '-'}`,
       ].join('\n')
     );
   };
@@ -488,7 +793,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     setSavingInstitution(false);
 
     if (!result.success) {
-      Alert.alert('تعذر حفظ المؤسسة', result.error?.message || 'تأكد من صلاحيات جدول institutions.');
+      Alert.alert(tr('تعذر حفظ المؤسسة'), result.error?.message || tr('تأكد من صلاحيات جدول institutions.'));
       return;
     }
 
@@ -498,13 +803,13 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
         : current.map((row) => (row.id === institutionForm.id ? result.row : row))
     ));
     setInstitutionForm(null);
-    Alert.alert('تم الحفظ', 'تم حفظ بيانات المؤسسة بنجاح.');
+    Alert.alert(tr('تم الحفظ'), tr('تم حفظ بيانات المؤسسة بنجاح.'));
   };
 
   const runDeleteInstitution = async () => {
     if (!institutionToDelete?.id) return;
     if (String(institutionToDelete.id).startsWith('catalog-')) {
-      Alert.alert('مؤسسة من الملف المحلي', 'لا يمكن حذف مؤسسة من الملف المحلي عبر قاعدة البيانات. شغّل seed أولًا ثم احذفها من الجدول.');
+      Alert.alert(tr('مؤسسة من الملف المحلي'), tr('لا يمكن حذف مؤسسة من الملف المحلي عبر قاعدة البيانات. شغّل seed أولًا ثم احذفها من الجدول.'));
       setInstitutionToDelete(null);
       return;
     }
@@ -514,13 +819,31 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     setSavingInstitution(false);
 
     if (!result.success) {
-      Alert.alert('تعذر حذف المؤسسة', result.error?.message || 'تأكد من الصلاحيات أو الارتباطات التابعة.');
+      Alert.alert(tr('تعذر حذف المؤسسة'), result.error?.message || tr('تأكد من الصلاحيات أو الارتباطات التابعة.'));
       return;
     }
 
     setRows((current) => current.filter((row) => row.id !== institutionToDelete.id));
     setInstitutionToDelete(null);
-    Alert.alert('تم الحذف', 'تم حذف المؤسسة من القائمة.');
+    Alert.alert(tr('تم الحذف'), tr('تم حذف المؤسسة من القائمة.'));
+  };
+
+  const toggleGameVisibility = async (game) => {
+    const nextActive = game.is_active === false || game.is_visible === false;
+    setSavingGameKey(game.key);
+    const result = await updateAdminGameVisibility(game.key, nextActive);
+    setSavingGameKey(null);
+
+    if (!result.success) {
+      Alert.alert(tr('تعذر تحديث اللعبة'), result.error?.message || tr('تأكد من صلاحيات جدول games.'));
+      return;
+    }
+
+    setRows((current) => current.map((row) => (row.key === game.key ? result.row : row)));
+    Alert.alert(
+      nextActive ? tr('تم تفعيل اللعبة') : tr('تم تعطيل اللعبة'),
+      nextActive ? tr('ستظهر اللعبة الآن في صفحة اللعب للطالب.') : tr('لن تظهر اللعبة الآن في صفحة اللعب للطالب.')
+    );
   };
 
   return (
@@ -538,15 +861,15 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
               <FontAwesome name="plus" size={14} color="#fff" />
             </View>
             <View style={styles.inlineAddTextWrap}>
-              <Text style={styles.inlineAddTitle}>{config.addLabel}</Text>
+              <Text style={styles.inlineAddTitle}>{tr(config.addLabel)}</Text>
               <Text style={styles.inlineAddSub}>
-                {entity === 'subjects'
+                {tr(entity === 'subjects'
                   ? 'افتح نموذج إضافة مادة جديدة'
                   : entity === 'questions'
                     ? 'افتح نموذج إضافة سؤال جديد'
                     : entity === 'managers'
                       ? 'افتح صفحة دعوة مدير جديد'
-                      : 'افتح نموذج الإضافة'}
+                      : 'افتح نموذج الإضافة')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -555,18 +878,15 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
         <FilterBar
           search={search}
           onSearch={setSearch}
-          filters={(config.filters || []).map((label) => ({
-            label,
-            onPress: () => Alert.alert('فلتر', `TODO: ربط فلتر ${label} مع الاستعلام`),
-          }))}
+          filters={filterChips}
         />
 
         {loading ? (
           <LoadingState />
         ) : error ? (
-          <ErrorState message={`${error}\nTODO: تأكد من اسم الجدول أو RLS لهذه الصفحة.`} />
+          <ErrorState message={error} />
         ) : config.cardMode === 'games' ? (
-          <GamesCards rows={filteredRows} />
+          <GamesCards rows={filteredRows} savingGameKey={savingGameKey} onToggleVisibility={toggleGameVisibility} />
         ) : config.settingsMode ? (
           <SettingsContent rows={filteredRows} columns={config.columns} />
         ) : (
@@ -628,16 +948,57 @@ function Cell({ text, strong }) {
   return <Text style={[styles.cellText, strong && styles.cellStrong]} numberOfLines={2}>{text || '-'}</Text>;
 }
 
+function StudentSchoolCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getStudentSchoolName(row, isHebrew)} />;
+}
+
+function StudentSectionCell({ value }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getStudentSectionLabel(value, isHebrew)} />;
+}
+
+function StudentLanguageCell({ value }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getStudentLanguageLabel(value, isHebrew)} />;
+}
+
+function SchoolNameCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getSchoolName(row, isHebrew)} />;
+}
+
+function SchoolCityCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getSchoolCity(row, isHebrew)} />;
+}
+
+function SchoolRegionCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getSchoolRegion(row, isHebrew)} />;
+}
+
+function ReportSubjectCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getReportSubjectName(row, isHebrew)} />;
+}
+
+function AdminDateCell({ value }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={formatAdminDate(value, isHebrew)} />;
+}
+
 function Actions({ labels = ['عرض', 'تعديل', 'تعطيل'], onDetails }) {
+  const tr = useAdminTranslator();
   return (
     <View style={styles.actions}>
       {labels.map((label, index) => (
         <TouchableOpacity
           key={label}
           style={[styles.actionBtn, index === 0 && styles.actionBtnPrimary]}
-          onPress={index === 0 && onDetails ? onDetails : () => Alert.alert(label, 'TODO: ربط الإجراء بالخدمة المناسبة مع confirmation')}
+          onPress={index === 0 && onDetails ? onDetails : () => Alert.alert(tr(label), tr('ربط الإجراء بالخدمة المناسبة مع confirmation'))}
         >
-          <Text style={[styles.actionText, index === 0 && styles.actionTextPrimary]}>{label}</Text>
+          <Text style={[styles.actionText, index === 0 && styles.actionTextPrimary]}>{tr(label)}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -645,6 +1006,7 @@ function Actions({ labels = ['عرض', 'تعديل', 'تعطيل'], onDetails })
 }
 
 function StudentActions({ labels, onDetails, onEdit, onDelete }) {
+  const tr = useAdminTranslator();
   const handlers = [onDetails, onEdit, onDelete];
   const press = (event, handler) => {
     event?.stopPropagation?.();
@@ -660,7 +1022,7 @@ function StudentActions({ labels, onDetails, onEdit, onDelete }) {
             style={[styles.actionBtn, index === 0 && styles.actionBtnPrimary, isDelete && styles.actionBtnDanger]}
             onPress={(event) => press(event, handlers[index])}
           >
-            <Text style={[styles.actionText, index === 0 && styles.actionTextPrimary, isDelete && styles.actionTextDanger]}>{label}</Text>
+            <Text style={[styles.actionText, index === 0 && styles.actionTextPrimary, isDelete && styles.actionTextDanger]}>{tr(label)}</Text>
           </TouchableOpacity>
         );
       })}
@@ -669,6 +1031,7 @@ function StudentActions({ labels, onDetails, onEdit, onDelete }) {
 }
 
 function StudentEditModal({ visible, student, saving, onChange, onClose, onSave }) {
+  const tr = useAdminTranslator();
   if (!student) return null;
   const setField = (key, value) => onChange((current) => ({ ...current, [key]: value }));
   const isCreate = student.mode === 'create';
@@ -686,7 +1049,7 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{isCreate ? 'إضافة طالب جديد' : 'تعديل بيانات الطالب'}</Text>
+            <Text style={styles.modalTitle}>{tr(isCreate ? 'إضافة طالب جديد' : 'تعديل بيانات الطالب')}</Text>
             <TouchableOpacity style={styles.modalClose} onPress={onClose}>
               <FontAwesome name="times" size={16} color={adminColors.text} />
             </TouchableOpacity>
@@ -727,7 +1090,7 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
             />
           )}
 
-          <Text style={styles.modalLabel}>الصف</Text>
+          <Text style={styles.modalLabel}>{tr('الصف')}</Text>
           <View style={styles.choiceRow}>
             {gradeOptions.map((grade) => (
               <TouchableOpacity key={grade} style={[styles.choiceChip, student.grade === grade && styles.choiceChipActive]} onPress={() => setField('grade', grade)}>
@@ -736,7 +1099,7 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
             ))}
           </View>
 
-          <Text style={styles.modalLabel}>الشعبة</Text>
+          <Text style={styles.modalLabel}>{tr('الشعبة')}</Text>
           <View style={styles.choiceRow}>
             {sectionOptions.map((section) => (
               <TouchableOpacity key={section.value} style={[styles.choiceChip, student.class_section === section.value && styles.choiceChipActive]} onPress={() => setField('class_section', section.value)}>
@@ -747,10 +1110,10 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
 
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancel} onPress={onClose} disabled={saving}>
-              <Text style={styles.modalCancelText}>إلغاء</Text>
+              <Text style={styles.modalCancelText}>{tr('إلغاء')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalSave} onPress={onSave} disabled={saving}>
-              <Text style={styles.modalSaveText}>{saving ? 'جار الحفظ...' : isCreate ? 'إضافة الطالب' : 'حفظ التعديلات'}</Text>
+              <Text style={styles.modalSaveText}>{tr(saving ? 'جار الحفظ...' : isCreate ? 'إضافة الطالب' : 'حفظ التعديلات')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -760,7 +1123,22 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
 }
 
 function ConfirmDeleteModal({ visible, student, saving, onClose, onConfirm }) {
+  const { isHebrew } = useAdminLocale();
   if (!student) return null;
+  const studentName = fullName(student) || student.email || (isHebrew ? 'התלמיד הזה' : 'هذا الطالب');
+  const copy = isHebrew
+    ? {
+      title: 'מחיקת תלמיד',
+      message: `האם למחוק את ${studentName} ואת כל הנתונים המשויכים אליו?`,
+      cancel: 'ביטול',
+      delete: saving ? 'מוחק...' : 'מחיקה סופית',
+    }
+    : {
+      title: 'حذف الطالب',
+      message: `هل تريد حذف ${studentName} وكل بياناته التابعة؟`,
+      cancel: 'إلغاء',
+      delete: saving ? 'جار الحذف...' : 'حذف نهائي',
+    };
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalLayer}>
@@ -769,16 +1147,16 @@ function ConfirmDeleteModal({ visible, student, saving, onClose, onConfirm }) {
           <View style={styles.confirmIcon}>
             <FontAwesome name="trash" size={20} color={adminColors.danger} />
           </View>
-          <Text style={styles.modalTitle}>حذف الطالب</Text>
+          <Text style={styles.modalTitle}>{copy.title}</Text>
           <Text style={styles.confirmText}>
-            هل تريد حذف {fullName(student) || student.email || 'هذا الطالب'} وكل بياناته التابعة؟
+            {copy.message}
           </Text>
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancel} onPress={onClose} disabled={saving}>
-              <Text style={styles.modalCancelText}>إلغاء</Text>
+              <Text style={styles.modalCancelText}>{copy.cancel}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.modalSave, styles.modalDelete]} onPress={onConfirm} disabled={saving}>
-              <Text style={styles.modalSaveText}>{saving ? 'جار الحذف...' : 'حذف نهائي'}</Text>
+              <Text style={styles.modalSaveText}>{copy.delete}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -788,6 +1166,7 @@ function ConfirmDeleteModal({ visible, student, saving, onClose, onConfirm }) {
 }
 
 function SubjectModal({ visible, subject, saving, onChange, onClose, onSave }) {
+  const tr = useAdminTranslator();
   if (!subject) return null;
   const setField = (key, value) => onChange((current) => ({ ...current, [key]: value }));
   const categories = [
@@ -802,7 +1181,7 @@ function SubjectModal({ visible, subject, saving, onChange, onClose, onSave }) {
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>إضافة مادة جديدة</Text>
+            <Text style={styles.modalTitle}>{tr('إضافة مادة جديدة')}</Text>
             <TouchableOpacity style={styles.modalClose} onPress={onClose}>
               <FontAwesome name="times" size={16} color={adminColors.text} />
             </TouchableOpacity>
@@ -817,7 +1196,7 @@ function SubjectModal({ visible, subject, saving, onChange, onClose, onSave }) {
             <EditInput label="الكود" value={subject.code} onChangeText={(value) => setField('code', value)} placeholder="math / physics" />
           </View>
 
-          <Text style={styles.modalLabel}>التصنيف</Text>
+          <Text style={styles.modalLabel}>{tr('التصنيف')}</Text>
           <View style={styles.choiceRow}>
             {categories.map((category) => (
               <TouchableOpacity
@@ -825,7 +1204,7 @@ function SubjectModal({ visible, subject, saving, onChange, onClose, onSave }) {
                 style={[styles.choiceChip, subject.category === category.value && styles.choiceChipActive]}
                 onPress={() => setField('category', category.value)}
               >
-                <Text style={[styles.choiceText, subject.category === category.value && styles.choiceTextActive]}>{category.label}</Text>
+                <Text style={[styles.choiceText, subject.category === category.value && styles.choiceTextActive]}>{tr(category.label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -835,10 +1214,10 @@ function SubjectModal({ visible, subject, saving, onChange, onClose, onSave }) {
 
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancel} onPress={onClose} disabled={saving}>
-              <Text style={styles.modalCancelText}>إلغاء</Text>
+              <Text style={styles.modalCancelText}>{tr('إلغاء')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalSave} onPress={onSave} disabled={saving}>
-              <Text style={styles.modalSaveText}>{saving ? 'جار الحفظ...' : 'إضافة المادة'}</Text>
+              <Text style={styles.modalSaveText}>{tr(saving ? 'جار الحفظ...' : 'إضافة المادة')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -848,6 +1227,7 @@ function SubjectModal({ visible, subject, saving, onChange, onClose, onSave }) {
 }
 
 function InstitutionModal({ visible, institution, saving, onChange, onClose, onSave }) {
+  const tr = useAdminTranslator();
   if (!institution) return null;
   const setField = (key, value) => onChange((current) => ({ ...current, [key]: value }));
   const isCreate = institution.mode === 'create';
@@ -865,7 +1245,7 @@ function InstitutionModal({ visible, institution, saving, onChange, onClose, onS
         <View style={styles.modalCard}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{isCreate ? 'إضافة مؤسسة جديدة' : 'تعديل المؤسسة'}</Text>
+              <Text style={styles.modalTitle}>{tr(isCreate ? 'إضافة مؤسسة جديدة' : 'تعديل المؤسسة')}</Text>
               <TouchableOpacity style={styles.modalClose} onPress={onClose}>
                 <FontAwesome name="times" size={16} color={adminColors.text} />
               </TouchableOpacity>
@@ -877,7 +1257,7 @@ function InstitutionModal({ visible, institution, saving, onChange, onClose, onS
             </View>
             <EditInput label="Name in English" value={institution.name_en} onChangeText={(value) => setField('name_en', value)} />
 
-            <Text style={styles.modalLabel}>النوع</Text>
+            <Text style={styles.modalLabel}>{tr('النوع')}</Text>
             <View style={styles.choiceRow}>
               {types.map((type) => (
                 <TouchableOpacity
@@ -885,29 +1265,29 @@ function InstitutionModal({ visible, institution, saving, onChange, onClose, onS
                   style={[styles.choiceChip, institution.type === type.value && styles.choiceChipActive]}
                   onPress={() => setField('type', type.value)}
                 >
-                  <Text style={[styles.choiceText, institution.type === type.value && styles.choiceTextActive]}>{type.label}</Text>
+                  <Text style={[styles.choiceText, institution.type === type.value && styles.choiceTextActive]}>{tr(type.label)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <EditInput label="رابط الموقع" value={institution.website} onChangeText={(value) => setField('website', value)} placeholder="https://example.ac.il" />
 
-            <Text style={styles.modalLabel}>الحالة</Text>
+            <Text style={styles.modalLabel}>{tr('الحالة')}</Text>
             <View style={styles.choiceRow}>
               <TouchableOpacity style={[styles.choiceChip, institution.is_active && styles.choiceChipActive]} onPress={() => setField('is_active', true)}>
-                <Text style={[styles.choiceText, institution.is_active && styles.choiceTextActive]}>نشطة</Text>
+                <Text style={[styles.choiceText, institution.is_active && styles.choiceTextActive]}>{tr('نشطة')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.choiceChip, !institution.is_active && styles.choiceChipActive]} onPress={() => setField('is_active', false)}>
-                <Text style={[styles.choiceText, !institution.is_active && styles.choiceTextActive]}>معطلة</Text>
+                <Text style={[styles.choiceText, !institution.is_active && styles.choiceTextActive]}>{tr('معطلة')}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancel} onPress={onClose} disabled={saving}>
-                <Text style={styles.modalCancelText}>إلغاء</Text>
+                <Text style={styles.modalCancelText}>{tr('إلغاء')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSave} onPress={onSave} disabled={saving}>
-                <Text style={styles.modalSaveText}>{saving ? 'جار الحفظ...' : isCreate ? 'إضافة المؤسسة' : 'حفظ التعديلات'}</Text>
+                <Text style={styles.modalSaveText}>{tr(saving ? 'جار الحفظ...' : isCreate ? 'إضافة المؤسسة' : 'حفظ التعديلات')}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -918,6 +1298,7 @@ function InstitutionModal({ visible, institution, saving, onChange, onClose, onS
 }
 
 function ConfirmInstitutionDeleteModal({ visible, institution, saving, onClose, onConfirm }) {
+  const tr = useAdminTranslator();
   if (!institution) return null;
   const name = institution.name_ar || institution.name_he || institution.name_en || 'هذه المؤسسة';
   return (
@@ -928,16 +1309,16 @@ function ConfirmInstitutionDeleteModal({ visible, institution, saving, onClose, 
           <View style={styles.confirmIcon}>
             <FontAwesome name="trash" size={20} color={adminColors.danger} />
           </View>
-          <Text style={styles.modalTitle}>حذف المؤسسة</Text>
+          <Text style={styles.modalTitle}>{tr('حذف المؤسسة')}</Text>
           <Text style={styles.confirmText}>
-            هل تريد حذف {name}؟ سيتم حذف البرامج والروابط التابعة لها إذا كانت مرتبطة بقاعدة البيانات.
+            {tr('هل تريد حذف')} {name}? {tr('سيتم حذف البرامج والروابط التابعة لها إذا كانت مرتبطة بقاعدة البيانات.')}
           </Text>
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancel} onPress={onClose} disabled={saving}>
-              <Text style={styles.modalCancelText}>إلغاء</Text>
+              <Text style={styles.modalCancelText}>{tr('إلغاء')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.modalSave, styles.modalDelete]} onPress={onConfirm} disabled={saving}>
-              <Text style={styles.modalSaveText}>{saving ? 'جار الحذف...' : 'حذف نهائي'}</Text>
+              <Text style={styles.modalSaveText}>{tr(saving ? 'جار الحذف...' : 'حذف نهائي')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -947,11 +1328,13 @@ function ConfirmInstitutionDeleteModal({ visible, institution, saving, onClose, 
 }
 
 function EditInput({ label, ...props }) {
+  const tr = useAdminTranslator();
   return (
     <View style={styles.editField}>
-      <Text style={styles.modalLabel}>{label}</Text>
+      <Text style={styles.modalLabel}>{tr(label)}</Text>
       <TextInput
         {...props}
+        placeholder={tr(props.placeholder)}
         style={styles.editInput}
         placeholderTextColor={adminColors.muted}
         textAlign="right"
@@ -962,6 +1345,7 @@ function EditInput({ label, ...props }) {
 }
 
 function SchoolAutocomplete({ value, onChangeText, onSelect }) {
+  const tr = useAdminTranslator();
   const [focused, setFocused] = useState(false);
   const [dbSchools, setDbSchools] = useState([]);
   const query = String(value || '').trim().toLowerCase();
@@ -1027,7 +1411,7 @@ function SchoolAutocomplete({ value, onChangeText, onSelect }) {
 
   return (
     <View style={[styles.editField, focused && !!value && options.length > 0 && styles.autocompleteFieldOpen]}>
-      <Text style={styles.modalLabel}>المدرسة</Text>
+      <Text style={styles.modalLabel}>{tr('المدرسة')}</Text>
       <View style={styles.autocompleteWrap}>
         <TextInput
           value={value}
@@ -1037,7 +1421,7 @@ function SchoolAutocomplete({ value, onChangeText, onSelect }) {
           }}
           onFocus={() => setFocused(true)}
           style={styles.editInput}
-          placeholder="اكتب اسم المدرسة..."
+          placeholder={tr('اكتب اسم المدرسة...')}
           placeholderTextColor={adminColors.muted}
           textAlign="right"
           writingDirection="rtl"
@@ -1065,39 +1449,66 @@ function SchoolAutocomplete({ value, onChangeText, onSelect }) {
   );
 }
 
-function GamesCards({ rows }) {
+function GamesCards({ rows, savingGameKey, onToggleVisibility }) {
+  const tr = useAdminTranslator();
+  const { isHebrew } = useAdminLocale();
   if (!rows.length) return <EmptyState title="لا توجد ألعاب" icon="gamepad" />;
   return (
     <View style={styles.gamesGrid}>
-      {rows.map((game) => (
-        <View key={game.key} style={[styles.gameCard, { borderColor: game.accentSoft || adminColors.border }]}>
-          <View style={[styles.gameIcon, { backgroundColor: game.buttonBg || adminColors.primary2 }]}>
-            <FontAwesome name={game.icon || 'gamepad'} size={24} color="#fff" />
+      {rows.map((game) => {
+        const isDisabled = game.is_active === false || game.is_visible === false;
+        const isSaving = savingGameKey === game.key;
+        const gameText = getAdminGameText(game, isHebrew);
+        return (
+          <View
+            key={game.key}
+            style={[
+              styles.gameCard,
+              { borderColor: isDisabled ? '#FECACA' : game.accentSoft || adminColors.border },
+              isDisabled && styles.gameCardDisabled,
+            ]}
+          >
+            <View style={[styles.gameIcon, { backgroundColor: isDisabled ? '#94A3B8' : game.buttonBg || adminColors.primary2 }]}>
+              <FontAwesome name={game.icon || 'gamepad'} size={24} color="#fff" />
+            </View>
+            <Text style={styles.gameTitle}>{gameText.title}</Text>
+            <Text style={styles.gameDesc}>{gameText.description}</Text>
+            <StatusBadge status={isDisabled ? (isHebrew ? 'מושבת' : 'معطلة') : (isHebrew ? 'פעילה' : 'مفعلة')} />
+            <View style={styles.actions}>
+              <Actions labels={isHebrew ? ['ניהול משחק', 'סטטיסטיקות'] : ['إدارة اللعبة', 'الإحصائيات']} />
+              <TouchableOpacity
+                style={[styles.actionBtn, isDisabled ? styles.actionBtnPrimary : styles.actionBtnDanger]}
+                onPress={() => onToggleVisibility?.(game)}
+                disabled={isSaving}
+              >
+                <Text style={[styles.actionText, isDisabled ? styles.actionTextPrimary : styles.actionTextDanger]}>
+                  {isHebrew
+                    ? (isSaving ? 'שומר...' : isDisabled ? 'הפעלה' : 'השבתה')
+                    : tr(isSaving ? 'جار الحفظ...' : isDisabled ? 'تفعيل' : 'تعطيل')}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.gameTitle}>{game.title}</Text>
-          <Text style={styles.gameDesc}>{game.description}</Text>
-          <StatusBadge status={game.status || 'مفعلة'} />
-          <View style={styles.actions}>
-            <Actions labels={['إدارة اللعبة', 'الإحصائيات', 'تعطيل']} />
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
 
 function AbilitiesSection() {
+  const tr = useAdminTranslator();
   const abilities = ['قدرة تحليلية', 'قدرة لغوية', 'قدرة علمية', 'قدرة طبية', 'قدرة منطقية', 'سرعة الاستجابة', 'دقة الإجابة', 'الاستمرارية وعدم التخطي'];
   return (
     <AdminCard title="إدارة القدرات" subtitle="TODO: ربط القدرات بجدول مستقل إذا لم يكن موجودًا">
       <View style={styles.pillGrid}>
-        {abilities.map((ability) => <Text key={ability} style={styles.pill}>{ability}</Text>)}
+        {abilities.map((ability) => <Text key={ability} style={styles.pill}>{tr(ability)}</Text>)}
       </View>
     </AdminCard>
   );
 }
 
 function PermissionsSection() {
+  const tr = useAdminTranslator();
   const permissions = ['إدارة المستخدمين', 'إدارة المدارس', 'إدارة الأسئلة', 'عرض كل التقارير', 'تصدير البيانات', 'تغيير الصلاحيات', 'تعطيل الحسابات'];
   return (
     <AdminCard title="مصفوفة الصلاحيات" subtitle="تحذير: الصلاحيات الحساسة تحتاج confirmation قبل الحفظ">
@@ -1108,7 +1519,7 @@ function PermissionsSection() {
             {permissions.map((permission) => (
               <View key={`${role}-${permission}`} style={styles.permissionRow}>
                 <FontAwesome name={role === 'Student' && permission !== 'عرض كل التقارير' ? 'circle-o' : 'check-square'} size={14} color={adminColors.primary2} />
-                <Text style={styles.permissionText}>{permission}</Text>
+                <Text style={styles.permissionText}>{tr(permission)}</Text>
               </View>
             ))}
           </View>
@@ -1119,21 +1530,23 @@ function PermissionsSection() {
 }
 
 function ReportsCharts({ rows }) {
+  const tr = useAdminTranslator();
   const data = rows.slice(0, 8).map((row, index) => ({
-    label: row.subject_id ? `مادة ${index + 1}` : `طالب ${index + 1}`,
+    label: row.subject_id ? `${tr('مادة')} ${index + 1}` : `${tr('طالب')} ${index + 1}`,
     value: Math.round(Number(row.ability_estimate || row.score || 0) * 10) || index + 4,
   }));
   return <ChartCard title="ملخص بصري للنتائج" data={data} tone={adminColors.primary2} />;
 }
 
 function SettingsContent({ rows, columns }) {
+  const tr = useAdminTranslator();
   return (
     <View style={{ gap: 14 }}>
       <View style={styles.settingsGrid}>
         {['اسم النظام', 'اللغة الافتراضية', 'عدد الأسئلة الافتراضي', 'وقت السؤال', 'تفعيل الألعاب', 'الاختبار الشامل', 'إعدادات الخصوصية', 'النسخ الاحتياطي'].map((item) => (
           <View key={item} style={styles.settingTile}>
-            <Text style={styles.settingTitle}>{item}</Text>
-            <Text style={styles.settingSub}>TODO: ربط مع جدول system_settings</Text>
+            <Text style={styles.settingTitle}>{tr(item)}</Text>
+            <Text style={styles.settingSub}>{tr('ربط مع جدول system_settings')}</Text>
           </View>
         ))}
       </View>
@@ -1204,6 +1617,7 @@ const styles = StyleSheet.create({
   modalCancelText: { color: adminColors.text, fontWeight: '900' },
   gamesGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 12 },
   gameCard: { flexGrow: 1, flexBasis: 230, borderRadius: 20, borderWidth: 1, padding: 14, backgroundColor: '#fff', alignItems: 'flex-end' },
+  gameCardDisabled: { backgroundColor: '#FFF7F7' },
   gameIcon: { width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   gameTitle: { marginTop: 12, color: adminColors.text, fontSize: 17, fontWeight: '900', textAlign: 'right' },
   gameDesc: { marginTop: 6, color: adminColors.muted, lineHeight: 19, fontWeight: '700', textAlign: 'right' },

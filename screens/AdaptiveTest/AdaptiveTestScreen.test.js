@@ -9,14 +9,19 @@ import { act, render, waitFor } from '@testing-library/react-native';
  */
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    AppState: {
+  const descriptors = Object.getOwnPropertyDescriptors(RN);
+  delete descriptors.DevMenu;
+  const mockRN = {};
+  Object.defineProperties(mockRN, descriptors);
+  Object.defineProperty(mockRN, 'AppState', {
+    configurable: true,
+    value: {
       currentState: 'active',
       addEventListener: jest.fn(() => ({ remove: jest.fn() })),
       removeEventListener: jest.fn(),
     },
-  };
+  });
+  return mockRN;
 });
 
 /**

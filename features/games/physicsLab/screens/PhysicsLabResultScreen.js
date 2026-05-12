@@ -56,6 +56,12 @@ export default function PhysicsLabResultScreen({ route, navigation }) {
         description="Choose another level"
         onPress={() => navigation?.navigate?.('PhysicsLabHome', { studentId })}
       />
+      <ChoiceButton
+        title="Back to Games"
+        description="Educational games page"
+        variant="secondary"
+        onPress={() => navigation?.navigate?.('games')}
+      />
     </ScreenContainer>
   );
 }

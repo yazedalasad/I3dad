@@ -2,21 +2,30 @@ import { Platform } from 'react-native';
 
 const STORAGE_KEY_PREFIX = 'arabic_poet_puzzle_completed_levels';
 
+function getMemoryStore() {
+  if (!globalThis.__arabicPoetPuzzleProgressStore) {
+    globalThis.__arabicPoetPuzzleProgressStore = new Map();
+  }
+  return globalThis.__arabicPoetPuzzleProgressStore;
+}
+
 const Storage = {
   async getItem(key) {
     try {
       if (Platform.OS === 'web') {
-        return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+        return typeof window !== 'undefined' ? window.localStorage.getItem(key) : getMemoryStore().get(key) || null;
       }
 
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      return await AsyncStorage.getItem(key);
+      return (await AsyncStorage.getItem(key)) || getMemoryStore().get(key) || null;
     } catch {
-      return null;
+      return getMemoryStore().get(key) || null;
     }
   },
 
   async setItem(key, value) {
+    getMemoryStore().set(key, value);
+
     try {
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined') {
@@ -28,7 +37,8 @@ const Storage = {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       await AsyncStorage.setItem(key, value);
     } catch {
-      // ignore storage failures and keep app usable
+      // The memory store above keeps level unlocks working even when
+      // native persistent storage is not installed in this build.
     }
   },
 };

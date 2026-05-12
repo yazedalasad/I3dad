@@ -4,6 +4,7 @@ import { getGameHubItems } from '../features/games/catalog';
 
 const emptyResult = (error = null) => ({ rows: [], count: 0, error });
 const RECENT_IN_PROGRESS_HOURS = 24;
+const clearAdminCache = () => {};
 
 async function safeCount(table, query = (q) => q) {
   try {
@@ -89,6 +90,8 @@ function studentDisplayFromRelation(row) {
 
 function normalizeStudentRow(row) {
   const school = row.schools || row.school || {};
+  const schoolNameAr = school.name_ar || row.school_name_ar || row.school_name || '';
+  const schoolNameHe = school.name_he || row.school_name_he || '';
   const idValue = row.student_id || row.id || '';
   const identityNumber = normalizeIdentityNumber(row.identity_number || row.national_id || row.student_id);
   return {
@@ -96,10 +99,128 @@ function normalizeStudentRow(row) {
     identity_number: identityNumber,
     student_code: idValue ? String(idValue).slice(0, 8) : '-',
     full_name: row.full_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email || '-',
-    school_name: row.school_name || school.name_ar || school.name_he || row.school_id || '-',
+    schools: school,
+    school_name_ar: schoolNameAr || schoolNameHe || row.school_id || '-',
+    school_name_he: schoolNameHe || schoolNameAr || row.school_id || '-',
+    school_name: schoolNameAr || schoolNameHe || row.school_id || '-',
     grade: row.grade ?? row.class_grade ?? '-',
     class_section: row.class_section || row.section || 'أ',
     preferred_language: row.preferred_language || row.language || '-',
+  };
+}
+
+function looksCorruptedText(value) {
+  return /[ØÙ×]/.test(String(value || ''));
+}
+
+function canonicalSchoolKey(row = {}) {
+  const corrupted = looksCorruptedText(row.name_ar) || looksCorruptedText(row.name_he) || looksCorruptedText(row.city_ar) || looksCorruptedText(row.city_he);
+  const name = corrupted ? 'laqiya-secondary' : String(row.name_ar || row.name_he || row.school_name || '').trim().toLowerCase();
+  const city = corrupted ? 'laqiya' : String(row.city_ar || row.city_he || '').trim().toLowerCase();
+  return `${name}::${city}`;
+}
+
+function normalizeSchoolRow(row, counts = {}) {
+  const maps = {
+    studentsBySchool: counts.studentsBySchool || new Map(),
+    principalsBySchool: counts.principalsBySchool || new Map(),
+    studentsBySchoolKey: counts.studentsBySchoolKey || new Map(),
+    principalsBySchoolKey: counts.principalsBySchoolKey || new Map(),
+  };
+  const isCorruptedLaqiya =
+    looksCorruptedText(row.name_ar) ||
+    looksCorruptedText(row.name_he) ||
+    looksCorruptedText(row.city_ar) ||
+    looksCorruptedText(row.city_he);
+  const fixedNameAr = isCorruptedLaqiya ? 'مدرسة اللقية الثانوية' : row.name_ar;
+  const fixedNameHe = isCorruptedLaqiya ? 'בית הספר התיכון לקיה' : row.name_he;
+  const fixedCityAr = isCorruptedLaqiya ? 'اللقية' : row.city_ar;
+  const fixedCityHe = isCorruptedLaqiya ? 'לקיה' : row.city_he;
+  const fixedRegionAr = isCorruptedLaqiya ? 'النقب' : row.region;
+  const fixedRegionHe = isCorruptedLaqiya ? 'הנגב' : row.region;
+
+  return {
+    ...row,
+    name_ar: fixedNameAr || row.name_he || '-',
+    name_he: fixedNameHe || row.name_ar || '-',
+    city_ar: fixedCityAr || row.city_he || '-',
+    city_he: fixedCityHe || row.city_ar || '-',
+    region_ar: fixedRegionAr || '-',
+    region_he: fixedRegionHe || fixedRegionAr || '-',
+    region: fixedRegionAr || '-',
+    students_count: maps.studentsBySchool.get(row.id) || maps.studentsBySchoolKey.get(canonicalSchoolKey({ ...row, name_ar: fixedNameAr, name_he: fixedNameHe, city_ar: fixedCityAr, city_he: fixedCityHe })) || 0,
+    principals_count: maps.principalsBySchool.get(row.id) || maps.principalsBySchoolKey.get(canonicalSchoolKey({ ...row, name_ar: fixedNameAr, name_he: fixedNameHe, city_ar: fixedCityAr, city_he: fixedCityHe })) || 0,
+  };
+}
+
+function normalizeManagerRow(row, counts = {}) {
+  const studentsBySchool = counts.studentsBySchool || new Map();
+  const school = row.schools || row.school || {};
+  const schoolRow = normalizeSchoolRow({ ...school, id: row.school_id }, counts);
+  const schoolNameAr = schoolRow.name_ar || row.school_name || row.school_id || '-';
+  const schoolNameHe = schoolRow.name_he || schoolNameAr;
+
+  return {
+    ...row,
+    school_name_ar: schoolNameAr,
+    school_name_he: schoolNameHe,
+    school_name: schoolNameAr,
+    students_count: row.school_id ? studentsBySchool.get(row.school_id) || schoolRow.students_count || 0 : schoolRow.students_count || 0,
+  };
+}
+
+async function getSchoolCountMaps() {
+  const [students, principals] = await Promise.all([
+    safeRows('students', 'id, school_id, schools(name_ar, name_he, city_ar, city_he)', { limit: 2000, orderBy: null }),
+    safeRows('principals', 'id, school_id, schools(name_ar, name_he, city_ar, city_he)', { limit: 500, orderBy: null }),
+  ]);
+  const studentsBySchool = new Map();
+  const principalsBySchool = new Map();
+  const studentsBySchoolKey = new Map();
+  const principalsBySchoolKey = new Map();
+
+  (students.rows || []).forEach((row) => {
+    if (!row.school_id) return;
+    studentsBySchool.set(row.school_id, (studentsBySchool.get(row.school_id) || 0) + 1);
+    const key = canonicalSchoolKey(row.schools || {});
+    studentsBySchoolKey.set(key, (studentsBySchoolKey.get(key) || 0) + 1);
+  });
+  (principals.rows || []).forEach((row) => {
+    if (!row.school_id) return;
+    principalsBySchool.set(row.school_id, (principalsBySchool.get(row.school_id) || 0) + 1);
+    const key = canonicalSchoolKey(row.schools || {});
+    principalsBySchoolKey.set(key, (principalsBySchoolKey.get(key) || 0) + 1);
+  });
+
+  return { studentsBySchool, principalsBySchool, studentsBySchoolKey, principalsBySchoolKey };
+}
+
+function normalizeGameRow(game, row = null) {
+  const isActive = !row || String(row.status || 'active').toLowerCase() === 'active';
+  const isVisible = isActive;
+  return {
+    ...game,
+    id: row?.id || game.key,
+    key: game.key,
+    game_id: row?.id || game.key,
+    subject: game.badge,
+    language: 'ar/he',
+    level: 'تعليمي',
+    players: 0,
+    averageScore: '-',
+    is_active: isActive,
+    is_visible: isVisible,
+    status: isActive && isVisible ? 'مفعلة' : 'معطلة',
+  };
+}
+
+function buildGamePayload(game, isActive = true) {
+  return {
+    id: game.key,
+    title: game.title,
+    domain: game.badge || null,
+    language: 'ar',
+    status: isActive ? 'active' : 'inactive',
   };
 }
 
@@ -233,8 +354,20 @@ export async function getAdminRows(entity) {
       }
       return { ...result, rows: result.rows.map(normalizeStudentRow) };
     },
-    managers: () => safeRows('principals', '*', { limit: 80, orderBy: 'created_at' }),
-    schools: () => safeRows('schools', '*', { limit: 80, orderBy: 'created_at' }),
+    managers: async () => {
+      const [result, counts] = await Promise.all([
+        safeRows('principals', '*, schools(name_ar, name_he, city_ar, city_he)', { limit: 80, orderBy: 'created_at' }),
+        getSchoolCountMaps(),
+      ]);
+      return { ...result, rows: result.rows.map((row) => normalizeManagerRow(row, counts)) };
+    },
+    schools: async () => {
+      const [result, counts] = await Promise.all([
+        safeRows('schools', '*', { limit: 80, orderBy: 'created_at' }),
+        getSchoolCountMaps(),
+      ]);
+      return { ...result, rows: result.rows.map((row) => normalizeSchoolRow(row, counts)) };
+    },
     subjects: () => safeRows('subjects', '*', { limit: 80, orderBy: 'category' }),
     questions: async () => {
       const result = await safeRows('questions', '*, subjects(name_ar, name_he, name_en, code)', { limit: 80, orderBy: 'updated_at' });
@@ -264,6 +397,8 @@ export async function getAdminRows(entity) {
         ...result,
         rows: result.rows.map((row) => ({
           ...studentDisplayFromRelation(row),
+          subject_name_ar: row.subjects?.name_ar || row.subjects?.name_he || row.subjects?.name_en || row.subjects?.code || row.subject_id || '-',
+          subject_name_he: row.subjects?.name_he || row.subjects?.name_ar || row.subjects?.name_en || row.subjects?.code || row.subject_id || '-',
           subject_name: row.subjects?.name_ar || row.subjects?.name_he || row.subjects?.name_en || row.subjects?.code || row.subject_id || '-',
         })),
       };
@@ -307,18 +442,14 @@ export async function getAdminRows(entity) {
   };
 
   if (entity === 'games') {
+    const localGames = getGameHubItems('ar');
+    const result = await safeRows('games', '*', { limit: 80, orderBy: 'created_at', ascending: true });
+    const rowsByKey = new Map(result.rows.map((row) => [row.id, row]));
+
     return {
-      rows: getGameHubItems('ar').map((game) => ({
-        ...game,
-        subject: game.badge,
-        language: 'ar/he',
-        level: 'تعليمي',
-        players: 0,
-        averageScore: '-',
-        status: 'مفعلة',
-      })),
-      count: 4,
-      error: null,
+      rows: localGames.map((game) => normalizeGameRow(game, rowsByKey.get(game.key))),
+      count: localGames.length,
+      error: result.error && !isMissingSchema(result.error) ? result.error : null,
     };
   }
 
@@ -349,6 +480,8 @@ export async function updateAdminStudent(studentId, payload) {
   });
 
   if (!functionResult.error && functionResult.data?.success !== false) {
+    clearAdminCache('rows:students');
+    clearAdminCache('dashboard:');
     return { success: true, row: normalizeStudentRow(functionResult.data.student) };
   }
 
@@ -360,7 +493,26 @@ export async function updateAdminStudent(studentId, payload) {
     .maybeSingle();
 
   if (error) return { success: false, error };
+  clearAdminCache('rows:students');
+  clearAdminCache('dashboard:');
   return { success: true, row: normalizeStudentRow(data) };
+}
+
+export async function updateAdminGameVisibility(gameKey, isActive) {
+  const game = getGameHubItems('ar').find((item) => item.key === gameKey);
+  if (!game) return { success: false, error: { message: 'اللعبة غير موجودة في كتالوج الألعاب.' } };
+
+  const payload = buildGamePayload(game, isActive);
+  const { data, error } = await supabase
+    .from('games')
+    .upsert(payload, { onConflict: 'id' })
+    .select('*')
+    .maybeSingle();
+
+  if (error) return { success: false, error };
+  clearAdminCache('rows:games');
+  clearAdminCache('dashboard:');
+  return { success: true, row: normalizeGameRow(game, data) };
 }
 
 export async function createAdminStudent(payload) {
@@ -392,6 +544,8 @@ export async function createAdminStudent(payload) {
     return { success: false, error: { message: error?.message || data?.error || 'تعذر إنشاء الطالب.' } };
   }
 
+  clearAdminCache('rows:students');
+  clearAdminCache('dashboard:');
   return { success: true, row: normalizeStudentRow(data.student) };
 }
 
@@ -402,6 +556,8 @@ export async function deleteAdminStudent(studentId) {
     });
 
     if (!functionResult.error && functionResult.data?.success !== false) {
+      clearAdminCache('rows:students');
+      clearAdminCache('dashboard:');
       return { success: true };
     }
 
@@ -436,6 +592,8 @@ export async function deleteAdminStudent(studentId) {
 
     const { error } = await supabase.from('students').delete().eq('id', studentId);
     if (error) return { success: false, error };
+    clearAdminCache('rows:students');
+    clearAdminCache('dashboard:');
     return { success: true };
   } catch (error) {
     return { success: false, error };
@@ -486,6 +644,8 @@ export async function createAdminSubject(payload) {
 
   const { data, error } = await supabase.from('subjects').insert([row]).select('*').maybeSingle();
   if (error) return { success: false, error };
+  clearAdminCache('rows:subjects');
+  clearAdminCache('dashboard:');
   return { success: true, row: data };
 }
 
@@ -496,6 +656,7 @@ export async function createAdminInstitution(payload) {
   const row = buildInstitutionRow(payload);
   const { data, error } = await supabase.from('institutions').insert([row]).select('*').maybeSingle();
   if (error) return { success: false, error };
+  clearAdminCache('rows:institutions');
   return { success: true, row: data };
 }
 
@@ -516,6 +677,7 @@ export async function updateAdminInstitution(institutionId, payload) {
     .maybeSingle();
 
   if (error) return { success: false, error };
+  clearAdminCache('rows:institutions');
   return { success: true, row: data };
 }
 
@@ -534,6 +696,7 @@ export async function deleteAdminInstitution(institutionId) {
 
   const { error } = await supabase.from('institutions').delete().eq('id', institutionId);
   if (error) return { success: false, error };
+  clearAdminCache('rows:institutions');
   return { success: true };
 }
 
@@ -642,6 +805,8 @@ export async function createAdminQuestion(payload) {
     error = retry.error;
   }
   if (error) return { success: false, error };
+  clearAdminCache('rows:questions');
+  clearAdminCache('dashboard:');
   return { success: true, data };
 }
 
@@ -692,7 +857,7 @@ function summarizeGames(rows) {
     ];
   }
   const counts = rows.reduce((acc, row) => {
-    const key = row.game_key || row.game_name || 'game';
+    const key = row.game_id || row.game_key || row.game_name || 'game';
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});

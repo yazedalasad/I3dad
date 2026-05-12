@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import FloatingLanguageSwitcher from '../components/FloatingLanguageSwitcher';
 import Navbar from '../components/Navigation/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,6 +17,7 @@ import ChangePasswordScreen from '../screens/Auth/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
 import LoginScreen from '../screens/Auth/LoginScreen.js';
 import PrincipalAcceptInviteScreen from '../screens/Auth/PrincipalAcceptInviteScreen';
+import PrincipalFirstTimeRegisterScreen from '../screens/Auth/PrincipalFirstTimeRegisterScreen';
 import PrincipalOnboardingScreen from '../screens/Auth/PrincipalOnboardingScreen';
 import PrincipalSetPasswordScreen from '../screens/Auth/PrincipalSetPasswordScreen';
 import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
@@ -52,6 +52,7 @@ import PrincipalActivitiesScreen from '../screens/dashboard/PrincipalActivitiesS
 import PrincipalDashboardScreen from '../screens/dashboard/PrincipalDashboardScreen';
 import PrincipalProfileSettingsScreen from '../screens/dashboard/PrincipalProfileSettingsScreen';
 import PrincipalReportsScreen from '../screens/dashboard/PrincipalReportsScreen';
+import PrincipalStudentDetailsScreen from '../screens/dashboard/PrincipalStudentDetailsScreen';
 import PrincipalStudentsScreen from '../screens/dashboard/PrincipalStudentsScreen';
 import SchoolStrengthsWeaknessesScreen from '../screens/dashboard/SchoolStrengthsWeaknessesScreen';
 import StudentReportDetailsScreen from '../screens/dashboard/StudentReportDetailsScreen';
@@ -105,6 +106,7 @@ const NAVBAR_TAB_SCREENS = [
   'home',
   'successStories',
   'activities',
+  'games',
   'universitiesAndColleges',
   'adaptiveTest',
   'profile',
@@ -170,21 +172,21 @@ export default function ManualNavigator() {
 
     if (NAVBAR_TAB_SCREENS.includes(screen)) {
       setActiveTab(screen);
-    } else if (screen === 'games') {
-      setActiveTab('home');
     }
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    const href = typeof window !== 'undefined' && window.location?.href;
+    if (!href) return;
 
-    const url = new URL(window.location.href);
-    if (url.pathname !== '/principal/accept-invite') return;
+    const url = new URL(href);
+    if (!['/principal-register', '/principal/accept-invite'].includes(url.pathname)) return;
 
     const token = url.searchParams.get('token') || '';
     if (!token) return;
+    const code = url.searchParams.get('code') || '';
 
-    navigateTo('principalAcceptInvite', { token }, { replace: true, resetHistory: true });
+    navigateTo('principalRegister', { token, code }, { replace: true, resetHistory: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -220,8 +222,6 @@ export default function ManualNavigator() {
 
       if (NAVBAR_TAB_SCREENS.includes(previousEntry.screen)) {
         setActiveTab(previousEntry.screen);
-      } else if (previousEntry.screen === 'games') {
-        setActiveTab('home');
       }
 
       return nextHistory;
@@ -233,8 +233,13 @@ export default function ManualNavigator() {
     replace: (screen, params = {}) => navigateTo(screen, params),
   };
 
-  const gameRoute = { params: screenParams };
   const resolvedStudentId = screenParams.studentId || studentId || studentData?.id || null;
+  const gameRoute = {
+    params: {
+      ...screenParams,
+      studentId: screenParams.studentId || resolvedStudentId,
+    },
+  };
 
   const renderScreen = () => {
     // Auth screens
@@ -265,6 +270,10 @@ export default function ManualNavigator() {
 
     if (currentScreen === 'principalAcceptInvite') {
       return <PrincipalAcceptInviteScreen navigateTo={navigateTo} route={gameRoute} />;
+    }
+
+    if (currentScreen === 'principalRegister') {
+      return <PrincipalFirstTimeRegisterScreen navigateTo={navigateTo} route={gameRoute} />;
     }
 
     if (currentScreen === 'principalOnboarding') {
@@ -559,6 +568,9 @@ export default function ManualNavigator() {
       case 'studentReportDetails':
       case 'principalStudentDetails':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        if (currentScreen === 'principalStudentDetails') {
+          return <PrincipalStudentDetailsScreen navigateTo={navigateTo} route={gameRoute} />;
+        }
         return <StudentReportDetailsScreen navigateTo={navigateTo} route={gameRoute} />;
 
       case 'classesAnalytics':
@@ -669,6 +681,7 @@ export default function ManualNavigator() {
     'changePassword',
     'principalSetPassword',
     'principalAcceptInvite',
+    'principalRegister',
     'principalOnboarding',
     'roleRouter',
     'adminDashboard',
@@ -730,12 +743,8 @@ export default function ManualNavigator() {
     'testResults',
   ];
 
-  const isAdminScreen = String(currentScreen || '').startsWith('admin');
-
   return (
     <View style={styles.container}>
-      {!isAdminScreen && <FloatingLanguageSwitcher />}
-
       {!hideNavbarOn.includes(currentScreen) && (
         <Navbar
           activeTab={activeTab}

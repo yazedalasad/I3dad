@@ -71,6 +71,9 @@ import heDashboard from './locales/he/screens/dashboard.json';
 import arProfile from './locales/ar/screens/profile.json';
 import heProfile from './locales/he/screens/profile.json';
 
+import arPrincipal from './locales/ar/screens/principal.json';
+import hePrincipal from './locales/he/screens/principal.json';
+
 import arSuccessStories from './locales/ar/screens/successStories.json';
 import heSuccessStories from './locales/he/screens/successStories.json';
 
@@ -146,6 +149,7 @@ export const initI18n = async () => {
         'auth',
         'dashboard',
         'profile',
+        'principal',
         'successStories',
         'StudentInsightReport', // ✅ added
         'components',
@@ -164,6 +168,7 @@ export const initI18n = async () => {
           auth: arAuth,
           dashboard: arDashboard,
           profile: arProfile,
+          principal: arPrincipal,
           successStories: arSuccessStories,
           StudentInsightReport: arStudentInsightReport, // ✅
           components: arComponents,
@@ -179,6 +184,7 @@ export const initI18n = async () => {
           auth: heAuth,
           dashboard: heDashboard,
           profile: heProfile,
+          principal: hePrincipal,
           successStories: heSuccessStories,
           StudentInsightReport: heStudentInsightReport, // ✅
           components: heComponents,

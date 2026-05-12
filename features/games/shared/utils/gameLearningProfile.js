@@ -57,9 +57,9 @@ export const gameLearningProfiles = {
       en: 'Physics Lab',
     },
     topics: {
-      ar: ['سرعة', 'قوة واحتكاك', 'تسارع', 'نمذجة علمية'],
-      he: ['מהירות', 'כוח וחיכוך', 'תאוצה', 'מודל מדעי'],
-      en: ['Speed', 'Force and friction', 'Acceleration', 'Scientific modeling'],
+      ar: ['سرعة', 'مسافة ووقت', 'تسارع', 'نمذجة علمية'],
+      he: ['מהירות', 'מרחק וזמן', 'תאוצה', 'מודל מדעי'],
+      en: ['Speed', 'Distance and time', 'Acceleration', 'Scientific modeling'],
     },
     abilities: ['scientific', 'problem_solving', 'logic', 'math', 'speed'],
     subjectWeights: { physics: 5, engineering: 3, math: 2 },

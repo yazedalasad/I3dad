@@ -20,7 +20,6 @@ import CustomTextInput from '../../components/Form/CustomTextInput';
 import DatePicker from '../../components/Form/DatePicker';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { israeliSchools } from '../../data/israeliSchools';
 import { getClassSectionOptions } from '../../utils/classSections';
 import {
   formatPhone,
@@ -42,38 +41,20 @@ function normalizeSchoolName(value) {
     .replace(/\s+/g, ' ');
 }
 
-function buildSchoolOption({ id, name, city }) {
+function buildSchoolOption({ id, name, city, savedName }) {
   const schoolName = normalizeSchoolName(name);
   const cityName = normalizeSchoolName(city);
+  const persistedSchoolName = normalizeSchoolName(savedName) || schoolName;
 
   if (!schoolName) return null;
+  const label = cityName && !schoolName.includes(cityName) ? `${schoolName} - ${cityName}` : schoolName;
 
   return {
-    label: cityName ? `${schoolName} - ${cityName}` : schoolName,
+    label,
     value: id ? String(id) : `fallback:${schoolName}`,
     schoolId: id ? String(id) : '',
-    schoolName,
+    schoolName: persistedSchoolName,
   };
-}
-
-function buildFallbackSchoolItems() {
-  const seen = new Set();
-
-  return israeliSchools
-    .map((school) =>
-      buildSchoolOption({
-        id: null,
-        name: school?.name,
-        city: school?.city,
-      })
-    )
-    .filter(Boolean)
-    .filter((school) => {
-      const key = `${school.schoolName}::${school.label}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
 }
 
 export default function SignupScreen({ navigateTo }) {
@@ -109,8 +90,8 @@ export default function SignupScreen({ navigateTo }) {
   const isWideLayout = width >= 1040;
   const isTablet = width >= 720;
   const schoolFallbackNotice = isHebrew
-    ? 'טעינת בתי הספר מהשרת נכשלה, ולכן מוצגת רשימה מקומית.'
-    : 'تعذر تحميل المدارس من الخادم، لذلك نعرض قائمة محلية.';
+    ? 'טעינת בתי הספר ממסד הנתונים נכשלה. ודא/י שהרשאת הקריאה הציבורית לטבלת schools פעילה.'
+    : 'تعذر تحميل المدارس من الداتابيس. تأكد أن صلاحية القراءة العامة لجدول schools مفعلة.';
 
   const promoTitle = isHebrew ? 'ברוכים הבאים ל-I3dad' : 'مرحبًا بك في إعداد';
   const promoSubtitle = isHebrew
@@ -191,6 +172,10 @@ export default function SignupScreen({ navigateTo }) {
 
         if (!mounted) return;
 
+        if (error) {
+          console.error('loadSchools failed:', error?.message || error);
+        }
+
         const seen = new Set();
         const mappedSchools = [];
 
@@ -233,12 +218,11 @@ export default function SignupScreen({ navigateTo }) {
           return;
         }
 
-        const fallbackItems = buildFallbackSchoolItems();
-        setSchoolItems(fallbackItems);
-        setSchoolsError(error?.message ? schoolFallbackNotice : '');
+        setSchoolItems([]);
+        setSchoolsError(schoolFallbackNotice);
       } catch (error) {
         if (!mounted) return;
-        setSchoolItems(buildFallbackSchoolItems());
+        setSchoolItems([]);
         setSchoolsError(schoolFallbackNotice);
       } finally {
         if (mounted) setSchoolsLoading(false);
@@ -250,7 +234,7 @@ export default function SignupScreen({ navigateTo }) {
     return () => {
       mounted = false;
     };
-  }, [reloadSchoolsToken, isHebrew]);
+  }, [reloadSchoolsToken, isHebrew, i18n?.language]);
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -305,9 +289,11 @@ export default function SignupScreen({ navigateTo }) {
       newErrors.birthday = birthdayValidation.error;
     }
 
-    const schoolValidation = validateSchool(formData.schoolId || formData.schoolName);
+    const schoolValidation = validateSchool(formData.schoolId);
     if (!schoolValidation.isValid) {
-      newErrors.schoolName = schoolValidation.error;
+      newErrors.schoolName = schoolItems.length
+        ? schoolValidation.error
+        : schoolFallbackNotice;
     }
 
     const gradeValidation = validateGrade(formData.grade);
@@ -412,6 +398,10 @@ export default function SignupScreen({ navigateTo }) {
     label: isHebrew ? `כיתה ${item.label}` : `شعبة ${item.label}`,
   }));
   const schoolFieldError = errors.schoolName || (!schoolItems.length ? schoolsError : '');
+  const selectedSchoolPickerValue =
+    schoolItems.find((item) => item.schoolId && item.schoolId === formData.schoolId)?.value ||
+    schoolItems.find((item) => !item.schoolId && item.schoolName === formData.schoolName)?.value ||
+    '';
 
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
@@ -525,7 +515,7 @@ export default function SignupScreen({ navigateTo }) {
       <View style={inlineRowStyle}>
         <CustomPicker
           label={t('auth.signup.school')}
-          value={formData.schoolId}
+          value={selectedSchoolPickerValue}
           onValueChange={(value) => {
             const selectedSchool = schoolItems.find((item) => item.value === value);
             setFormData((prev) => ({

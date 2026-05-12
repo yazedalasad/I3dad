@@ -18,7 +18,7 @@ jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
   return {
-    FontAwesome: ({ name }) => <Text>{name}</Text>,
+    FontAwesome: ({ name }) => <Text>{`icon:${name}`}</Text>,
   };
 });
 
@@ -45,16 +45,16 @@ const overview = {
     completedSessions: 8,
     incompleteSessions: 3,
     averageScore: '74%',
-    topSubject: 'فيزياء',
+    topSubject: 'physics',
   },
   charts: {
     testsByDay: [{ label: '01-01', value: 2 }],
-    studentsBySubject: [{ label: 'فيزياء', value: 4 }],
-    averageBySubject: [{ label: 'رياضيات', value: 70 }],
-    gamesUsage: [{ label: 'مهندس الجسور', value: 5 }],
+    studentsBySubject: [{ label: 'physics', value: 4 }],
+    averageBySubject: [{ label: 'math', value: 70 }],
+    gamesUsage: [{ label: 'physics_bridge_game', value: 5 }],
   },
-  activities: [{ title: 'طالب جديد سجل', subtitle: 'الآن' }],
-  alerts: ['جلسات غير مكتملة'],
+  activities: [{ title: 'New student registered', subtitle: 'Now' }],
+  alerts: ['Incomplete sessions need review'],
   warnings: [],
 };
 
@@ -75,7 +75,7 @@ describe('AdminDashboardScreen', () => {
     jest.restoreAllMocks();
   });
 
-  test('renders admin dashboard overview', async () => {
+  test('POSITIVE: renders admin dashboard overview', async () => {
     const { findByText } = render(<AdminDashboardScreen navigateTo={jest.fn()} />);
 
     expect(await findByText('لوحة التحكم')).toBeTruthy();
@@ -83,7 +83,7 @@ describe('AdminDashboardScreen', () => {
     expect(await findByText('عدد الاختبارات خلال آخر 7 أيام')).toBeTruthy();
   });
 
-  test('sign out calls auth and navigates home', async () => {
+  test('POSITIVE: sign out calls auth and navigates home', async () => {
     const signOut = jest.fn().mockResolvedValueOnce(undefined);
     const navigateTo = jest.fn();
     useAuth.mockReturnValue({
@@ -102,7 +102,7 @@ describe('AdminDashboardScreen', () => {
     });
   });
 
-  test('blocks non-admin users', async () => {
+  test('NEGATIVE: blocks non-admin users', async () => {
     useAuth.mockReturnValue({
       user: { email: 'principal@test.com' },
       profile: { role: 'principal' },
@@ -111,6 +111,15 @@ describe('AdminDashboardScreen', () => {
     });
 
     const { findByText } = render(<AdminDashboardScreen navigateTo={jest.fn()} />);
+
     expect(await findByText(/مخصصة للأدمن فقط/)).toBeTruthy();
+  });
+
+  test('NEGATIVE: shows load error when overview service fails', async () => {
+    getAdminDashboardOverview.mockRejectedValueOnce(new Error('service unavailable'));
+
+    const { findByText } = render(<AdminDashboardScreen navigateTo={jest.fn()} />);
+
+    expect(await findByText('service unavailable')).toBeTruthy();
   });
 });

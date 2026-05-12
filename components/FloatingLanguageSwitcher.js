@@ -12,7 +12,7 @@ function normalizeLanguage(lang) {
   return value.startsWith('he') ? 'he' : 'ar';
 }
 
-export default function FloatingLanguageSwitcher() {
+export default function FloatingLanguageSwitcher({ inline = false }) {
   const { i18n } = useTranslation();
   const [currentLang, setCurrentLang] = useState(normalizeLanguage(i18n.language));
   const [isExpanded, setIsExpanded] = useState(false);
@@ -46,8 +46,8 @@ export default function FloatingLanguageSwitcher() {
   };
 
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
-      <View style={styles.container}>
+    <View style={[styles.wrapper, inline && styles.wrapperInline]} pointerEvents="box-none">
+      <View style={[styles.container, inline && styles.containerInline]}>
         <View style={styles.segmentedControl}>
           {(isExpanded ? orderedOptions : orderedOptions.slice(0, 1)).map((option) => {
             const isActive = currentLang === option.code;
@@ -66,6 +66,9 @@ export default function FloatingLanguageSwitcher() {
                 style={[styles.segmentButton, isActive && styles.activeSegmentButton]}
                 onPress={() => {
                   if (isCurrentOnlyButton) {
+                    i18n.changeLanguage(normalizeLanguage(option.code)).catch((error) => {
+                      console.error('Error changing language:', error);
+                    });
                     setIsExpanded(true);
                     return;
                   }
@@ -90,13 +93,22 @@ export default function FloatingLanguageSwitcher() {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    top: Platform.select({ web: 14, default: 48 }),
-    left: 14,
+    top: Platform.select({ web: 8, default: 36 }),
+    left: 0,
     zIndex: 9999,
   },
+  wrapperInline: {
+    position: 'relative',
+    top: 0,
+    left: 0,
+    zIndex: 1,
+  },
   container: {
-    padding: 6,
-    borderRadius: 18,
+    padding: 4,
+    borderTopRightRadius: 18,
+    borderBottomRightRadius: 18,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderWidth: 1,
     borderColor: 'rgba(203, 213, 225, 0.9)',
@@ -105,6 +117,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 8,
+  },
+  containerInline: {
+    borderRadius: 18,
   },
   badgeIcon: {
     width: 10,
@@ -117,17 +132,17 @@ const styles = StyleSheet.create({
   segmentedControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 3,
+    padding: 2,
     borderRadius: 14,
     backgroundColor: '#e8eef5',
     gap: 4,
   },
   segmentButton: {
-    minWidth: 50,
+    minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 11,
   },
   activeSegmentButton: {

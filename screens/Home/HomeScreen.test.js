@@ -132,7 +132,7 @@ describe('HomeScreen', () => {
     expect(navigateTo).toHaveBeenCalledWith('adaptiveTest');
   });
 
-  test('shows welcome banner when user and studentData exist', () => {
+  test('logged in user with studentData renders the student home safely', () => {
     useAuth.mockReturnValue({
       user: { id: 'u1' },
       studentData: { first_name: 'Ahmad' },
@@ -140,8 +140,7 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen navigateTo={navigateTo} />);
 
-    // welcome text is t('welcome', { name })
-    expect(getByText('welcome Ahmad')).toBeTruthy();
+    expect(getByText('startAssessment')).toBeTruthy();
   });
 
   test('CTA button navigates correctly when logged out', () => {

@@ -35,11 +35,14 @@ export default function CustomPicker({
   modalTitleKey = 'picker.titleFallback', // ✅ NEW: default key
   modalTitleParams, // ✅ NEW: params (optional)
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { width } = useWindowDimensions();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
+  const searchPlaceholder = isHebrew ? 'חיפוש...' : 'بحث...';
+  const noResultsText = isHebrew ? 'אין תוצאות מתאימות' : 'لا توجد نتائج مطابقة';
 
   const resolvedLabel =
     typeof label === 'string' && label.length > 0
@@ -169,7 +172,7 @@ export default function CustomPicker({
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder={t('picker.search', { defaultValue: 'Search...' })}
+                  placeholder={t('picker.search', { defaultValue: searchPlaceholder })}
                   style={styles.searchInput}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -196,7 +199,7 @@ export default function CustomPicker({
               {filteredItems.length === 0 && (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
-                    {t('picker.noResults', { defaultValue: 'No matching results' })}
+                    {t('picker.noResults', { defaultValue: noResultsText })}
                   </Text>
                 </View>
               )}

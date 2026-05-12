@@ -1,13 +1,15 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import { useAuth } from '../../contexts/AuthContext';
+import FloatingLanguageSwitcher from '../FloatingLanguageSwitcher';
 
 export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBackPress }) {
   const { t, i18n } = useTranslation();
   const { user, signOut } = useAuth();
+  const { width } = useWindowDimensions();
   const [accountExpanded, setAccountExpanded] = useState(false);
   const isRTL =
     String(i18n.language || '').toLowerCase().startsWith('ar') ||
@@ -44,10 +46,15 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
         { id: 'about', icon: 'info-circle' },
         { id: 'login', icon: 'sign-in' },
       ];
+  const isCompact = width < 720;
+  const navItemWidth = isCompact ? Math.max(76, Math.floor((width - 96) / 4)) : undefined;
 
   return (
     <View style={styles.container}>
       <View style={[styles.topRow, isRTL && styles.topRowRtl]}>
+        <View style={styles.languageSlot}>
+          <FloatingLanguageSwitcher inline />
+        </View>
         <TouchableOpacity
           style={[styles.backButton, !canGoBack && styles.backButtonHidden]}
           onPress={onBackPress}
@@ -65,78 +72,89 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.shell, isRTL && styles.shellRtl]}>
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.navScroll}
+        contentContainerStyle={[styles.navScrollContent, isRTL && styles.navScrollContentRtl]}
+      >
+        <View style={[styles.shell, isRTL && styles.shellRtl]}>
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
 
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, isActive && styles.activeTab]}
-              onPress={() => onTabPress(tab.id)}
-              activeOpacity={0.9}
-            >
-              <View style={[styles.iconWrap, isActive && styles.activeIconWrap]}>
-                <FontAwesome
-                  name={tab.icon}
-                  size={22}
-                  color={isActive ? '#16a34a' : '#94A3B8'}
-                />
-              </View>
-              <Text
-                numberOfLines={1}
-                style={[styles.label, isActive && styles.activeLabel, isRTL && styles.rtlLabel]}
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.tab, styles.scrollTab, { width: navItemWidth }, isActive && styles.activeTab]}
+                onPress={() => onTabPress(tab.id)}
+                activeOpacity={0.9}
               >
-                {label(`navigation:tabs.${tab.id}`, tab.id)}
-              </Text>
-              {isActive ? <View style={styles.activeGlow} /> : null}
-            </TouchableOpacity>
-          );
-        })}
-        {user ? (
-          <View style={[styles.accountTab, accountExpanded && styles.accountTabExpanded]}>
-            <TouchableOpacity
-              style={[styles.accountTabMain, accountExpanded && styles.accountTabMainExpanded]}
-              onPress={() => setAccountExpanded((value) => !value)}
-              activeOpacity={0.9}
-            >
-              <View style={styles.accountIconWrap}>
-                <FontAwesome name="user-circle" size={22} color="#16a34a" />
-              </View>
-              <Text numberOfLines={1} style={[styles.label, styles.activeLabel, isRTL && styles.rtlLabel]}>
-                {label('navigation:tabs.profile', 'حسابي')}
-              </Text>
-              <View style={styles.activeGlow} />
-            </TouchableOpacity>
+                <View style={[styles.iconWrap, isActive && styles.activeIconWrap]}>
+                  <FontAwesome
+                    name={tab.icon}
+                    size={22}
+                    color={isActive ? '#16a34a' : '#94A3B8'}
+                  />
+                </View>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.label, isActive && styles.activeLabel, isRTL && styles.rtlLabel]}
+                >
+                  {label(`navigation:tabs.${tab.id}`, tab.id)}
+                </Text>
+                {isActive ? <View style={styles.activeGlow} /> : null}
+              </TouchableOpacity>
+            );
+          })}
+          {user ? (
+            <View style={[styles.accountTab, styles.scrollTab, { width: navItemWidth }, accountExpanded && styles.accountTabExpanded]}>
+              <TouchableOpacity
+                style={[
+                  styles.accountTabMain,
+                  activeTab === 'profile' && styles.activeTab,
+                  accountExpanded && styles.accountTabMainExpanded,
+                ]}
+                onPress={() => setAccountExpanded((value) => !value)}
+                activeOpacity={0.9}
+              >
+                <View style={[styles.accountIconWrap, activeTab === 'profile' && styles.activeIconWrap]}>
+                  <FontAwesome name="user-circle" size={22} color={activeTab === 'profile' ? '#16a34a' : '#94A3B8'} />
+                </View>
+                <Text numberOfLines={1} style={[styles.label, activeTab === 'profile' && styles.activeLabel, isRTL && styles.rtlLabel]}>
+                  {label('navigation:tabs.profile', 'حسابي')}
+                </Text>
+                {activeTab === 'profile' ? <View style={styles.activeGlow} /> : null}
+              </TouchableOpacity>
 
-            {accountExpanded ? (
-              <View style={styles.accountDropdown}>
-                <TouchableOpacity
-                  style={styles.accountDropdownItem}
-                  onPress={() => {
-                    setAccountExpanded(false);
-                    onTabPress?.('profile');
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <FontAwesome name="user" size={14} color="#0f766e" />
-                  <Text style={styles.accountDropdownText}>{label('navigation:tabs.profile', 'حسابي')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.accountDropdownItem, styles.accountDropdownDanger]}
-                  onPress={handleSignOut}
-                  activeOpacity={0.9}
-                >
-                  <FontAwesome name="sign-out" size={14} color="#dc2626" />
-                  <Text style={[styles.accountDropdownText, styles.accountDropdownDangerText]}>
-                    {label('common.logout', 'خروج')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+              {accountExpanded ? (
+                <View style={styles.accountDropdown}>
+                  <TouchableOpacity
+                    style={styles.accountDropdownItem}
+                    onPress={() => {
+                      setAccountExpanded(false);
+                      onTabPress?.('profile');
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <FontAwesome name="user" size={14} color="#0f766e" />
+                    <Text style={styles.accountDropdownText}>{label('navigation:tabs.profile', 'حسابي')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.accountDropdownItem, styles.accountDropdownDanger]}
+                    onPress={handleSignOut}
+                    activeOpacity={0.9}
+                  >
+                    <FontAwesome name="sign-out" size={14} color="#dc2626" />
+                    <Text style={[styles.accountDropdownText, styles.accountDropdownDangerText]}>
+                      {label('common.logout', 'خروج')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -151,7 +169,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#d9e6f5',
   },
   topRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
@@ -159,6 +177,10 @@ const styles = StyleSheet.create({
   },
   topRowRtl: {
     flexDirection: 'row-reverse',
+  },
+  languageSlot: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   backButton: {
     minHeight: 42,
@@ -190,10 +212,15 @@ const styles = StyleSheet.create({
   accountTab: {
     position: 'relative',
     alignItems: 'center',
-    flex: 1,
     minHeight: 84,
     justifyContent: 'flex-start',
     borderRadius: 22,
+  },
+  scrollTab: {
+    flex: 1,
+    flexGrow: 1,
+    flexShrink: 0,
+    minWidth: 82,
   },
   accountTabExpanded: {
     minHeight: 176,
@@ -220,12 +247,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    elevation: 3,
+    backgroundColor: '#f8fafc',
   },
   accountDropdown: {
     width: '100%',
@@ -260,8 +282,12 @@ const styles = StyleSheet.create({
   shell: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    alignSelf: 'stretch',
+    flexGrow: 1,
+    flexShrink: 0,
     gap: 10,
+    width: '100%',
     padding: 10,
     borderRadius: 28,
     backgroundColor: '#ffffff',
@@ -273,22 +299,32 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 7,
   },
+  navScroll: {
+    width: '100%',
+  },
+  navScrollContent: {
+    paddingHorizontal: 2,
+    flexGrow: 1,
+  },
+  navScrollContentRtl: {
+    flexDirection: 'row-reverse',
+  },
   shellRtl: {
     flexDirection: 'row-reverse',
   },
   tab: {
     position: 'relative',
     alignItems: 'center',
-    flex: 1,
     minHeight: 84,
     justifyContent: 'center',
     borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'transparent',
     paddingHorizontal: 8,
     paddingVertical: 10,
   },
   activeTab: {
     backgroundColor: '#f0fdf4',
-    borderWidth: 1,
     borderColor: '#a7f3d0',
   },
   iconWrap: {
@@ -298,9 +334,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   activeIconWrap: {
     backgroundColor: '#ffffff',
+    borderColor: '#dcfce7',
     shadowColor: '#16a34a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.16,

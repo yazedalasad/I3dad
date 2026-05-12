@@ -24,6 +24,7 @@ import { supabase } from '../../config/supabase';
 import { getStudentAbilities, updateAbilitiesFromSession } from '../../services/abilityService';
 import { getStudentPersonalityProfile } from '../../services/personalityTestService';
 import { recommendTopDegrees } from '../../services/recommendationService';
+import { getStudentGameCareerSignalSummary } from '../../services/gameCareerSignalService';
 
 /* ---------------------------- helpers ---------------------------- */
 
@@ -443,6 +444,7 @@ export default function StudentInsightReportScreen({
   const [abilities, setAbilities] = useState([]); // from student_abilities (total_exam)
   const [interests, setInterests] = useState([]); // from student_interests (total_exam)
   const [recommendations, setRecommendations] = useState([]); // top degrees
+  const [gameCareerSignals, setGameCareerSignals] = useState({ skills: [], topics: [], degrees: [], explanations: [] });
 
   const [meta, setMeta] = useState({
     abilityUpdated: false,
@@ -525,7 +527,10 @@ export default function StudentInsightReportScreen({
         }
 
         // 6) Recommendations
-        const rRes = await recommendTopDegrees(studentId, { limit: 5 });
+        const [rRes, gameSignalRes] = await Promise.all([
+          recommendTopDegrees(studentId, { limit: 5 }),
+          getStudentGameCareerSignalSummary(studentId),
+        ]);
         const recs = rRes?.success ? (rRes?.data || []) : [];
 
         if (!mounted) return;
@@ -536,6 +541,7 @@ export default function StudentInsightReportScreen({
         setPersonalityInsights(pRes?.success ? (pRes.insights || null) : null);
         setInterests(interestsRows || []);
         setRecommendations(recs || []);
+        setGameCareerSignals(gameSignalRes || { skills: [], topics: [], degrees: [], explanations: [] });
       } catch (e) {
         console.log('StudentInsightReportScreen error:', e?.message || e);
         Alert.alert(
@@ -1133,6 +1139,75 @@ export default function StudentInsightReportScreen({
         )}
       </View>
 
+      {/* SECTION: Game career signals */}
+      <View style={styles.card}>
+        <SectionHeader
+          title={tt('studentInsightReport.gameSignalsSection', 'إشارات من الألعاب', 'אותות מהמשחקים')}
+          subtitle={tt(
+            'studentInsightReport.gameSignalsSectionSub',
+            'الألعاب تضيف إشارات مهنية صغيرة ولا تستبدل نتائج الاختبار الشامل.',
+            'המשחקים מוסיפים אותות קריירה קטנים ואינם מחליפים את תוצאות המבחן המלא.'
+          )}
+          icon="game-controller"
+        />
+
+        {!gameCareerSignals.skills?.length && !gameCareerSignals.topics?.length && !gameCareerSignals.degrees?.length ? (
+          <Text style={styles.muted}>
+            {tt('studentInsightReport.noGameSignals', 'لا توجد بيانات ألعاب كافية بعد.', 'אין עדיין מספיק נתוני משחקים.')}
+          </Text>
+        ) : (
+          <View style={{ gap: 12 }}>
+            {!!gameCareerSignals.skills?.length && (
+              <View style={styles.chipsWrap}>
+                {gameCareerSignals.skills.slice(0, 5).map((skill) => (
+                  <Chip key={skill.skill_tag} icon="sparkles" label={`${skill.label} ${skill.score}%`} tone="strong" />
+                ))}
+              </View>
+            )}
+
+            {(gameCareerSignals.topics || []).slice(0, 4).map((topic) => (
+              <BarRow key={topic.topic_key} label={topic.label} value={clamp(safeNum(topic.score, 0), 0, 100)} />
+            ))}
+
+            {!!gameCareerSignals.degrees?.length && (
+              <View style={styles.tableBox}>
+                <TableHeader
+                  cols={[
+                    { label: tt('studentInsightReport.degreeBoosted', 'تخصص تعزز بالألعاب', 'מסלול שחוזק ממשחקים'), flex: 1.4 },
+                    { label: tt('studentInsightReport.gameSignal', 'الإشارة', 'אות'), flex: 0.6 },
+                  ]}
+                />
+                {gameCareerSignals.degrees.slice(0, 4).map((degree) => (
+                  <TableRow
+                    key={degree.degree_id || degree.degree_code}
+                    cols={[
+                      {
+                        value: isArabic
+                          ? degree.name_ar || degree.name_he || degree.name_en || degree.degree_code
+                          : degree.name_he || degree.name_ar || degree.name_en || degree.degree_code,
+                        flex: 1.4,
+                      },
+                      { value: `${degree.score}`, flex: 0.6 },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+
+            {gameCareerSignals.explanations?.[0] ? (
+              <View style={styles.noteRow}>
+                <Ionicons name="information-circle" size={16} color="#4F8BFF" />
+                <Text style={styles.noteText}>
+                  {isArabic
+                    ? gameCareerSignals.explanations[0].reason_ar
+                    : gameCareerSignals.explanations[0].reason_he || gameCareerSignals.explanations[0].reason_en}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+      </View>
+
       {/* SECTION: Recommendations */}
       <View style={styles.card}>
         <SectionHeader
@@ -1156,7 +1231,7 @@ export default function StudentInsightReportScreen({
         ) : (
           <View style={{ gap: 12 }}>
             {recommendations.slice(0, 5).map((rec, idx) => {
-              const scorePct = Math.round(clamp(safeNum(rec?.score, 0) * 100, 0, 100));
+              const scorePct = Math.round(clamp(safeNum(rec?.score_percent, safeNum(rec?.score, 0) * 100), 0, 100));
               const name =
                 (isArabic ? (rec?.name_ar || rec?.name_en || rec?.name_he) : (rec?.name_he || rec?.name_en || rec?.name_ar)) ||
                 '—';
@@ -1355,6 +1430,14 @@ const styles = StyleSheet.create({
 
   muted: { marginTop: 8, color: '#64748B', fontWeight: '800', textAlign: 'right' },
   desc: { marginTop: 8, color: '#334155', fontWeight: '700', lineHeight: 20, textAlign: 'right' },
+  chipsWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
+  tableBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E6ECFF',
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
 
   traitRow: {
     flexDirection: 'row-reverse',

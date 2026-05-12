@@ -29,16 +29,16 @@ const gameHubItems = [
     },
   },
   {
-    key: 'physics-lab',
+    key: 'physics_lab',
     title: {
       ar: 'مختبر الفيزياء',
       he: 'מעבדת פיזיקה',
       en: 'Physics Lab',
     },
     description: {
-      ar: 'جرّب القوة والسرعة والتسارع في تجربة تفاعلية مناسبة للويب.',
-      he: 'נסו כוח, מהירות ותאוצה בחוויה אינטראקטיבית שמתאימה לאתר.',
-      en: 'Explore force, speed, and acceleration in an interactive web-friendly lab.',
+      ar: 'جرّب السرعة والمسافة والوقت والتسارع في تجربة تفاعلية مناسبة للويب.',
+      he: 'נסו מהירות, מרחק, זמן ותאוצה בחוויה אינטראקטיבית שמתאימה לאתר.',
+      en: 'Explore speed, distance, time, and acceleration in an interactive web-friendly lab.',
     },
     longDescription: {
       ar: 'بدّل القيم، شغّل المحاكاة، وتعلّم من التغذية الراجعة السريعة في كل محاولة.',

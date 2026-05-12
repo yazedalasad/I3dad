@@ -24,6 +24,16 @@ create table if not exists public.user_profiles (
   updated_at timestamptz not null default now()
 );
 
+alter table public.user_profiles add column if not exists school_id uuid;
+alter table public.user_profiles add column if not exists full_name text;
+alter table public.user_profiles add column if not exists display_name text;
+alter table public.user_profiles add column if not exists phone text;
+alter table public.user_profiles add column if not exists preferred_language text default 'ar';
+alter table public.user_profiles add column if not exists is_active boolean not null default true;
+alter table public.user_profiles add column if not exists last_seen_at timestamptz;
+alter table public.user_profiles add column if not exists created_at timestamptz not null default now();
+alter table public.user_profiles add column if not exists updated_at timestamptz not null default now();
+
 create index if not exists idx_user_profiles_role on public.user_profiles(role);
 create index if not exists idx_user_profiles_school on public.user_profiles(school_id);
 
@@ -135,6 +145,16 @@ create table if not exists public.principals (
   updated_at timestamptz not null default now()
 );
 
+alter table public.principals add column if not exists school_id uuid references public.schools(id) on delete set null;
+alter table public.principals add column if not exists school_name text;
+alter table public.principals add column if not exists email text;
+alter table public.principals add column if not exists gmail text;
+update public.principals
+set email = coalesce(nullif(email, ''), nullif(gmail, ''))
+where email is null or email = '';
+alter table public.principals add column if not exists role text not null default 'principal';
+alter table public.principals add column if not exists is_active boolean not null default true;
+
 create unique index if not exists idx_principals_email_unique on public.principals(lower(email));
 create index if not exists idx_principals_school on public.principals(school_id);
 
@@ -152,6 +172,18 @@ create table if not exists public.principal_registration_requests (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.principal_registration_requests add column if not exists school_id uuid references public.schools(id) on delete set null;
+alter table public.principal_registration_requests add column if not exists full_name text;
+alter table public.principal_registration_requests add column if not exists email text;
+alter table public.principal_registration_requests add column if not exists phone text;
+alter table public.principal_registration_requests add column if not exists school_name text;
+alter table public.principal_registration_requests add column if not exists invite_token text;
+alter table public.principal_registration_requests add column if not exists status text not null default 'pending';
+alter table public.principal_registration_requests add column if not exists notes text;
+alter table public.principal_registration_requests add column if not exists created_by uuid references auth.users(id) on delete set null;
+alter table public.principal_registration_requests add column if not exists created_at timestamptz not null default now();
+alter table public.principal_registration_requests add column if not exists updated_at timestamptz not null default now();
 
 create index if not exists idx_principal_registration_requests_status on public.principal_registration_requests(status);
 create index if not exists idx_principal_registration_requests_email on public.principal_registration_requests(lower(email));
@@ -281,6 +313,8 @@ create table if not exists public.test_sessions (
   updated_at timestamptz not null default now()
 );
 
+alter table public.test_sessions add column if not exists school_id uuid references public.schools(id) on delete set null;
+
 create index if not exists idx_test_sessions_student on public.test_sessions(student_id);
 create index if not exists idx_test_sessions_school on public.test_sessions(school_id);
 create index if not exists idx_test_sessions_status on public.test_sessions(status);
@@ -339,28 +373,72 @@ create table if not exists public.student_recommendations (
 -- Games
 -- ------------------------------------------------------------
 
-create table if not exists public.educational_games (
-  id uuid primary key default gen_random_uuid(),
-  game_key text not null unique,
-  title_ar text not null,
-  title_he text,
-  description_ar text,
-  description_he text,
-  subject_id uuid references public.subjects(id) on delete set null,
-  icon text default 'gamepad',
-  color_start text,
-  color_end text,
-  minimum_level integer default 0,
-  is_visible boolean not null default true,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+create table if not exists public.games (
+  id text primary key,
+  title text not null,
+  domain text,
+  language text default 'he',
+  status text default 'active',
+  created_at timestamp without time zone default now()
 );
+
+alter table public.games add column if not exists title text;
+alter table public.games add column if not exists domain text;
+alter table public.games add column if not exists language text default 'he';
+alter table public.games add column if not exists status text default 'active';
+alter table public.games add column if not exists created_at timestamp without time zone default now();
+
+insert into public.games (id, title, domain, language, status)
+values
+  ('arabic-poet-puzzle', 'كنوز الألفاظ', 'لغة', 'ar', 'active'),
+  ('arabic_poet_puzzle', 'كنوز الألفاظ', 'لغة', 'ar', 'active'),
+  ('physics-lab', 'مختبر الفيزياء', 'علوم', 'ar', 'active'),
+  ('physics_lab', 'Physics Lab', 'physics', 'en', 'active')
+on conflict (id) do update
+set
+  title = excluded.title,
+  domain = excluded.domain,
+  language = excluded.language;
+
+create table if not exists public.game_levels (
+  id text primary key,
+  game_id text references public.games(id),
+  title text not null,
+  difficulty text,
+  patient_id text,
+  estimated_minutes integer,
+  is_active boolean default true,
+  created_at timestamp without time zone default now()
+);
+
+alter table public.game_levels add column if not exists game_id text;
+alter table public.game_levels add column if not exists title text;
+alter table public.game_levels add column if not exists difficulty text;
+alter table public.game_levels add column if not exists patient_id text;
+alter table public.game_levels add column if not exists estimated_minutes integer;
+alter table public.game_levels add column if not exists is_active boolean default true;
+alter table public.game_levels add column if not exists created_at timestamp without time zone default now();
+
+insert into public.game_levels (id, game_id, title, difficulty, estimated_minutes, is_active)
+values
+  ('arabic_poet_puzzle_level_1', 'arabic_poet_puzzle', 'المستوى الأول - ألفاظ شعرية قديمة', 'beginner', 8, true),
+  ('arabic_emotion_poetry_level_1', 'arabic_poet_puzzle', 'خريطة العاطفة في الشعر العربي', 'intermediate', 10, true),
+  ('arabic_majnun_layla_level_1', 'arabic_poet_puzzle', 'المستوى الثالث - خريطة العشق والفراق', 'advanced', 12, true),
+  ('physics_lab_level_1', 'physics_lab', 'Level 1 - Speed', 'beginner', 6, true),
+  ('physics_lab_level_2', 'physics_lab', 'Level 2 - Distance', 'intermediate', 8, true),
+  ('physics_lab_level_3', 'physics_lab', 'Level 3 - Acceleration', 'advanced', 10, true)
+on conflict (id) do update
+set
+  game_id = excluded.game_id,
+  title = excluded.title,
+  difficulty = excluded.difficulty,
+  estimated_minutes = excluded.estimated_minutes,
+  is_active = excluded.is_active;
 
 create table if not exists public.game_sessions (
   id uuid primary key default gen_random_uuid(),
   student_id uuid references public.students(id) on delete cascade,
-  game_key text not null,
+  game_id text references public.games(id),
   score numeric(8,2),
   max_score numeric(8,2),
   duration_seconds integer,
@@ -371,8 +449,23 @@ create table if not exists public.game_sessions (
   created_at timestamptz not null default now()
 );
 
+alter table public.game_sessions add column if not exists game_id text;
+
 create index if not exists idx_game_sessions_student on public.game_sessions(student_id);
-create index if not exists idx_game_sessions_key on public.game_sessions(game_key);
+create index if not exists idx_game_sessions_game_id on public.game_sessions(game_id);
+
+create table if not exists public.game_action_logs (
+  id uuid primary key default gen_random_uuid(),
+  game_session_id uuid references public.game_sessions(id),
+  scene_id text,
+  choice_id text,
+  action_type text,
+  time_to_choose_ms integer,
+  is_optimal boolean,
+  created_at timestamp without time zone default now()
+);
+
+create index if not exists idx_game_action_logs_session on public.game_action_logs(game_session_id);
 
 -- ------------------------------------------------------------
 -- Academic institutions / content / audit / settings
@@ -453,6 +546,7 @@ on conflict (key) do nothing;
 -- Admin-friendly views
 -- ------------------------------------------------------------
 
+drop view if exists public.admin_students_overview cascade;
 create or replace view public.admin_students_overview as
 select
   s.id,
@@ -477,6 +571,7 @@ left join public.schools sc on sc.id = s.school_id
 left join public.test_sessions ts on ts.student_id = s.id
 group by s.id, sc.name_ar;
 
+drop view if exists public.admin_questions_overview cascade;
 create or replace view public.admin_questions_overview as
 select
   q.*,
@@ -504,8 +599,9 @@ alter table public.student_responses enable row level security;
 alter table public.student_abilities enable row level security;
 alter table public.student_interests enable row level security;
 alter table public.student_recommendations enable row level security;
-alter table public.educational_games enable row level security;
+alter table public.games enable row level security;
 alter table public.game_sessions enable row level security;
+alter table public.game_action_logs enable row level security;
 alter table public.institutions enable row level security;
 alter table public.translations enable row level security;
 alter table public.audit_logs enable row level security;
@@ -528,7 +624,7 @@ using (
   or exists (
     select 1 from public.user_profiles p
     where p.user_id = auth.uid()
-      and p.role in ('school_manager', 'principal', 'school_admin')
+      and p.role::text in ('school_manager', 'principal', 'school_admin')
       and p.school_id = students.school_id
   )
 );
@@ -619,10 +715,27 @@ using (
   or exists (select 1 from public.students s where s.id = student_recommendations.student_id and s.user_id = auth.uid())
 );
 
-drop policy if exists "admin read games" on public.educational_games;
-create policy "admin read games" on public.educational_games
+drop policy if exists "admin read games" on public.games;
+create policy "admin read games" on public.games
 for select to authenticated
 using (true);
+
+drop policy if exists "admin upsert games" on public.games;
+create policy "admin upsert games" on public.games
+for insert to authenticated
+with check (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+);
+
+drop policy if exists "admin update games" on public.games;
+create policy "admin update games" on public.games
+for update to authenticated
+using (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+)
+with check (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+);
 
 drop policy if exists "admin read game sessions" on public.game_sessions;
 create policy "admin read game sessions" on public.game_sessions
@@ -630,6 +743,54 @@ for select to authenticated
 using (
   coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
   or exists (select 1 from public.students s where s.id = game_sessions.student_id and s.user_id = auth.uid())
+);
+
+drop policy if exists "students create game sessions" on public.game_sessions;
+create policy "students create game sessions" on public.game_sessions
+for insert to authenticated
+with check (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  or exists (select 1 from public.students s where s.id = game_sessions.student_id and s.user_id = auth.uid())
+);
+
+drop policy if exists "students update own game sessions" on public.game_sessions;
+create policy "students update own game sessions" on public.game_sessions
+for update to authenticated
+using (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  or exists (select 1 from public.students s where s.id = game_sessions.student_id and s.user_id = auth.uid())
+)
+with check (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  or exists (select 1 from public.students s where s.id = game_sessions.student_id and s.user_id = auth.uid())
+);
+
+drop policy if exists "students read own game logs" on public.game_action_logs;
+create policy "students read own game logs" on public.game_action_logs
+for select to authenticated
+using (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  or exists (
+    select 1
+    from public.game_sessions gs
+    join public.students s on s.id = gs.student_id
+    where gs.id = game_action_logs.game_session_id
+      and s.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "students create game logs" on public.game_action_logs;
+create policy "students create game logs" on public.game_action_logs
+for insert to authenticated
+with check (
+  coalesce(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  or exists (
+    select 1
+    from public.game_sessions gs
+    join public.students s on s.id = gs.student_id
+    where gs.id = game_action_logs.game_session_id
+      and s.user_id = auth.uid()
+  )
 );
 
 drop policy if exists "admin read institutions" on public.institutions;

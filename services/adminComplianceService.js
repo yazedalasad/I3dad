@@ -1,4 +1,8 @@
 import { supabase } from '../config/supabase';
+import {
+  createPrincipalInvitation,
+  principalInvitationLink as buildPrincipalInvitationLink,
+} from './principalInvitationService';
 
 const countFrom = async (table, query = (q) => q) => {
   const { count, error } = await query(
@@ -81,27 +85,13 @@ export async function createPrincipalRegistrationRequest(payload) {
 }
 
 export async function invitePrincipalByEmail(payload) {
-  const body = {
-    email: String(payload.email || '').trim().toLowerCase(),
-    full_name: payload.fullName || payload.full_name || null,
-    phone: payload.phone || null,
-    school_id: payload.schoolId || payload.school_id || null,
-    preferred_language: payload.preferredLanguage || payload.preferred_language || 'ar',
-    role: payload.role || 'principal',
-    notes: payload.notes || null,
-  };
-
-  const { data, error } = await supabase.functions.invoke('create-principal-invitation', { body });
-
-  if (error) return { success: false, error };
-  if (data?.success === false) return { success: false, error: { message: data.error || 'Invite failed' }, data };
-  return { success: true, data };
+  return createPrincipalInvitation(payload);
 }
 
 export async function getPrincipalInvitations() {
   const { data, error } = await supabase
     .from('principal_invitations')
-    .select('id, email, full_name, phone, school_id, school_name, role, preferred_language, status, expires_at, accepted_at, created_at, notes, invitation_token')
+    .select('id, invited_email, invited_name, invited_phone, school_id, school_name, role, preferred_language, status, expires_at, used_at, created_at, notes, invite_token, invitation_code')
     .order('created_at', { ascending: false })
     .limit(100);
 
@@ -111,6 +101,10 @@ export async function getPrincipalInvitations() {
     success: true,
     rows: (data || []).map((row) => ({
       ...row,
+      email: row.invited_email,
+      full_name: row.invited_name,
+      phone: row.invited_phone,
+      invitation_token: row.invite_token,
       computed_status: row.status === 'pending' && new Date(row.expires_at).getTime() < now ? 'expired' : row.status,
     })),
   };
@@ -119,7 +113,7 @@ export async function getPrincipalInvitations() {
 export async function revokePrincipalInvitation(invitationId) {
   const { error } = await supabase
     .from('principal_invitations')
-    .update({ status: 'revoked' })
+    .update({ status: 'expired' })
     .eq('id', invitationId)
     .eq('status', 'pending');
 
@@ -128,9 +122,7 @@ export async function revokePrincipalInvitation(invitationId) {
 }
 
 export function principalInvitationLink(token) {
-  const path = `/principal/accept-invite?token=${encodeURIComponent(token || '')}`;
-  if (typeof window !== 'undefined' && window.location?.origin) return `${window.location.origin}${path}`;
-  return path;
+  return buildPrincipalInvitationLink(token);
 }
 
 export async function updateUserRole({ userId, role }) {
