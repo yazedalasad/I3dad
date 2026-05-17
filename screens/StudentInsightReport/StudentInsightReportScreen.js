@@ -1160,7 +1160,7 @@ export default function StudentInsightReportScreen({
             {!!gameCareerSignals.skills?.length && (
               <View style={styles.chipsWrap}>
                 {gameCareerSignals.skills.slice(0, 5).map((skill) => (
-                  <Chip key={skill.skill_tag} icon="sparkles" label={`${skill.label} ${skill.score}%`} tone="strong" />
+                  <Chip key={skill.key || `${skill.game_key || 'game'}:${skill.skill_tag}`} icon="sparkles" label={`${skill.label} ${skill.score}%`} tone="strong" />
                 ))}
               </View>
             )}
@@ -1194,16 +1194,16 @@ export default function StudentInsightReportScreen({
               </View>
             )}
 
-            {gameCareerSignals.explanations?.[0] ? (
-              <View style={styles.noteRow}>
+            {gameCareerSignals.explanations?.slice(0, 2).map((item, index) => (
+              <View key={`${item.game_key || item.topic_key || 'game'}-${index}`} style={styles.noteRow}>
                 <Ionicons name="information-circle" size={16} color="#4F8BFF" />
                 <Text style={styles.noteText}>
                   {isArabic
-                    ? gameCareerSignals.explanations[0].reason_ar
-                    : gameCareerSignals.explanations[0].reason_he || gameCareerSignals.explanations[0].reason_en}
+                    ? item.reason_ar
+                    : item.reason_he || item.reason_en}
                 </Text>
               </View>
-            ) : null}
+            ))}
           </View>
         )}
       </View>

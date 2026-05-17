@@ -6,12 +6,13 @@ import { markPhysicsLabLevelCompleted } from '../services/levelProgressService';
 
 export default function PhysicsLabResultScreen({ route, navigation }) {
   const levelId = route?.params?.levelId;
-  const studentId = route?.params?.studentId || 'demo-student-id';
+  const studentId = route?.params?.studentId || null;
   const result = route?.params?.result || {};
   const level = physicsLabLevels.find((item) => item.id === levelId) || physicsLabLevels[0];
   const nextLevel = result?.nextLevel || null;
 
   useEffect(() => {
+    if (!studentId) return;
     markPhysicsLabLevelCompleted(level.id, studentId).catch(() => {});
   }, [level.id, studentId]);
 

@@ -2,13 +2,17 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function Footer() {
+export default function Footer({ navigateTo }) {
   const navigation = useNavigation();
+  const goToAbout = () => {
+    if (navigateTo) navigateTo('about');
+    else navigation.navigate('about');
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>
-        <FontAwesome name="graduation-cap" size={24} color="#27ae60" /> I3dad
+        <FontAwesome name="graduation-cap" size={24} color="#27ae60" /> i3dad / إعداد
       </Text>
 
       <Text style={styles.tagline}>تمكين الطلاب العرب الإسرائيليين منذ 2024</Text>
@@ -29,7 +33,7 @@ export default function Footer() {
       </View>
 
       <View style={styles.footerLinks}>
-        <TouchableOpacity onPress={() => navigation.navigate('About')}>
+        <TouchableOpacity onPress={goToAbout}>
           <Text style={styles.link}>من نحن</Text>
         </TouchableOpacity>
 
@@ -44,7 +48,7 @@ export default function Footer() {
       </View>
 
       <Text style={styles.copyright}>
-        © 2024 I3dad. جميع الحقوق محفوظة. | صنع بـ{' '}
+        © 2024 i3dad / إعداد. جميع الحقوق محفوظة. | صنع بـ{' '}
         <FontAwesome name="heart" size={14} color="#27ae60" /> للطلاب العرب الإسرائيليين
       </Text>
     </View>

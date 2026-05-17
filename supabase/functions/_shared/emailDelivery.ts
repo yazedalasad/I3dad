@@ -105,7 +105,7 @@ async function sendWithGmail(payload: SendEmailPayload) {
 
 async function sendWithResend(payload: SendEmailPayload) {
   const resendKey = Deno.env.get("RESEND_API_KEY") || "";
-  const from = payload.from || Deno.env.get("INVITATION_EMAIL_FROM") || "I3dad <onboarding@resend.dev>";
+  const from = payload.from || Deno.env.get("INVITATION_EMAIL_FROM") || "i3dad / إعداد <onboarding@resend.dev>";
   if (!resendKey) return { sent: false, provider: "none", error: "RESEND_API_KEY is missing" };
 
   const response = await fetch("https://api.resend.com/emails", {

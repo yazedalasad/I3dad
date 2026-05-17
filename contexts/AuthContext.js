@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { supabase } from '../config/supabase';
 import { CLASS_SECTION_DEFAULT, normalizeClassSection } from '../utils/classSections';
 import { buildStudentIdentity } from '../utils/studentIdentity';
+import { isValidIsraeliId, normalizeIsraeliId } from '../src/utils/israeliId';
 
 const AuthContext = createContext(null);
 
@@ -69,10 +70,15 @@ const buildMissingStudentUpdates = (target, source) => {
 const normalizeBirthday = (birthday) =>
   birthday instanceof Date ? birthday.toISOString().slice(0, 10) : birthday;
 
+const normalizeValidStudentId = (value) => {
+  const normalized = normalizeIsraeliId(value);
+  return isValidIsraeliId(normalized) ? normalized : null;
+};
+
 const buildStudentMetadata = (studentInfo = {}) => ({
   role: 'student',
-  student_id: studentInfo.studentId || studentInfo.student_id || null,
-  studentId: studentInfo.studentId || studentInfo.student_id || null,
+  student_id: normalizeValidStudentId(studentInfo.studentId || studentInfo.student_id || ''),
+  studentId: normalizeValidStudentId(studentInfo.studentId || studentInfo.student_id || ''),
   first_name: studentInfo.firstName || studentInfo.first_name || '',
   firstName: studentInfo.firstName || studentInfo.first_name || '',
   last_name: studentInfo.lastName || studentInfo.last_name || '',
@@ -94,9 +100,10 @@ const buildStudentMetadata = (studentInfo = {}) => ({
 });
 
 const buildStudentPayloadFromSource = ({ userId, email, source = {} }) => {
+  const studentId = normalizeValidStudentId(source.student_id || source.studentId || '');
   const payload = {
     user_id: userId,
-    student_id: source.student_id || source.studentId || userId,
+    student_id: studentId,
     first_name: source.first_name || source.firstName || '',
     last_name: source.last_name || source.lastName || '',
     phone: source.phone || '',
@@ -267,7 +274,7 @@ export const AuthProvider = ({ children }) => {
         prof = null;
       }
 
-      const metadataRole = String(authUser.app_metadata?.role || authUser.user_metadata?.role || '').toLowerCase();
+      const metadataRole = String(authUser.app_metadata?.role || '').toLowerCase();
       const metadataProfile = metadataRole
         ? {
             user_id: userId,
@@ -358,6 +365,9 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async (email, password, studentInfo) => {
     try {
+      const normalizedStudentId = normalizeValidStudentId(studentInfo?.studentId || studentInfo?.student_id);
+      if (!normalizedStudentId) throw new Error('INVALID_STUDENT_ID');
+
       const studentMetadata = buildStudentMetadata(studentInfo);
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -377,7 +387,7 @@ export const AuthProvider = ({ children }) => {
         const { data: studentRow, error: studentError } = await supabase.from('students').insert([
           {
             user_id: newUserId,
-            student_id: studentInfo.studentId,
+            student_id: normalizedStudentId,
             first_name: studentInfo.firstName,
             last_name: studentInfo.lastName,
             phone: studentInfo.phone,
@@ -467,16 +477,26 @@ export const AuthProvider = ({ children }) => {
       if (!user) throw new Error('No user logged in');
 
       const baseStudent = studentData || (await fetchStudentData(user));
+      const {
+        student_id: rawStudentId,
+        studentId: rawStudentIdCamel,
+        ...restUpdates
+      } = updates || {};
+      const requestedStudentId = rawStudentId ?? rawStudentIdCamel;
+      if (hasValue(requestedStudentId) && !normalizeValidStudentId(requestedStudentId)) {
+        throw new Error('INVALID_STUDENT_ID');
+      }
+
+      const resolvedStudentId =
+        normalizeValidStudentId(requestedStudentId) ||
+        normalizeValidStudentId(baseStudent?.student_id) ||
+        normalizeValidStudentId(user.user_metadata?.student_id || user.user_metadata?.studentId);
+
       const payload = {
-        ...updates,
+        ...restUpdates,
         user_id: user.id,
-        email: updates.email || baseStudent?.email || user.email || null,
-        student_id:
-          updates.student_id ||
-          baseStudent?.student_id ||
-          user.user_metadata?.student_id ||
-          user.user_metadata?.studentId ||
-          user.id,
+        email: restUpdates.email || baseStudent?.email || user.email || null,
+        ...(resolvedStudentId ? { student_id: resolvedStudentId } : {}),
       };
 
       const query = baseStudent?.id

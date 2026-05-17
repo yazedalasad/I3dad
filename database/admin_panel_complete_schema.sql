@@ -1,5 +1,5 @@
 -- ============================================================
--- I3dad / إعداد - Complete Admin Panel Schema
+-- i3dad / إعداد - Complete Admin Panel Schema
 -- Run this in Supabase SQL Editor after the base schema files.
 -- It is intentionally additive: it should not delete existing data.
 -- ============================================================

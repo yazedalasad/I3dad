@@ -127,9 +127,9 @@ beforeEach(() => {
     });
   });
 
-  it('route (positive): auth metadata admin -> navigates admin dashboard', async () => {
+  it('route (positive): app metadata admin -> navigates admin dashboard', async () => {
     mockAuthState = {
-      user: { id: 'u-admin', user_metadata: { role: 'admin' } },
+      user: { id: 'u-admin', app_metadata: { role: 'admin' } },
       loading: false,
       profile: null,
     };
@@ -139,6 +139,23 @@ beforeEach(() => {
 
     await waitFor(() => {
       expect(navigateTo).toHaveBeenCalledWith('adminDashboard', {}, { replace: true });
+    });
+  });
+
+  it('route (security): user metadata admin is ignored without trusted role source', async () => {
+    mockAuthState = {
+      user: { id: 'u-user-meta-admin', user_metadata: { role: 'admin' } },
+      loading: false,
+      profile: null,
+    };
+    mockMaybeSingleProfiles.mockResolvedValueOnce({ data: { role: 'student' }, error: null });
+
+    const navigateTo = jest.fn();
+    render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
+
+    await waitFor(() => {
+      expect(navigateTo).toHaveBeenCalledWith('home', {}, { replace: true });
+      expect(navigateTo).not.toHaveBeenCalledWith('adminDashboard', {}, { replace: true });
     });
   });
 

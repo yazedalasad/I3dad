@@ -59,7 +59,7 @@ export function useAdminBreakpoints() {
 }
 
 export function AdminShell({ activeKey, title, subtitle, navigateTo, children, primaryAction }) {
-  const { user, signOut, profile, loading } = useAuth();
+  const { user, signOut, profile, loading, studentDataLoading } = useAuth();
   const { i18n, isHebrew } = useAdminLocale();
   const { width, isMobile, isTablet } = useAdminBreakpoints();
   const tr = useAdminTranslator();
@@ -83,7 +83,7 @@ export function AdminShell({ activeKey, title, subtitle, navigateTo, children, p
     }
   };
 
-  const role = String(user?.app_metadata?.role || user?.user_metadata?.role || profile?.role || '').toLowerCase();
+  const role = String(user?.app_metadata?.role || profile?.role || '').toLowerCase();
   if (loading) {
     return (
       <View style={styles.accessState}>
@@ -92,7 +92,15 @@ export function AdminShell({ activeKey, title, subtitle, navigateTo, children, p
     );
   }
 
-  if (role && role !== 'admin') {
+  if (!role && studentDataLoading) {
+    return (
+      <View style={styles.accessState}>
+        <LoadingState label="جاري التحقق من صلاحيات الأدمن..." />
+      </View>
+    );
+  }
+
+  if (role !== 'admin') {
     return (
       <View style={styles.accessState}>
         <ErrorState message="هذه الصفحة مخصصة للأدمن فقط. لا يمكن لمدير المدرسة أو الطالب رؤية بيانات النظام العامة." />

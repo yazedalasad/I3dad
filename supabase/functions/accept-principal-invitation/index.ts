@@ -13,6 +13,23 @@ import {
   normalizeLanguage,
 } from "../_shared/principalInvitation.ts";
 
+function normalizeIsraeliId(value: unknown) {
+  return String(value || "").replace(/\D/g, "").padStart(9, "0");
+}
+
+function isValidIsraeliId(value: unknown) {
+  const id = normalizeIsraeliId(value);
+  if (!/^\d{9}$/.test(id)) return false;
+  const sum = id
+    .split("")
+    .map((digit, index) => {
+      const n = Number(digit) * (index % 2 === 0 ? 1 : 2);
+      return n > 9 ? n - 9 : n;
+    })
+    .reduce((a, b) => a + b, 0);
+  return sum % 10 === 0;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { success: false, error: "Method not allowed" });
@@ -21,6 +38,8 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const token = String(body.token || "").trim();
     const email = normalizeEmail(body.email);
+    const rawIdentityNumber = String(body.identity_number || body.identityNumber || "").replace(/\D/g, "");
+    const identityNumber = normalizeIsraeliId(body.identity_number || body.identityNumber);
     const fullName = String(body.full_name || body.fullName || "").trim();
     const phone = String(body.phone || "").trim();
     const password = String(body.password || "");
@@ -28,6 +47,7 @@ Deno.serve(async (req: Request) => {
 
     if (!token) return json(400, { success: false, error: "Invitation token is required" });
     if (!email) return json(400, { success: false, error: "Email is required" });
+    if (!rawIdentityNumber || !isValidIsraeliId(identityNumber)) return json(400, { success: false, error: "Invalid Israeli ID number" });
     if (!fullName) return json(400, { success: false, error: "Full name is required" });
     if (password.length < 8) return json(400, { success: false, error: "Password must be at least 8 characters" });
     if (!isValidInvitationCode(code)) return json(403, { success: false, error: "The code is incorrect or does not belong to this school.", code: "invalid_code" });
@@ -61,6 +81,8 @@ Deno.serve(async (req: Request) => {
 
     const authMetadata = {
       role: "principal",
+      identity_number: identityNumber,
+      identityNumber,
       full_name: fullName,
       fullName,
       phone: phone || null,

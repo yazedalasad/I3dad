@@ -280,7 +280,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
               <View style={styles.heroBadge}>
                 <FontAwesome name="leaf" size={14} color="#27ae60" />
-                <Text style={styles.heroBadgeText}>I3dad</Text>
+                <Text style={styles.heroBadgeText}>i3dad / إعداد</Text>
               </View>
 
               <View style={styles.heroContent}>
@@ -358,7 +358,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
             >
               <View style={styles.formBadge}>
                 <FontAwesome name="leaf" size={14} color="#27ae60" />
-                <Text style={styles.formBadgeText}>I3dad</Text>
+                <Text style={styles.formBadgeText}>i3dad / إعداد</Text>
               </View>
 
               <Text style={[styles.formTitle, isHebrew && styles.rtlText]}>{verifyT('formTitle')}</Text>

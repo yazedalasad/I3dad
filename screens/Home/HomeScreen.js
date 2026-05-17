@@ -16,7 +16,7 @@ export default function HomeScreen({ navigateTo }) {
   const isRTL = I18nManager.isRTL || String(i18n.language).toLowerCase() !== 'en';
   const isHebrew = String(i18n.language || '').toLowerCase().startsWith('he');
   const welcomeName = studentIdentity?.firstName || '';
-  const role = String(user?.app_metadata?.role || user?.user_metadata?.role || profile?.role || '').toLowerCase();
+  const role = String(user?.app_metadata?.role || profile?.role || '').toLowerCase();
   const isAdmin = role === 'admin';
 
   const smartCopy = isHebrew

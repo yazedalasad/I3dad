@@ -176,7 +176,7 @@ async function sendMail({ to, subject, html, text }) {
   const user = process.env.GMAIL_USER || process.env.EMAIL_HOST_USER || process.env.SMTP_USER;
   const password = process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_HOST_PASSWORD || process.env.SMTP_PASSWORD;
   const fromAddress = process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_FROM || user;
-  const fromName = process.env.GMAIL_FROM_NAME || process.env.EMAIL_FROM_NAME || 'I3dad';
+  const fromName = process.env.GMAIL_FROM_NAME || process.env.EMAIL_FROM_NAME || 'i3dad / إعداد';
 
   if (!user) throw new Error('Missing Gmail username. Add EMAIL_HOST_USER or GMAIL_USER to .env');
   if (!password) throw new Error('Missing Gmail app password. Add GMAIL_APP_PASSWORD or EMAIL_HOST_PASSWORD to .env');

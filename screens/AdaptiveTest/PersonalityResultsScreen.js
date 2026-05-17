@@ -256,11 +256,11 @@ export default function PersonalityResultsScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => navigateTo('testResults')}
+          onPress={() => navigateTo('studentInsightReport', { studentId, language: i18n.language })}
           style={({ pressed }) => [styles.primaryBtn, pressed ? styles.btnPressed : null]}
         >
           <Text style={styles.primaryBtnText}>
-            {tt('personalityResults.fullTestResults', 'نتائج الاختبار الكامل', 'תוצאות המבחן המלא')}
+            {tt('personalityResults.fullTestResults', 'فتح التقرير الكامل', 'פתיחת הדוח המלא')}
           </Text>
         </Pressable>
       </View>

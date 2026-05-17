@@ -18,7 +18,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function resetCopy(language: string, code: string) {
   if (language === "he") {
     return {
-      subject: "קוד איפוס הסיסמה שלך ב-I3dad",
+      subject: "קוד איפוס הסיסמה שלך ב-i3dad / إعداد",
       html: `
         <div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
           <h2>איפוס סיסמה</h2>
@@ -33,7 +33,7 @@ function resetCopy(language: string, code: string) {
 
   if (language === "en") {
     return {
-      subject: "Your I3dad password reset code",
+      subject: "Your i3dad / إعداد password reset code",
       html: `
         <div dir="ltr" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
           <h2>Password reset</h2>
@@ -47,7 +47,7 @@ function resetCopy(language: string, code: string) {
   }
 
   return {
-    subject: "كود استرجاع كلمة المرور في I3dad",
+    subject: "كود استرجاع كلمة المرور في i3dad / إعداد",
     html: `
       <div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
         <h2>استرجاع كلمة المرور</h2>
@@ -117,7 +117,7 @@ Deno.serve(async (req: Request) => {
       ? Deno.env.get("GMAIL_FROM")
       : Deno.env.get("PASSWORD_RESET_EMAIL_FROM") ||
         Deno.env.get("INVITATION_EMAIL_FROM") ||
-        "I3dad <onboarding@resend.dev>";
+        "i3dad / إعداد <onboarding@resend.dev>";
     const copy = resetCopy(language, otp);
 
     const emailResult = await sendEmail({

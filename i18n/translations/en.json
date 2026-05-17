@@ -1,0 +1,17 @@
+{
+  "validation": {
+    "invalidIsraeliId": "Invalid Israeli ID number"
+  },
+  "academic": {
+    "whereCanIStudy": "Where can I study this field?",
+    "availablePrograms": "Available programs",
+    "matchingInstitutions": "Matching institutions for this field",
+    "institutionType": "Institution type",
+    "degreeType": "Degree type",
+    "studyDuration": "Study duration",
+    "admissionRequirements": "Admission requirements",
+    "programWebsite": "Program website",
+    "sameRegion": "Same region",
+    "closestToYou": "Closest to you"
+  }
+}

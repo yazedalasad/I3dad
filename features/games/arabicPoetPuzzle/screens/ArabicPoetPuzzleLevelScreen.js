@@ -33,7 +33,7 @@ function getDirectionLabel(selectedWord) {
 
 export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
   const levelId = route?.params?.levelId || 'arabic_poet_puzzle_level_1';
-  const studentId = route?.params?.studentId || 'demo-student-id';
+  const studentId = route?.params?.studentId || null;
   const colors = desertTheme.colors;
   const { width } = useWindowDimensions();
   const isPhoneLayout = width < 1100;
@@ -99,6 +99,7 @@ export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
     : '\u062d\u0627\u0644\u0629 \u0627\u0644\u0643\u0644\u0645\u0629: \u0625\u062c\u0627\u0628\u0629 \u0646\u0627\u0642\u0635\u0629';
 
   useEffect(() => {
+    if (!studentId) return;
     startLevel(studentId).catch(() => {});
   }, [startLevel, studentId]);
 
@@ -162,7 +163,7 @@ export default function ArabicPoetPuzzleLevelScreen({ route, navigation }) {
 
       if (result?.completed) {
         setWinCelebrationTick((prev) => prev + 1);
-        await markArabicPoetPuzzleLevelCompleted(level.id, studentId);
+        if (studentId) await markArabicPoetPuzzleLevelCompleted(level.id, studentId);
         await new Promise((resolve) => {
           setTimeout(resolve, WIN_CELEBRATION_DURATION_MS);
         });

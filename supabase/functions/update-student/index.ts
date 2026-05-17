@@ -27,6 +27,23 @@ function isAdminRole(value: unknown) {
   return String(value || "").toLowerCase() === "admin";
 }
 
+function normalizeIsraeliId(value: unknown) {
+  return String(value || "").replace(/\D/g, "").padStart(9, "0");
+}
+
+function isValidIsraeliId(value: unknown) {
+  const id = normalizeIsraeliId(value);
+  if (!/^\d{9}$/.test(id)) return false;
+  const sum = id
+    .split("")
+    .map((digit, index) => {
+      const n = Number(digit) * (index % 2 === 0 ? 1 : 2);
+      return n > 9 ? n - 9 : n;
+    })
+    .reduce((a, b) => a + b, 0);
+  return sum % 10 === 0;
+}
+
 async function requireAdmin(req: Request) {
   const SUPABASE_URL = Deno.env.get("PROJECT_URL") ?? "";
   const SUPABASE_ANON_KEY = Deno.env.get("PROJECT_ANON_KEY") ?? "";
@@ -75,7 +92,8 @@ Deno.serve(async (req: Request) => {
 
     const body: any = await req.json();
     const studentUuid = String(body.studentUuid ?? "").trim();
-    const studentId = String(body.student_id ?? "").trim();
+    const rawStudentId = String(body.student_id ?? "").replace(/\D/g, "");
+    const studentId = normalizeIsraeliId(body.student_id ?? "");
     const firstName = String(body.first_name ?? "").trim();
     const lastName = String(body.last_name ?? "").trim();
     const email = String(body.email ?? "").trim().toLowerCase();
@@ -88,7 +106,7 @@ Deno.serve(async (req: Request) => {
     const isActive = body.is_active !== false;
 
     if (!studentUuid) return json(400, { success: false, error: "Missing studentUuid" });
-    if (!/^[0-9]{9}$/.test(studentId)) return json(400, { success: false, error: "Student identity must be 9 digits" });
+    if (!rawStudentId || !isValidIsraeliId(studentId)) return json(400, { success: false, error: "Invalid Israeli ID number" });
     if (!email.includes("@")) return json(400, { success: false, error: "Invalid email" });
     if (!firstName || !lastName) return json(400, { success: false, error: "Student name is required" });
     if (!Number.isInteger(grade) || grade < 9 || grade > 12) {

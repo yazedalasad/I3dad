@@ -21,6 +21,7 @@ import DatePicker from '../../components/Form/DatePicker';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { getClassSectionOptions } from '../../utils/classSections';
+import { normalizeIsraeliId } from '../../src/utils/israeliId';
 import {
   formatPhone,
   validateBirthday,
@@ -93,7 +94,7 @@ export default function SignupScreen({ navigateTo }) {
     ? 'טעינת בתי הספר ממסד הנתונים נכשלה. ודא/י שהרשאת הקריאה הציבורית לטבלת schools פעילה.'
     : 'تعذر تحميل المدارس من الداتابيس. تأكد أن صلاحية القراءة العامة لجدول schools مفعلة.';
 
-  const promoTitle = isHebrew ? 'ברוכים הבאים ל-I3dad' : 'مرحبًا بك في إعداد';
+  const promoTitle = isHebrew ? 'ברוכים הבאים ל-i3dad / إعداد' : 'مرحبًا بك في i3dad / إعداد';
   const promoSubtitle = isHebrew
     ? 'התחל את הדרך שלך עם פלטפורמה חכמה שמחברת בין היכולות שלך לבין עתיד לימודי ומקצועי שמתאים בדיוק לך.'
     : 'ابدأ رحلتك مع منصة ذكية تربط بين قدراتك وبين مستقبل أكاديمي ومهني مناسب لك بدقة.';
@@ -249,6 +250,8 @@ export default function SignupScreen({ navigateTo }) {
     const studentIdValidation = validateStudentId(formData.studentId);
     if (!studentIdValidation.isValid) {
       newErrors.studentId = studentIdValidation.error;
+    } else if (studentIdValidation.normalizedId !== formData.studentId) {
+      setFormData((prev) => ({ ...prev, studentId: studentIdValidation.normalizedId }));
     }
 
     const firstNameValidation = validateName(formData.firstName, t('auth.signup.firstName'));
@@ -354,7 +357,7 @@ export default function SignupScreen({ navigateTo }) {
     setLoading(true);
 
     const studentInfo = {
-      studentId: formData.studentId,
+      studentId: normalizeIsraeliId(formData.studentId),
       firstName: formData.firstName,
       lastName: formData.lastName,
       phone: formatPhone(formData.phone),
@@ -398,6 +401,7 @@ export default function SignupScreen({ navigateTo }) {
     label: isHebrew ? `כיתה ${item.label}` : `شعبة ${item.label}`,
   }));
   const schoolFieldError = errors.schoolName || (!schoolItems.length ? schoolsError : '');
+  const isStudentIdValid = validateStudentId(formData.studentId).isValid;
   const selectedSchoolPickerValue =
     schoolItems.find((item) => item.schoolId && item.schoolId === formData.schoolId)?.value ||
     schoolItems.find((item) => !item.schoolId && item.schoolName === formData.schoolName)?.value ||
@@ -463,11 +467,11 @@ export default function SignupScreen({ navigateTo }) {
         <CustomTextInput
           label={t('auth.signup.studentId')}
           value={formData.studentId}
-          onChangeText={(text) => updateField('studentId', text)}
+          onChangeText={(text) => updateField('studentId', text.replace(/[^\d\s-]/g, ''))}
           placeholder="123456789"
           icon="id-card"
           keyboardType="numeric"
-          maxLength={9}
+          maxLength={12}
           error={errors.studentId}
           containerStyle={styles.inlineField}
         />
@@ -484,7 +488,7 @@ export default function SignupScreen({ navigateTo }) {
         />
       </View>
 
-      <CustomButton title={t('common.next')} onPress={handleNext} icon="arrow-left" />
+      <CustomButton title={t('common.next')} onPress={handleNext} icon="arrow-left" disabled={!isStudentIdValid} />
     </View>
   );
 
@@ -728,7 +732,7 @@ export default function SignupScreen({ navigateTo }) {
 
               <View style={[styles.brandChip, isHebrew && styles.brandChipRtl]}>
                 <FontAwesome name="leaf" size={14} color="#27ae60" />
-                <Text style={styles.brandChipText}>I3dad</Text>
+                <Text style={styles.brandChipText}>i3dad / إعداد</Text>
               </View>
 
               <View style={[styles.heroTopBlock, isHebrew && styles.heroTopBlockRtl]}>

@@ -104,7 +104,7 @@ function principalInviteCopy(language, fullName, schoolName, inviteLink, code) {
 
   if (language === 'en') {
     return {
-      subject: 'Activate your I3dad principal account',
+      subject: 'Activate your i3dad / إعداد principal account',
       html: `
         <div dir="ltr" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
           <h2>Activate Principal Account</h2>
@@ -136,7 +136,7 @@ function principalInviteCopy(language, fullName, schoolName, inviteLink, code) {
 function resetCopy(language, code) {
   if (language === 'he') {
     return {
-      subject: 'קוד איפוס הסיסמה שלך ב-I3dad',
+      subject: 'קוד איפוס הסיסמה שלך ב-i3dad / إعداد',
       html: `
         <div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
           <h2>איפוס סיסמה</h2>
@@ -149,7 +149,7 @@ function resetCopy(language, code) {
 
   if (language === 'en') {
     return {
-      subject: 'Your I3dad password reset code',
+      subject: 'Your i3dad / إعداد password reset code',
       html: `
         <div dir="ltr" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
           <h2>Password reset</h2>
@@ -161,7 +161,7 @@ function resetCopy(language, code) {
   }
 
   return {
-    subject: 'كود استرجاع كلمة المرور في I3dad',
+    subject: 'كود استرجاع كلمة المرور في i3dad / إعداد',
     html: `
       <div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
         <h2>استرجاع كلمة المرور</h2>
@@ -421,7 +421,7 @@ const server = http.createServer(async (req, res) => {
     const body = await readJson(req);
     await sendMail({
       to: body.to,
-      subject: body.subject || 'I3dad',
+      subject: body.subject || 'i3dad / إعداد',
       html: body.html || '',
       text: body.text || '',
     });
@@ -432,5 +432,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`I3dad email server listening on http://localhost:${port}`);
+  console.log(`i3dad email server listening on http://localhost:${port}`);
 });

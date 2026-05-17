@@ -24,6 +24,18 @@ function titleCase(value) {
     .join(' ');
 }
 
+const GAME_DISPLAY_LABELS = {
+  arabic_poet_puzzle: 'Word Treasures',
+  physics_lab: 'Physics Lab',
+  physics_bridge_game: 'Physics Bridge',
+  doctor_soroka: 'Doctor Soroka',
+};
+
+function gameDisplayLabel(gameKey) {
+  const normalized = normalizeGameKey(gameKey);
+  return GAME_DISPLAY_LABELS[normalized] || titleCase(normalized);
+}
+
 const DEGREE_CODE_ALIASES = {
   electrical_engineering: 'EE_BSC',
   electronics_engineering: 'EE_BSC',
@@ -531,6 +543,7 @@ export async function getStudentGameCareerSignalSummary(studentId, { limit = 6 }
     if (careerRes.error) throw careerRes.error;
 
     const skillMap = new Map();
+    const skillByGameMap = new Map();
     (skillsRes.data || []).forEach((row) => {
       const current = skillMap.get(row.skill_tag) || { skill_tag: row.skill_tag, score: 0, count: 0 };
       skillMap.set(row.skill_tag, {
@@ -538,14 +551,29 @@ export async function getStudentGameCareerSignalSummary(studentId, { limit = 6 }
         score: current.score + safeNum(row.signal_strength),
         count: current.count + 1,
       });
+
+      const gameKey = row.metadata?.game_key || 'game';
+      const gameSkillKey = `${gameKey}:${row.skill_tag}`;
+      const gameCurrent = skillByGameMap.get(gameSkillKey) || {
+        game_key: gameKey,
+        skill_tag: row.skill_tag,
+        score: 0,
+        count: 0,
+      };
+      skillByGameMap.set(gameSkillKey, {
+        ...gameCurrent,
+        score: gameCurrent.score + safeNum(row.signal_strength),
+        count: gameCurrent.count + 1,
+      });
     });
 
     const topicMap = new Map();
     const degreeMap = new Map();
-    const explanations = [];
+    const explanationByGame = new Map();
 
     (careerRes.data || []).forEach((row) => {
       const topicKey = row.metadata?.topic_key || row.topic_key;
+      const gameKey = row.metadata?.game_key || 'game';
       if (topicKey) {
         const current = topicMap.get(topicKey) || { topic_key: topicKey, score: 0, count: 0, metadata: row.metadata };
         topicMap.set(topicKey, {
@@ -563,14 +591,53 @@ export async function getStudentGameCareerSignalSummary(studentId, { limit = 6 }
         count: current.count + 1,
       });
 
-      if (row.metadata?.reason_ar && explanations.length < limit) explanations.push(row.metadata);
+      if (row.metadata?.reason_ar) {
+        const current = explanationByGame.get(gameKey);
+        if (!current || safeNum(row.career_signal) > safeNum(current.career_signal)) {
+          explanationByGame.set(gameKey, {
+            ...row.metadata,
+            game_key: gameKey,
+            career_signal: row.career_signal,
+          });
+        }
+      }
     });
 
+    const perGameSkills = [...skillByGameMap.values()]
+      .map((item) => ({
+        ...item,
+        key: `${item.game_key}:${item.skill_tag}`,
+        label: `${gameDisplayLabel(item.game_key)}: ${titleCase(item.skill_tag)}`,
+        score: Math.round(item.score / Math.max(1, item.count)),
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    const topSkillByGame = [];
+    const seenGames = new Set();
+    perGameSkills.forEach((item) => {
+      if (!seenGames.has(item.game_key)) {
+        seenGames.add(item.game_key);
+        topSkillByGame.push(item);
+      }
+    });
+
+    const globalSkills = [...skillMap.values()]
+      .map((item) => ({ ...item, key: `global:${item.skill_tag}`, label: titleCase(item.skill_tag), score: Math.round(item.score / Math.max(1, item.count)) }))
+      .sort((a, b) => b.score - a.score);
+
+    const skills = [...topSkillByGame];
+    globalSkills.forEach((item) => {
+      if (!skills.some((skill) => skill.skill_tag === item.skill_tag)) {
+        skills.push(item);
+      }
+    });
+
+    const explanations = [...explanationByGame.values()]
+      .sort((a, b) => safeNum(b.career_signal) - safeNum(a.career_signal))
+      .slice(0, limit);
+
     return {
-      skills: [...skillMap.values()]
-        .map((item) => ({ ...item, label: titleCase(item.skill_tag), score: Math.round(item.score / Math.max(1, item.count)) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit),
+      skills: skills.slice(0, limit),
       topics: [...topicMap.values()]
         .map((item) => ({ ...item, label: titleCase(item.topic_key), score: Math.round(item.score / Math.max(1, item.count)) }))
         .sort((a, b) => b.score - a.score)

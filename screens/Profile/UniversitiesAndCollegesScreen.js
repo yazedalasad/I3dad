@@ -143,8 +143,11 @@ export default function UniversitiesAndCollegesScreen({ navigateTo, route = { pa
   const [region, setRegion] = useState('all');
   const [type, setType] = useState('all');
 
+  const majorId = route?.params?.majorId || '';
+  const majorKey = route?.params?.majorKey || '';
   const majorName = route?.params?.majorName || '';
   const matchedMajor = useMemo(() => findMajorByName(majorName), [majorName]);
+  const activeMajorKey = matchedMajor?.key || majorKey || (isUuid(majorId) ? '' : majorId);
 
   const lang = String(i18n.language || 'ar');
   const isArabic = lang.toLowerCase().startsWith('ar');
@@ -155,7 +158,7 @@ export default function UniversitiesAndCollegesScreen({ navigateTo, route = { pa
   const filteredInstitutions = useMemo(() => {
     return institutionsCatalog
       .filter((institution) => {
-        if (matchedMajor && !institution.majors?.includes(matchedMajor.key)) return false;
+        if (activeMajorKey && !institution.majors?.includes(activeMajorKey)) return false;
         if (region !== 'all' && institution.region !== region) return false;
         if (type !== 'all' && institution.typeKey !== type) return false;
 
@@ -172,11 +175,11 @@ export default function UniversitiesAndCollegesScreen({ navigateTo, route = { pa
         return haystack.includes(String(query || '').trim().toLowerCase());
       })
       .sort((a, b) => {
-        const aScore = matchedMajor && a.majors?.includes(matchedMajor.key) ? 1 : 0;
-        const bScore = matchedMajor && b.majors?.includes(matchedMajor.key) ? 1 : 0;
+        const aScore = activeMajorKey && a.majors?.includes(activeMajorKey) ? 1 : 0;
+        const bScore = activeMajorKey && b.majors?.includes(activeMajorKey) ? 1 : 0;
         return bScore - aScore;
       });
-  }, [lang, matchedMajor, query, region, type]);
+  }, [activeMajorKey, lang, query, region, type]);
 
   const labelForRegion = (value) => {
     const map = {
@@ -300,6 +303,9 @@ export default function UniversitiesAndCollegesScreen({ navigateTo, route = { pa
               onPress={() =>
                 navigateTo?.('institutionDetails', {
                   institutionName: institution.name,
+                  institutionId: institution.code,
+                  majorId: majorId || majorKey || matchedMajor?.key,
+                  majorKey: majorKey || matchedMajor?.key,
                   majorName: matchedMajor ? localizeField(matchedMajor.title, lang) : majorName,
                 })
               }
@@ -632,3 +638,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}

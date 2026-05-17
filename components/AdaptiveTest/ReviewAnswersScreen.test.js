@@ -86,20 +86,22 @@ jest.mock('../../contexts/AuthContext', () => ({
 
 /* =========================================================
    Supabase mock — full chain:
-   from().select().eq().order()
+   from().select().eq().eq().order()
 ========================================================= */
 const mockOrder = jest.fn();
 
 jest.mock('../../config/supabase', () => ({
   __esModule: true,
   supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          order: (...args) => mockOrder(...args),
-        })),
-      })),
-    })),
+    from: jest.fn(() => {
+      const query = {
+        eq: jest.fn(() => query),
+        order: (...args) => mockOrder(...args),
+      };
+      return {
+        select: jest.fn(() => query),
+      };
+    }),
   },
 }));
 

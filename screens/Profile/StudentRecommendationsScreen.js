@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -83,12 +84,48 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           topStrengths: 'Top strengths',
           gameSignals: 'From games',
           fullReport: 'Open full report',
-          details: 'تفاصيل التخصص',
-          miniTask: 'مهمة تجريبية',
+          details: 'Major details',
+          miniTask: 'Try a mini task',
           institutions: 'Institutions',
           back: 'Back to profile',
           noGames: 'No game data yet.',
           noStrengths: 'No ability data yet.',
+        };
+
+  const institutionCopy = isHebrew
+    ? {
+        matchingInstitutions: 'מוסדות מתאימים לתחום זה',
+        noLinkedInstitutions: 'אין כרגע מוסדות מקושרים לתחום זה.',
+        institutionType: 'סוג מוסד',
+        degreeType: 'סוג תעודה',
+        studyDuration: 'משך לימודים',
+        admissionRequirements: 'תנאי קבלה',
+        programWebsite: 'קישור למסלול',
+        sameRegion: 'אותו אזור',
+        closestToYou: 'הקרוב אליך',
+      }
+    : isArabic
+      ? {
+          matchingInstitutions: 'مؤسسات مناسبة لهذا التخصص',
+          noLinkedInstitutions: 'لا توجد مؤسسات مرتبطة بهذا التخصص حالياً',
+          institutionType: 'نوع المؤسسة',
+          degreeType: 'نوع الشهادة',
+          studyDuration: 'مدة الدراسة',
+          admissionRequirements: 'شروط القبول',
+          programWebsite: 'رابط البرنامج',
+          sameRegion: 'نفس المنطقة',
+          closestToYou: 'الأقرب إليك',
+        }
+      : {
+          matchingInstitutions: 'Matching institutions for this field',
+          noLinkedInstitutions: 'No institutions are linked to this field yet.',
+          institutionType: 'Institution type',
+          degreeType: 'Degree type',
+          studyDuration: 'Study duration',
+          admissionRequirements: 'Admission requirements',
+          programWebsite: 'Program website',
+          sameRegion: 'Same region',
+          closestToYou: 'Closest to you',
         };
 
   useEffect(() => {
@@ -211,7 +248,7 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                   {gameCareerSignals.skills?.length ? (
                     <View style={[styles.chipsRow, isRtl && styles.chipsRowRtl]}>
                       {gameCareerSignals.skills.slice(0, 4).map((skill) => (
-                        <View key={skill.skill_tag} style={styles.signalChip}>
+                        <View key={skill.key || `${skill.game_key || 'game'}:${skill.skill_tag}`} style={styles.signalChip}>
                           <Text style={styles.signalChipScore}>{skill.score}%</Text>
                           <Text style={[styles.signalChipText, isRtl && styles.rtlText]}>{skill.label}</Text>
                         </View>
@@ -231,15 +268,15 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                     </Text>
                   ))}
 
-                  {gameCareerSignals.explanations?.[0] ? (
-                    <Text style={[styles.gameHint, isRtl && styles.rtlText]}>
+                  {gameCareerSignals.explanations?.slice(0, 2).map((item, index) => (
+                    <Text key={`${item.game_key || item.topic_key || 'game'}-${index}`} style={[styles.gameHint, isRtl && styles.rtlText]}>
                       {isHebrew
-                        ? gameCareerSignals.explanations[0].reason_he
+                        ? item.reason_he
                         : isArabic
-                          ? gameCareerSignals.explanations[0].reason_ar
-                          : gameCareerSignals.explanations[0].reason_en}
+                          ? item.reason_ar
+                          : item.reason_en}
                     </Text>
-                  ) : null}
+                  ))}
 
                   {gameHighlights.slice(0, 2).map((game) => (
                     <View key={game.gameId} style={[styles.gameRow, isRtl && styles.gameRowRtl]}>
@@ -316,11 +353,32 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                 </View>
               ) : null}
 
+              <View style={styles.infoSection}>
+                <Text style={[styles.infoTitle, isRtl && styles.rtlText]}>{institutionCopy.matchingInstitutions}</Text>
+                {(recommendation.institutions || []).length === 0 ? (
+                  <Text style={[styles.infoItem, isRtl && styles.rtlText]}>{institutionCopy.noLinkedInstitutions}</Text>
+                ) : (
+                  (recommendation.institutions || []).slice(0, 4).map((program) => (
+                    <InstitutionProgramCard
+                      key={program.id || `${program.institution_id}-${program.major_key}-${program.program_name_en}`}
+                      program={program}
+                      copy={institutionCopy}
+                      language={i18n.language}
+                      isRtl={isRtl}
+                      navigateTo={navigateTo}
+                      majorName={recommendation.name}
+                    />
+                  ))
+                )}
+              </View>
+
               <View style={[styles.cardActions, isRtl && styles.cardActionsRtl]}>
                 <TouchableOpacity
                   style={styles.cardGhostBtn}
                   onPress={() =>
                     navigateTo('majorDetails', {
+                      majorId: recommendation.degree_id || recommendation.major_id,
+                      majorKey: recommendation.major_key || recommendation.code,
                       majorName: recommendation.name,
                     })
                   }
@@ -332,6 +390,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                   style={styles.cardSolidBtn}
                   onPress={() =>
                     navigateTo('miniTasks', {
+                      majorId: recommendation.degree_id || recommendation.major_id,
+                      majorKey: recommendation.major_key || recommendation.code,
                       majorName: recommendation.name,
                     })
                   }
@@ -343,6 +403,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                   style={styles.cardGhostBtn}
                   onPress={() =>
                     navigateTo('universitiesAndColleges', {
+                      majorId: recommendation.degree_id || recommendation.major_id,
+                      majorKey: recommendation.major_key || recommendation.code,
                       majorName: recommendation.name,
                     })
                   }
@@ -372,6 +434,74 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
         </ScrollView>
       )}
     </View>
+  );
+}
+
+function pickLocalized(record, field, language) {
+  const lang = String(language || '').toLowerCase().startsWith('he')
+    ? 'he'
+    : String(language || '').toLowerCase().startsWith('ar')
+      ? 'ar'
+      : 'en';
+  return record?.[`${field}_${lang}`] || record?.[`${field}_en`] || record?.[`${field}_ar`] || record?.[`${field}_he`] || '';
+}
+
+function InstitutionProgramCard({ program, copy, language, isRtl, navigateTo, majorName }) {
+  const institution = program.institution || {};
+  const institutionName = pickLocalized(institution, 'name', language) || institution.name || '-';
+  const city = pickLocalized(institution, 'city', language) || institution.city || '';
+  const programName = pickLocalized(program, 'program_name', language) || program.program_name_en || majorName;
+  const admission = pickLocalized(program, 'admission_requirements', language);
+  const type = institution.type || institution.institution_type || 'other';
+  const url = program.program_url || institution.website_url || institution.website;
+
+  return (
+    <View style={styles.programCard}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => navigateTo?.('institutionDetails', {
+          institutionId: program.institution_id || institution.id,
+          institutionName,
+          majorId: program.major_id || program.major_key,
+          majorName,
+        })}
+      >
+        <View style={[styles.programHeader, isRtl && styles.programHeaderRtl]}>
+          <View style={styles.programLead}>
+            <Text style={[styles.programInstitution, isRtl && styles.rtlText]}>{institutionName}</Text>
+            <Text style={[styles.programMeta, isRtl && styles.rtlText]}>
+              {[city || institution.region, type, programName].filter(Boolean).join(' • ')}
+            </Text>
+          </View>
+          {program.distance_km ? (
+            <Text style={styles.distanceBadge}>{`${program.distance_km} km`}</Text>
+          ) : program.same_region ? (
+            <Text style={styles.distanceBadge}>{copy.sameRegion}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.programFacts}>
+          <Fact label={copy.degreeType} value={program.degree_type} isRtl={isRtl} />
+          <Fact label={copy.studyDuration} value={program.study_duration} isRtl={isRtl} />
+          <Fact label={copy.admissionRequirements} value={admission} isRtl={isRtl} />
+        </View>
+      </TouchableOpacity>
+
+      {!!url && (
+        <TouchableOpacity style={styles.programLinkBtn} onPress={() => Linking.openURL(url)}>
+          <Text style={styles.programLinkText}>{copy.programWebsite}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function Fact({ label, value, isRtl }) {
+  if (!value) return null;
+  return (
+    <Text style={[styles.programFact, isRtl && styles.rtlText]}>
+      {label}: {value}
+    </Text>
   );
 }
 
@@ -628,6 +758,70 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '700',
     lineHeight: 19,
+  },
+  programCard: {
+    marginTop: 10,
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: '#111c31',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.13)',
+  },
+  programHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  programHeaderRtl: {
+    flexDirection: 'row-reverse',
+  },
+  programLead: {
+    flex: 1,
+  },
+  programInstitution: {
+    color: '#f8fafc',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  programMeta: {
+    marginTop: 5,
+    color: '#94a3b8',
+    fontWeight: '700',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  distanceBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(134,239,172,0.12)',
+    color: '#86efac',
+    fontWeight: '900',
+    fontSize: 11,
+    overflow: 'hidden',
+  },
+  programFacts: {
+    marginTop: 8,
+    gap: 4,
+  },
+  programFact: {
+    color: '#cbd5e1',
+    fontWeight: '700',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  programLinkBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(56,189,248,0.12)',
+  },
+  programLinkText: {
+    color: '#7dd3fc',
+    fontWeight: '900',
+    fontSize: 12,
   },
   cardActions: {
     marginTop: 16,

@@ -7,6 +7,7 @@ import { I18nManager, Platform } from 'react-native';
  * Storage abstraction (AsyncStorage on native, localStorage on web)
  */
 const LANGUAGE_STORAGE_KEY = 'app_language';
+const IS_DEV = typeof globalThis !== 'undefined' && !!globalThis.__DEV__;
 
 const Storage = {
   async getItem(key) {
@@ -46,6 +47,7 @@ const Storage = {
  */
 import arLegacy from './translations/ar.json';
 import heLegacy from './translations/he.json';
+import enLegacy from './translations/en.json';
 
 /**
  * Screens
@@ -89,6 +91,9 @@ import heStudentInsightReport from './locales/he/screens/StudentInsightReport.js
 import arComponents from './locales/ar/components/components.json';
 import heComponents from './locales/he/components/components.json';
 
+import arForm from './locales/ar/components/form.json';
+import heForm from './locales/he/components/form.json';
+
 import arComponentsAdaptiveTest from './locales/ar/components/adaptiveTest.json';
 import heComponentsAdaptiveTest from './locales/he/components/adaptiveTest.json';
 
@@ -114,8 +119,12 @@ const setRTL = (language) => {
   }
 };
 
-const normalizeLanguage = (lng) =>
-  String(lng).toLowerCase() === 'he' ? 'he' : 'ar';
+const normalizeLanguage = (lng) => {
+  const value = String(lng || '').toLowerCase();
+  if (value === 'he') return 'he';
+  if (value === 'en') return 'en';
+  return 'ar';
+};
 
 /**
  * Init i18n once
@@ -124,18 +133,13 @@ export const initI18n = async () => {
   try {
     // Check if already initialized
     if (i18n.isInitialized) {
-      console.log('✅ i18n already initialized');
       setRTL(i18n.language);
       return i18n;
     }
 
-    console.log('🔄 Initializing i18n...');
-    
     const savedLanguage = normalizeLanguage(
       (await Storage.getItem(LANGUAGE_STORAGE_KEY)) || 'ar'
     );
-
-    console.log('📱 Saved language:', savedLanguage);
 
     await i18n.use(initReactI18next).init({
       compatibilityJSON: 'v3',
@@ -160,7 +164,11 @@ export const initI18n = async () => {
 
       resources: {
         ar: {
-          translation: arLegacy,
+          translation: {
+            ...arLegacy,
+            ...arForm,
+            studentInsightReport: arStudentInsightReport,
+          },
           home: arHome,
           about: arAbout,
           activities: arActivities,
@@ -176,7 +184,11 @@ export const initI18n = async () => {
           navigation: arNavigation,
         },
         he: {
-          translation: heLegacy,
+          translation: {
+            ...heLegacy,
+            ...heForm,
+            studentInsightReport: heStudentInsightReport,
+          },
           home: heHome,
           about: heAbout,
           activities: heActivities,
@@ -191,6 +203,9 @@ export const initI18n = async () => {
           componentsAdaptiveTest: heComponentsAdaptiveTest,
           navigation: heNavigation,
         },
+        en: {
+          translation: enLegacy,
+        },
       },
 
       lng: savedLanguage,
@@ -199,7 +214,6 @@ export const initI18n = async () => {
       react: { useSuspense: false },
     });
 
-    console.log('✅ i18n initialized successfully');
     setRTL(i18n.language);
 
     if (!i18n.__rtl_listener_added__) {
@@ -213,8 +227,9 @@ export const initI18n = async () => {
 
     return i18n;
   } catch (e) {
-    console.error('❌ initI18n failed:', e?.message || e);
-    console.error('Full error:', e);
+    if (IS_DEV) {
+      console.error('initI18n failed:', e?.message || e);
+    }
     // Return i18n anyway so app doesn't hang
     return i18n;
   }

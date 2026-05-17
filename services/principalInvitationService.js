@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { normalizeIsraeliId } from '../src/utils/israeliId';
 import { emailApiPost } from './emailApiService';
 
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
@@ -63,6 +64,7 @@ export async function activatePrincipalAccount(payload) {
     token: payload.token,
     email: normalizeEmail(payload.email),
     full_name: String(payload.fullName || payload.full_name || '').trim(),
+    identity_number: normalizeIsraeliId(payload.identityNumber || payload.identity_number || ''),
     phone: String(payload.phone || '').trim(),
     preferred_language: payload.preferredLanguage || payload.preferred_language || 'ar',
     password: payload.password,

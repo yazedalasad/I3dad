@@ -1,4 +1,4 @@
--- Admin access policies for the I3dad admin panel.
+-- Admin access policies for the i3dad / إعداد admin panel.
 -- Run this in the Supabase SQL editor after schema.sql/admin_compliance_schema.sql.
 
 -- Keep the admin account role aligned in the public profile table.

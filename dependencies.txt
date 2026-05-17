@@ -1,6 +1,6 @@
-# I3dad – Dependencies Update
+# i3dad / إعداد - Dependencies Update
 
-This document describes the current dependencies required to run the I3dad project,
+This document describes the current dependencies required to run the i3dad / إعداد project,
 based on `npm list --depth=0`.
 
 Last verified: Expo SDK 49

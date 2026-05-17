@@ -1,5 +1,5 @@
 -- ============================================================
--- I3dad / إعداد / איעדאד
+-- i3dad / إعداد / איעדאד
 -- Full Admin Database Permissions + RLS Policies
 --
 -- انسخ هذا الملف وشغله في Supabase SQL Editor.

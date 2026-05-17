@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -9,11 +9,23 @@ import {
   localizeField,
   majorCatalog,
 } from '../../data/majorCatalog';
+import { getProgramsByMajor } from '../../services/programService';
 
 export default function MajorDetailsScreen({ navigateTo, route = { params: {} } }) {
   const { i18n } = useTranslation();
+  const majorId = route?.params?.majorId || '';
+  const majorKey = route?.params?.majorKey || '';
   const majorName = route?.params?.majorName || route?.params?.major || '';
-  const matchedMajor = useMemo(() => findMajorByName(majorName) || majorCatalog[0], [majorName]);
+  const matchedMajor = useMemo(
+    () =>
+      majorCatalog.find((major) => [major.key, major.id].filter(Boolean).includes(majorKey || majorId)) ||
+      findMajorByName(majorName) ||
+      majorCatalog[0],
+    [majorId, majorKey, majorName]
+  );
+  const [programs, setPrograms] = useState([]);
+  const [programsLoading, setProgramsLoading] = useState(true);
+  const [programsError, setProgramsError] = useState(null);
   const isArabic = String(i18n.language || '').toLowerCase().startsWith('ar');
   const isHebrew = String(i18n.language || '').toLowerCase().startsWith('he');
   const isRtl = isArabic || isHebrew;
@@ -21,6 +33,23 @@ export default function MajorDetailsScreen({ navigateTo, route = { params: {} } 
   const institutions = institutionsCatalog.filter((institution) =>
     matchedMajor?.institutions?.includes(institution.name)
   );
+
+  useEffect(() => {
+    let mounted = true;
+    setProgramsLoading(true);
+    setProgramsError(null);
+    getProgramsByMajor(majorId || majorKey || matchedMajor?.key || majorName)
+      .then((result) => {
+        if (!mounted) return;
+        setPrograms(result.data || []);
+        if (!result.success) setProgramsError(result.error || 'Failed to load programs');
+      })
+      .catch((error) => mounted && setProgramsError(error?.message || 'Failed to load programs'))
+      .finally(() => mounted && setProgramsLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, [majorId, majorKey, matchedMajor?.key, majorName]);
 
   const copy = isHebrew
     ? {
@@ -50,6 +79,24 @@ export default function MajorDetailsScreen({ navigateTo, route = { params: {} } 
           miniTask: 'Try a mini task',
           allInstitutions: 'All institutions',
           details: 'View details',
+        };
+
+  const extraCopy = isHebrew
+    ? {
+        whereCanIStudy: 'איפה אפשר ללמוד את התחום הזה?',
+        emptyPrograms: 'אין כרגע מוסדות מקושרים לתחום זה.',
+        loadingPrograms: 'טוען מוסדות...',
+      }
+    : isArabic
+      ? {
+          whereCanIStudy: 'أين يمكنني دراسة هذا المجال؟',
+          emptyPrograms: 'لا توجد مؤسسات مرتبطة بهذا التخصص حالياً',
+          loadingPrograms: 'جاري تحميل المؤسسات...',
+        }
+      : {
+          whereCanIStudy: 'Where can I study this field?',
+          emptyPrograms: 'No institutions are linked to this field yet.',
+          loadingPrograms: 'Loading institutions...',
         };
 
   return (
@@ -93,7 +140,9 @@ export default function MajorDetailsScreen({ navigateTo, route = { params: {} } 
             style={styles.institutionCard}
             onPress={() =>
               navigateTo?.('institutionDetails', {
+                  institutionId: institution.id || institution.code,
                 institutionName: institution.name,
+                  majorId: majorId || majorKey || matchedMajor.key,
                 majorName: localizeField(matchedMajor.title, i18n.language),
               })
             }
@@ -107,6 +156,43 @@ export default function MajorDetailsScreen({ navigateTo, route = { params: {} } 
             <Text style={[styles.institutionLink, isRtl && styles.rtlText]}>{copy.details}</Text>
           </TouchableOpacity>
         ))}
+      </Section>
+
+      <Section title={extraCopy.whereCanIStudy} isRtl={isRtl}>
+        {programsLoading ? (
+          <Text style={[styles.bullet, isRtl && styles.rtlText]}>{extraCopy.loadingPrograms}</Text>
+        ) : programsError ? (
+          <Text style={[styles.errorText, isRtl && styles.rtlText]}>{programsError}</Text>
+        ) : programs.length === 0 ? (
+          <Text style={[styles.bullet, isRtl && styles.rtlText]}>{extraCopy.emptyPrograms}</Text>
+        ) : (
+          programs.map((program) => (
+            <TouchableOpacity
+              key={program.id || `${program.institution_id}-${program.program_name_en}`}
+              style={styles.institutionCard}
+              onPress={() =>
+                navigateTo?.('institutionDetails', {
+                  institutionId: program.institution_id || program.institution?.id,
+                  institutionName: pickLocalized(program.institution, 'name', i18n.language),
+                  majorId: program.major_id || program.major_key || majorId || majorKey || matchedMajor.key,
+                  majorName: localizeField(matchedMajor.title, i18n.language),
+                })
+              }
+            >
+              <Text style={[styles.institutionName, isRtl && styles.rtlText]}>
+                {pickLocalized(program.institution, 'name', i18n.language)}
+              </Text>
+              <Text style={[styles.institutionMeta, isRtl && styles.rtlText]}>
+                {[pickLocalized(program.institution, 'city', i18n.language), program.institution?.region, pickLocalized(program, 'program_name', i18n.language), program.degree_type]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </Text>
+              {!!program.study_duration && (
+                <Text style={[styles.institutionMeta, isRtl && styles.rtlText]}>{program.study_duration}</Text>
+              )}
+            </TouchableOpacity>
+          ))
+        )}
       </Section>
 
       <TouchableOpacity
@@ -156,6 +242,15 @@ function Bullet({ text, isRtl }) {
   return <Text style={[styles.bullet, isRtl && styles.rtlText]}>• {text}</Text>;
 }
 
+function pickLocalized(record, field, language) {
+  const lang = String(language || '').toLowerCase().startsWith('he')
+    ? 'he'
+    : String(language || '').toLowerCase().startsWith('ar')
+      ? 'ar'
+      : 'en';
+  return record?.[`${field}_${lang}`] || record?.[`${field}_en`] || record?.[`${field}_ar`] || record?.[`${field}_he`] || '';
+}
+
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f8fafc' },
   content: { padding: 16, paddingBottom: 28 },
@@ -190,6 +285,7 @@ const styles = StyleSheet.create({
   },
   tagText: { color: '#166534', fontWeight: '800' },
   bullet: { width: '100%', color: '#334155', fontWeight: '700', lineHeight: 20 },
+  errorText: { width: '100%', color: '#dc2626', fontWeight: '800', lineHeight: 20 },
   institutionCard: {
     width: '100%',
     padding: 12,

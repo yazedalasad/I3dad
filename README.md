@@ -1,4 +1,4 @@
-כיוונון -i3dad – إعداد
+# i3dad / إعداد
 Description
 i3dad is a bilingual (Arabic–Hebrew) academic orientation application implemented using React Native and Expo.
 The system provides a personalized assessment flow based on a structured questionnaire and maps user responses to recommended academic study domains.

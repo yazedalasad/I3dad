@@ -1,6 +1,8 @@
 import i18n from '../i18n';
+import { isValidIsraeliId, normalizeIsraeliId } from '../src/utils/israeliId';
 
 const isHebrew = () => String(i18n?.language || '').toLowerCase().startsWith('he');
+const isArabic = () => String(i18n?.language || '').toLowerCase().startsWith('ar');
 
 const text = {
   requiredEmail: () => (isHebrew() ? 'האימייל הוא שדה חובה' : 'البريد الإلكتروني مطلوب'),
@@ -18,6 +20,12 @@ const text = {
     isHebrew()
       ? 'מספר הזהות חייב להכיל 9 ספרות'
       : 'رقم الهوية يجب أن يتكون من 9 أرقام',
+  invalidIsraeliId: () =>
+    isHebrew()
+      ? 'מספר תעודת הזהות אינו תקין'
+      : isArabic()
+        ? 'رقم الهوية غير صحيح'
+        : 'Invalid Israeli ID number',
   requiredField: (fieldName) =>
     isHebrew() ? `${fieldName} הוא שדה חובה` : `${fieldName} مطلوب`,
   minNameLength: (fieldName) =>
@@ -112,9 +120,13 @@ export const formatPhone = (phone) => {
 };
 
 export const validateStudentId = (id) => {
-  if (!id) return { isValid: false, error: text.requiredId() };
-  if (!/^[0-9]{9}$/.test(id)) return { isValid: false, error: text.invalidId() };
-  return { isValid: true, error: null };
+  const digitsOnly = String(id || '').replace(/\D/g, '');
+  if (!digitsOnly) return { isValid: false, error: text.requiredId() };
+  if (digitsOnly.length > 9) return { isValid: false, error: text.invalidId() };
+  const normalizedId = normalizeIsraeliId(id);
+  if (!/^[0-9]{9}$/.test(normalizedId)) return { isValid: false, error: text.invalidId() };
+  if (!isValidIsraeliId(normalizedId)) return { isValid: false, error: text.invalidIsraeliId() };
+  return { isValid: true, error: null, normalizedId };
 };
 
 export const validateName = (name, fieldName = isHebrew() ? 'שם' : 'الاسم') => {

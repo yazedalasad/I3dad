@@ -1,4 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +9,8 @@ import {
   localizeField,
   majorCatalog,
 } from '../../data/majorCatalog';
+import { getInstitutionById } from '../../services/institutionService';
+import { getProgramsByInstitution } from '../../services/programService';
 
 export default function InstitutionDetailsScreen({ navigateTo, route = { params: {} } }) {
   const { i18n } = useTranslation();
@@ -16,10 +19,58 @@ export default function InstitutionDetailsScreen({ navigateTo, route = { params:
   const isHebrew = lang.toLowerCase().startsWith('he');
   const isRtl = isArabic || isHebrew;
 
+  const institutionId = route?.params?.institutionId || '';
   const institutionName = route?.params?.institutionName || '';
   const majorName = route?.params?.majorName || '';
-  const institution = findInstitutionByName(institutionName);
+  const catalogInstitution = findInstitutionByName(institutionName || institutionId);
+  const [databaseInstitution, setDatabaseInstitution] = useState(null);
+  const [institutionLoading, setInstitutionLoading] = useState(!!institutionId && !catalogInstitution);
+  const institution = catalogInstitution || databaseInstitution;
   const matchedMajor = findMajorByName(majorName);
+  const [programs, setPrograms] = useState([]);
+  const [programsLoading, setProgramsLoading] = useState(true);
+  const [programsError, setProgramsError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!institutionId || catalogInstitution) {
+      setInstitutionLoading(false);
+      setDatabaseInstitution(null);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setInstitutionLoading(true);
+    getInstitutionById(institutionId)
+      .then((row) => {
+        if (mounted) setDatabaseInstitution(row);
+      })
+      .finally(() => {
+        if (mounted) setInstitutionLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [catalogInstitution, institutionId]);
+
+  useEffect(() => {
+    let mounted = true;
+    setProgramsLoading(true);
+    setProgramsError(null);
+    getProgramsByInstitution(institutionId || institution?.id || institution?.code || institutionName)
+      .then((result) => {
+        if (!mounted) return;
+        setPrograms(result.data || []);
+        if (!result.success) setProgramsError(result.error || 'Failed to load programs');
+      })
+      .catch((error) => mounted && setProgramsError(error?.message || 'Failed to load programs'))
+      .finally(() => mounted && setProgramsLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, [institutionId, institution?.id, institution?.code, institutionName]);
 
   const copy = isHebrew
     ? {
@@ -78,17 +129,65 @@ export default function InstitutionDetailsScreen({ navigateTo, route = { params:
           openUniversity: 'Open University',
         };
 
+  const programCopy = isHebrew
+    ? {
+        availablePrograms: 'מסלולים זמינים',
+        noPrograms: 'אין כרגע מסלולים זמינים.',
+        loadingPrograms: 'טוען מסלולים...',
+      }
+    : isArabic
+      ? {
+          availablePrograms: 'البرامج المتاحة',
+          noPrograms: 'لا توجد برامج متاحة حالياً',
+          loadingPrograms: 'جاري تحميل البرامج...',
+        }
+      : {
+          availablePrograms: 'Available programs',
+          noPrograms: 'No available programs yet.',
+          loadingPrograms: 'Loading programs...',
+        };
+
+  const institutionWebsite = institution?.website || institution?.website_url || '';
+  const institutionTitle =
+    localizeField(institution?.title, lang) ||
+    pickLocalized(institution, 'name', lang) ||
+    institution?.name ||
+    institutionName;
+  const institutionSummary =
+    localizeField(institution?.summary, lang) ||
+    pickLocalized(institution, 'description', lang) ||
+    pickLocalized(institution, 'summary', lang) ||
+    '';
+  const institutionCity =
+    localizeField(institution?.cityLabel, lang) ||
+    pickLocalized(institution, 'city', lang) ||
+    institution?.city ||
+    '';
+  const institutionFields = toList(localizeField(institution?.fields, lang));
+  const admissionText =
+    localizeField(institution?.admission, lang) ||
+    pickLocalized(institution, 'admission_requirements', lang) ||
+    institutionSummary;
+
   const typeLabel = {
     university: copy.university,
     academic_college: copy.academicCollege,
     engineering_college: copy.engineeringCollege,
     education_college: copy.educationCollege,
     open_university: copy.openUniversity,
-  }[institution?.typeKey || ''] || institution?.type;
+  }[institution?.typeKey || institution?.institution_type || institution?.type || ''] || institution?.type || institution?.institution_type;
 
   const relatedMajors = (institution?.majors || [])
     .map((majorKey) => majorCatalog.find((item) => item.key === majorKey))
     .filter(Boolean);
+
+  if (institutionLoading) {
+    return (
+      <View style={styles.fallbackWrap}>
+        <Text style={[styles.fallbackText, isRtl && styles.rtlText]}>{programCopy.loadingPrograms}</Text>
+      </View>
+    );
+  }
 
   if (!institution) {
     return (
@@ -106,20 +205,20 @@ export default function InstitutionDetailsScreen({ navigateTo, route = { params:
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={[styles.title, isRtl && styles.rtlText]}>{localizeField(institution.title, lang)}</Text>
-          <Text style={[styles.subtitle, isRtl && styles.rtlText]}>{localizeField(institution.summary, lang)}</Text>
+          <Text style={[styles.title, isRtl && styles.rtlText]}>{institutionTitle}</Text>
+          {!!institutionSummary && <Text style={[styles.subtitle, isRtl && styles.rtlText]}>{institutionSummary}</Text>}
         </View>
       </View>
 
       <View style={styles.metaCard}>
         <MetaRow label={copy.type} value={typeLabel} isRtl={isRtl} />
-        <MetaRow label={copy.city} value={localizeField(institution.cityLabel, lang)} isRtl={isRtl} />
-        <MetaRow label={copy.website} value={institution.website} isRtl={isRtl} />
+        <MetaRow label={copy.city} value={institutionCity || '-'} isRtl={isRtl} />
+        <MetaRow label={copy.website} value={institutionWebsite || '-'} isRtl={isRtl} />
       </View>
 
       <Section title={copy.fields} isRtl={isRtl}>
         <View style={styles.tagsWrap}>
-          {localizeField(institution.fields, lang).map((field) => (
+          {(institutionFields.length ? institutionFields : programs.map((program) => pickLocalized(program, 'program_name', lang)).filter(Boolean)).map((field) => (
             <View key={`${institution.code}-${field}`} style={styles.tag}>
               <Text style={styles.tagText}>{field}</Text>
             </View>
@@ -130,14 +229,14 @@ export default function InstitutionDetailsScreen({ navigateTo, route = { params:
       <Section title={copy.whyFit} isRtl={isRtl}>
         <Text style={[styles.bodyText, isRtl && styles.rtlText]}>
           {matchedMajor
-            ? `${localizeField(matchedMajor.title, lang)}: ${localizeField(institution.admission, lang)}`
-            : localizeField(institution.summary, lang)}
+            ? `${localizeField(matchedMajor.title, lang)}: ${admissionText}`
+            : institutionSummary}
         </Text>
       </Section>
 
       <Section title={copy.admission} isRtl={isRtl}>
         <Text style={[styles.bodyText, isRtl && styles.rtlText]}>
-          {localizeField(institution.admission, lang)}
+          {admissionText || '-'}
         </Text>
       </Section>
 
@@ -146,7 +245,7 @@ export default function InstitutionDetailsScreen({ navigateTo, route = { params:
           <TouchableOpacity
             key={major.key}
             style={[styles.majorRow, isRtl && styles.majorRowRtl]}
-            onPress={() => navigateTo?.('majorDetails', { majorName: localizeField(major.title, lang) })}
+            onPress={() => navigateTo?.('majorDetails', { majorId: major.id || major.key, majorKey: major.key, majorName: localizeField(major.title, lang) })}
           >
             <Text style={[styles.majorLabel, isRtl && styles.rtlText]}>{localizeField(major.title, lang)}</Text>
             <Text style={styles.majorAction}>{copy.viewMajor}</Text>
@@ -154,9 +253,44 @@ export default function InstitutionDetailsScreen({ navigateTo, route = { params:
         ))}
       </Section>
 
-      <TouchableOpacity style={styles.primaryBtn} onPress={() => Linking.openURL(institution.website)}>
-        <Text style={styles.primaryBtnText}>{copy.openSite}</Text>
-      </TouchableOpacity>
+      <Section title={programCopy.availablePrograms} isRtl={isRtl}>
+        {programsLoading ? (
+          <Text style={[styles.bodyText, isRtl && styles.rtlText]}>{programCopy.loadingPrograms}</Text>
+        ) : programsError ? (
+          <Text style={[styles.errorText, isRtl && styles.rtlText]}>{programsError}</Text>
+        ) : programs.length === 0 ? (
+          <Text style={[styles.bodyText, isRtl && styles.rtlText]}>{programCopy.noPrograms}</Text>
+        ) : (
+          programs.map((program) => {
+            const label = pickLocalized(program, 'program_name', lang) || program.program_name_en || program.major_key;
+            return (
+              <TouchableOpacity
+                key={program.id || `${program.major_key}-${label}`}
+                style={[styles.majorRow, isRtl && styles.majorRowRtl]}
+                onPress={() => navigateTo?.('majorDetails', {
+                  majorId: program.major_id || program.major_key,
+                  majorKey: program.major_key,
+                  majorName: label,
+                })}
+              >
+                <View style={styles.programTextWrap}>
+                  <Text style={[styles.majorLabel, isRtl && styles.rtlText]}>{label}</Text>
+                  <Text style={[styles.programMeta, isRtl && styles.rtlText]}>
+                    {[program.degree_type, program.study_duration, program.language_of_study].filter(Boolean).join(' • ')}
+                  </Text>
+                </View>
+                <Text style={styles.majorAction}>{copy.viewMajor}</Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </Section>
+
+      {!!institutionWebsite && (
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => Linking.openURL(institutionWebsite)}>
+          <Text style={styles.primaryBtnText}>{copy.openSite}</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={styles.secondaryBtn}
@@ -184,6 +318,23 @@ function MetaRow({ label, value, isRtl }) {
       <Text style={[styles.metaValue, isRtl && styles.rtlText]}>{value}</Text>
     </View>
   );
+}
+
+function pickLocalized(record, field, language) {
+  const normalized = String(language || '').toLowerCase().startsWith('he')
+    ? 'he'
+    : String(language || '').toLowerCase().startsWith('ar')
+      ? 'ar'
+      : 'en';
+  return record?.[`${field}_${normalized}`] || record?.[`${field}_en`] || record?.[`${field}_ar`] || record?.[`${field}_he`] || '';
+}
+
+function toList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value || '')
+    .split(/[،,;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 const styles = StyleSheet.create({
@@ -236,6 +387,9 @@ const styles = StyleSheet.create({
   },
   tagText: { color: '#1d4ed8', fontWeight: '800' },
   bodyText: { color: '#334155', lineHeight: 22, fontWeight: '700' },
+  errorText: { color: '#dc2626', lineHeight: 22, fontWeight: '800', textAlign: 'right' },
+  programTextWrap: { flex: 1 },
+  programMeta: { marginTop: 4, color: '#64748b', fontWeight: '700', fontSize: 12 },
   majorRow: {
     borderRadius: 14,
     backgroundColor: '#f8fafc',

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../config/supabase';
+import { isValidIsraeliId, normalizeIsraeliId } from '../../src/utils/israeliId';
 import {
   activatePrincipalAccount,
   resolvePrincipalInvitationCodeByEmail,
@@ -134,6 +135,8 @@ function mapError(message, code, labels) {
   return message || labels.invalidTitle;
 }
 
+const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
+
 export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) {
   const initialToken = tokenFromRoute(route);
   const routeCode = codeFromRoute(route);
@@ -150,6 +153,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   const [form, setForm] = useState({
     email: '',
     fullName: '',
+    identityNumber: '',
     phone: '',
     invitationCode: '',
     password: '',
@@ -158,6 +162,12 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   const { width } = useWindowDimensions();
 
   const labels = copy[language] || copy.ar;
+  const identityLabel = language === 'he' ? 'תעודת זהות' : language === 'en' ? 'Israeli ID' : 'رقم الهوية';
+  const invalidIdentityMessage = language === 'he'
+    ? 'מספר תעודת הזהות אינו תקין'
+    : language === 'en'
+      ? 'Invalid Israeli ID number'
+      : 'رقم الهوية غير صحيح';
   const isRtl = language === 'ar' || language === 'he';
   const textAlign = isRtl ? 'right' : 'left';
   const rowDirection = isRtl ? 'row-reverse' : 'row';
@@ -209,6 +219,8 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
     () =>
       form.email.trim() &&
       form.fullName.trim() &&
+      hasIsraeliIdDigits(form.identityNumber) &&
+      isValidIsraeliId(form.identityNumber) &&
       form.password &&
       form.confirmPassword &&
       form.invitationCode.trim() &&
@@ -296,6 +308,10 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   };
 
   const activate = async () => {
+    if (!hasIsraeliIdDigits(form.identityNumber) || !isValidIsraeliId(form.identityNumber)) {
+      Alert.alert(labels.invalidTitle, invalidIdentityMessage);
+      return;
+    }
     if (!canSubmit) {
       Alert.alert(labels.invalidTitle, labels.missing);
       return;
@@ -325,6 +341,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
     const result = await activatePrincipalAccount({
       token,
       email: form.email,
+      identityNumber: normalizeIsraeliId(form.identityNumber),
       fullName: form.fullName,
       phone: form.phone,
       preferredLanguage: language,
@@ -479,12 +496,21 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
 
         <Field label={labels.email} value={form.email} onChangeText={(value) => updateField('email', value.replace(/\s/g, ''))} icon="envelope" keyboardType="email-address" isRtl={isRtl} />
         <Field label={labels.fullName} value={form.fullName} onChangeText={(value) => updateField('fullName', value)} icon="user" isRtl={isRtl} />
+        <Field
+          label={identityLabel}
+          value={form.identityNumber}
+          onChangeText={(value) => updateField('identityNumber', value.replace(/[^\d\s-]/g, ''))}
+          icon="id-card"
+          keyboardType="number-pad"
+          isRtl={isRtl}
+          error={hasIsraeliIdDigits(form.identityNumber) && !isValidIsraeliId(form.identityNumber) ? invalidIdentityMessage : ''}
+        />
         <Field label={labels.phone} value={form.phone} onChangeText={(value) => updateField('phone', value)} icon="phone" keyboardType="phone-pad" isRtl={isRtl} />
         <Field label={labels.code} value={form.invitationCode} onChangeText={(value) => updateField('invitationCode', value.toUpperCase())} icon="key" autoCapitalize="characters" isRtl={isRtl} />
         <Field label={labels.password} value={form.password} onChangeText={(value) => updateField('password', value)} icon="lock" secureTextEntry isRtl={isRtl} />
         <Field label={labels.confirmPassword} value={form.confirmPassword} onChangeText={(value) => updateField('confirmPassword', value)} icon="check-circle" secureTextEntry isRtl={isRtl} />
 
-        <TouchableOpacity style={[styles.activateButton, (!canSubmit || submitting) && styles.disabled]} onPress={activate} disabled={submitting}>
+        <TouchableOpacity style={[styles.activateButton, (!canSubmit || submitting) && styles.disabled]} onPress={activate} disabled={submitting || !canSubmit}>
           <FontAwesome name="shield" size={15} color="#fff" />
           <Text style={styles.activateText}>{submitting ? labels.activating : labels.activate}</Text>
         </TouchableOpacity>
@@ -502,7 +528,7 @@ function InfoLine({ icon, label, isRtl }) {
   );
 }
 
-function Field({ label, isRtl, icon, autoCapitalize, ...props }) {
+function Field({ label, isRtl, icon, autoCapitalize, error, ...props }) {
   return (
     <View style={styles.field}>
       <Text style={[styles.label, { textAlign: isRtl ? 'right' : 'left' }]}>{label}</Text>
@@ -515,6 +541,7 @@ function Field({ label, isRtl, icon, autoCapitalize, ...props }) {
           autoCapitalize={autoCapitalize || 'none'}
         />
       </View>
+      {!!error && <Text style={[styles.validationText, { textAlign: isRtl ? 'right' : 'left' }]}>{error}</Text>}
     </View>
   );
 }
@@ -549,6 +576,7 @@ const styles = StyleSheet.create({
   field: { marginTop: 2 },
   inputWrap: { marginTop: 7, minHeight: 50, borderRadius: 15, borderWidth: 1, borderColor: '#BBF7D0', backgroundColor: '#fff', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
   input: { flex: 1, color: '#0F172A', fontWeight: '800', minHeight: 48 },
+  validationText: { marginTop: 6, color: '#DC2626', fontWeight: '800', fontSize: 12 },
   activateButton: { marginTop: 18, minHeight: 52, borderRadius: 16, backgroundColor: '#15803D', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   activateText: { color: '#fff', fontWeight: '900', fontSize: 15 },
   solidButton: { marginTop: 18, minHeight: 48, borderRadius: 16, backgroundColor: '#15803D', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },

@@ -116,7 +116,7 @@ describe('SuccessStoriesScreen', () => {
   /* -------------------------------------------------------
      CTA – logged in user
   -------------------------------------------------------- */
-  it('CTA navigates to submitStory when user is logged in', async () => {
+  it('CTA shows a clear unavailable message when user is logged in', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1' } });
 
     const { getByText } = render(
@@ -127,6 +127,10 @@ describe('SuccessStoriesScreen', () => {
       fireEvent.press(getByText('hero.buttonLoggedIn'));
     });
 
-    expect(navigateTo).toHaveBeenCalledWith('submitStory');
+    expect(navigateTo).not.toHaveBeenCalledWith('submitStory');
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'alerts.submitUnavailableTitle',
+      'alerts.submitUnavailableBody'
+    );
   });
 });

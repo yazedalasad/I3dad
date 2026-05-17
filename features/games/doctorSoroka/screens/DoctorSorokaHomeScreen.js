@@ -8,7 +8,7 @@ import {
 } from '../../shared';
 import { doctorSorokaLevels } from '../data/levels';
 
-export default function DoctorSorokaHomeScreen({ navigation, studentId = 'demo-student-id' }) {
+export default function DoctorSorokaHomeScreen({ navigation, studentId = null }) {
   return (
     <ScreenContainer scroll>
       <GameHeader

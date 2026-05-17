@@ -78,10 +78,10 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
           `
           )
           .eq('session_id', sessionId)
+          .eq('student_id', studentData.id)
           .order('question_order', { ascending: true });
 
         if (error) {
-          console.log('Review answers query error:', error);
           Alert.alert(
             t('generic.error', isArabic ? 'خطأ' : 'שגיאה'),
             isArabic ? 'فشل تحميل مراجعة الإجابات.' : 'טעינת סקירת התשובות נכשלה.'
@@ -115,7 +115,6 @@ export default function ReviewAnswersScreen({ navigateTo, sessionId, language = 
 
         setItems(normalized);
       } catch (e) {
-        console.log('ReviewAnswers error:', e?.message || e);
         Alert.alert(
           t('generic.error', isArabic ? 'خطأ' : 'שגיאה'),
           t('generic.unknownError', isArabic ? 'حدث خطأ غير متوقع.' : 'אירעה שגיאה לא צפויה.')

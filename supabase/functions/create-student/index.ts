@@ -27,6 +27,23 @@ function isAdminRole(value: unknown) {
   return String(value || "").toLowerCase() === "admin";
 }
 
+function normalizeIsraeliId(value: unknown) {
+  return String(value || "").replace(/\D/g, "").padStart(9, "0");
+}
+
+function isValidIsraeliId(value: unknown) {
+  const id = normalizeIsraeliId(value);
+  if (!/^\d{9}$/.test(id)) return false;
+  const sum = id
+    .split("")
+    .map((digit, index) => {
+      const n = Number(digit) * (index % 2 === 0 ? 1 : 2);
+      return n > 9 ? n - 9 : n;
+    })
+    .reduce((a, b) => a + b, 0);
+  return sum % 10 === 0;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { success: false, error: "Method not allowed" });
@@ -75,7 +92,8 @@ Deno.serve(async (req: Request) => {
     if (!callerIsAdmin) return json(403, { success: false, error: "Forbidden: admin only" });
 
     const body: any = await req.json();
-    const studentId = String(body.studentId ?? "").trim();
+    const rawStudentId = String(body.studentId ?? "").replace(/\D/g, "");
+    const studentId = normalizeIsraeliId(body.studentId ?? "");
     const firstName = String(body.firstName ?? "").trim();
     const lastName = String(body.lastName ?? "").trim();
     const email = String(body.email ?? "").trim().toLowerCase();
@@ -88,7 +106,7 @@ Deno.serve(async (req: Request) => {
     const preferredLanguage = String(body.preferredLanguage ?? "ar").trim();
     const password = String(body.password ?? "").trim();
 
-    if (!/^[0-9]{9}$/.test(studentId)) return json(400, { success: false, error: "Student identity must be 9 digits" });
+    if (!rawStudentId || !isValidIsraeliId(studentId)) return json(400, { success: false, error: "Invalid Israeli ID number" });
     if (!email.includes("@")) return json(400, { success: false, error: "Invalid email" });
     if (!firstName || !lastName) return json(400, { success: false, error: "Student name is required" });
     if (!phone) return json(400, { success: false, error: "Phone is required" });

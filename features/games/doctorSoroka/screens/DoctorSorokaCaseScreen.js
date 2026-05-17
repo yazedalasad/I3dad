@@ -18,7 +18,7 @@ export default function DoctorSorokaCaseScreen({
   navigation,
 }) {
   const levelId = route?.params?.levelId || 'doctor_soroka_level_1';
-  const studentId = route?.params?.studentId || 'demo-student-id';
+  const studentId = route?.params?.studentId || null;
 
   const {
     loading,
@@ -36,6 +36,7 @@ export default function DoctorSorokaCaseScreen({
   const [selecting, setSelecting] = useState(false);
 
   useEffect(() => {
+    if (!studentId) return;
     startGame(studentId).catch(() => {});
   }, [studentId, startGame]);
 
@@ -65,6 +66,10 @@ export default function DoctorSorokaCaseScreen({
 
   if (!currentScene) {
     return <ErrorState title="לא נמצא מקרה" message="נסה להיכנס מחדש לשלב." />;
+  }
+
+  if (!studentId) {
+    return <ErrorState title="חסר פרופיל תלמיד" message="צריך להשלים פרופיל תלמיד לפני שמתחילים משחק." />;
   }
 
   return (

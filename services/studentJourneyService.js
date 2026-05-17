@@ -1,5 +1,5 @@
 import { getStudentAbilities } from './abilityService';
-import { recommendTopDegrees } from './recommendationService';
+import { getRecommendedMajorsWithInstitutions } from './recommendationService';
 import { getStudentGameSessions } from '../features/games/shared/services/gameSessionService';
 import {
   buildGameLearningHighlight,
@@ -383,7 +383,7 @@ export async function getStudentJourneySnapshot(studentId, options = {}) {
   try {
     const [abilityRes, recommendationRes, gameSessions, careerSignalSummary] = await Promise.all([
       getStudentAbilities(studentId),
-      recommendTopDegrees(studentId, { language, limit: 3 }),
+      getRecommendedMajorsWithInstitutions(studentId, { language, limit: 3 }),
       getStudentGameSessions(studentId),
       getStudentGameCareerSignalSummary(studentId),
     ]);

@@ -1,5 +1,5 @@
 -- ============================================================
--- I3dad / إعداد
+-- i3dad / إعداد
 -- Admin visibility upgrade for the CURRENT Supabase schema.
 --
 -- Important:

@@ -13,6 +13,7 @@ import { adminColors } from '../../components/Admin/adminTheme';
 import { useAdminTranslator } from '../../components/Admin/adminTranslations';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { isValidIsraeliId, normalizeIsraeliId } from '../../src/utils/israeliId';
 import {
   getPrincipalInvitations,
   invitePrincipalByEmail,
@@ -23,6 +24,7 @@ import {
 
 const initialPrincipal = {
   fullName: '',
+  identityNumber: '',
   email: '',
   phone: '',
   schoolName: '',
@@ -31,6 +33,7 @@ const initialPrincipal = {
   notes: '',
   role: 'principal',
 };
+const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 export default function AdminManagementScreen({ navigateTo }) {
   const tr = useAdminTranslator();
@@ -91,6 +94,11 @@ export default function AdminManagementScreen({ navigateTo }) {
       Alert.alert(tr('بيانات ناقصة'), tr('أدخل بريد المدير الإلكتروني بشكل صحيح.'));
       return;
     }
+    if (!hasIsraeliIdDigits(principalForm.identityNumber) || !isValidIsraeliId(principalForm.identityNumber)) {
+      setInviteFeedback({ type: 'error', message: 'رقم الهوية غير صحيح' });
+      Alert.alert(tr('بيانات ناقصة'), tr('رقم الهوية غير صحيح'));
+      return;
+    }
     if (!principalForm.schoolId) {
       setInviteFeedback({ type: 'error', message: 'اختر المدرسة من نتائج القائمة. كتابة اسم المدرسة فقط لا تكفي لإرسال الدعوة.' });
       Alert.alert(tr('بيانات ناقصة'), tr('اختر مدرسة واحدة من قائمة المدارس قبل إرسال الدعوة.'));
@@ -101,6 +109,7 @@ export default function AdminManagementScreen({ navigateTo }) {
     const payload = {
       ...principalForm,
       email,
+      identityNumber: normalizeIsraeliId(principalForm.identityNumber),
       fullName: principalForm.fullName.trim() || email,
       schoolName: principalForm.schoolName.trim(),
       role: 'principal',
@@ -229,6 +238,14 @@ export default function AdminManagementScreen({ navigateTo }) {
             placeholder="اسم المدير"
           />
           <Field
+            label="رقم الهوية"
+            value={principalForm.identityNumber}
+            onChangeText={(value) => updateField('identityNumber', value.replace(/[^\d\s-]/g, ''))}
+            keyboardType="number-pad"
+            placeholder="123456789"
+            error={hasIsraeliIdDigits(principalForm.identityNumber) && !isValidIsraeliId(principalForm.identityNumber) ? 'رقم الهوية غير صحيح' : ''}
+          />
+          <Field
             label="رقم الهاتف"
             value={principalForm.phone}
             onChangeText={(value) => updateField('phone', value)}
@@ -271,7 +288,7 @@ export default function AdminManagementScreen({ navigateTo }) {
           <TouchableOpacity style={styles.secondaryButton} onPress={() => navigateTo?.('adminManagers')} disabled={saving}>
             <Text style={styles.secondaryText}>{tr('إلغاء')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.submitButton, saving && styles.disabled]} onPress={submitPrincipalInvite} disabled={saving}>
+          <TouchableOpacity style={[styles.submitButton, (saving || !hasIsraeliIdDigits(principalForm.identityNumber) || !isValidIsraeliId(principalForm.identityNumber)) && styles.disabled]} onPress={submitPrincipalInvite} disabled={saving || !hasIsraeliIdDigits(principalForm.identityNumber) || !isValidIsraeliId(principalForm.identityNumber)}>
             <FontAwesome name="paper-plane" size={14} color="#fff" />
             <Text style={styles.submitText}>{tr(saving ? 'جار إرسال الدعوة...' : 'إرسال الدعوة')}</Text>
           </TouchableOpacity>
@@ -311,7 +328,7 @@ export default function AdminManagementScreen({ navigateTo }) {
   );
 }
 
-function Field({ label, multiline, ...props }) {
+function Field({ label, multiline, error, ...props }) {
   const tr = useAdminTranslator();
   return (
     <View style={[styles.field, multiline && styles.fieldWide]}>
@@ -325,6 +342,7 @@ function Field({ label, multiline, ...props }) {
         writingDirection="rtl"
         multiline={multiline}
       />
+      {!!error && <Text style={styles.inputError}>{tr(error)}</Text>}
     </View>
   );
 }
@@ -589,6 +607,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontWeight: '800',
   },
+  inputError: { marginTop: -2, color: adminColors.danger, fontSize: 12, fontWeight: '900', textAlign: 'right' },
   inputMultiline: { minHeight: 92, paddingTop: 10, textAlignVertical: 'top' },
   autocompleteWrap: { position: 'relative', zIndex: 50 },
   schoolFieldOpen: { marginBottom: 166 },

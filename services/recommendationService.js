@@ -11,6 +11,9 @@
  */
 
 import degreeMatchService from './degreeMatchService';
+import { supabase } from '../config/supabase';
+import { getMajorKey } from './academicCatalogHelpers';
+import { getInstitutionsForMajor } from './institutionService';
 
 /* ----------------------------- Helpers ----------------------------- */
 
@@ -111,7 +114,59 @@ export async function recommendTopDegreesAfterSession(studentId, options = {}) {
   return recommendTopDegrees(studentId, options);
 }
 
+export async function getRecommendedMajorsWithInstitutions(studentId, options = {}) {
+  const result = await recommendTopDegrees(studentId, options);
+  if (!result?.success) return result;
+
+  const studentLocation = options.studentLocation || await getStudentLocation(studentId);
+  const recommendations = await Promise.all(
+    (result.data || []).map(async (major) => {
+      const majorKey = getMajorKey(major.code || major.name_en || major.name || major.degree_id);
+      const institutionsResult = await getInstitutionsForMajor(
+        major.degree_id || majorKey,
+        studentLocation,
+        options.filters || {}
+      );
+
+      const fallbackResult = institutionsResult.data?.length
+        ? institutionsResult
+        : await getInstitutionsForMajor(majorKey, studentLocation, options.filters || {});
+
+      return {
+        ...major,
+        major_id: major.degree_id,
+        major_key: majorKey,
+        institutions: fallbackResult.data || [],
+        institutionsError: fallbackResult.success ? null : fallbackResult.error,
+      };
+    })
+  );
+
+  return {
+    ...result,
+    data: recommendations,
+  };
+}
+
+async function getStudentLocation(studentId) {
+  if (!studentId) return {};
+  const { data, error } = await supabase
+    .from('students')
+    .select('city, city_ar, city_he, region, school_name, school_id, latitude, longitude, schools(city_ar, city_he, region)')
+    .eq('id', studentId)
+    .maybeSingle();
+
+  if (error || !data) return {};
+  return {
+    city: data.city || data.city_ar || data.city_he || data.schools?.city_ar || data.schools?.city_he || data.school_name,
+    region: data.region || data.schools?.region,
+    latitude: data.latitude,
+    longitude: data.longitude,
+  };
+}
+
 export default {
   recommendTopDegrees,
   recommendTopDegreesAfterSession,
+  getRecommendedMajorsWithInstitutions,
 };

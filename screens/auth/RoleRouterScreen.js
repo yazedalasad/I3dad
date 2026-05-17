@@ -15,7 +15,7 @@ function normalizeRole(role) {
 }
 
 function roleFromUser(user) {
-  return normalizeRole(user?.app_metadata?.role || user?.user_metadata?.role);
+  return normalizeRole(user?.app_metadata?.role);
 }
 
 function safeT(t, key, fallback) {

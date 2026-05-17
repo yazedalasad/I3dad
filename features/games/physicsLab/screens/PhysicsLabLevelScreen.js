@@ -165,7 +165,7 @@ export default function PhysicsLabLevelScreen({ route, navigation }) {
       runTimeoutRef.current = null;
     }
 
-    if (level?.id) {
+    if (level?.id && studentId) {
       await markPhysicsLabLevelCompleted(level.id, studentId).catch(() => {});
       finishLevel().catch(() => {});
     }

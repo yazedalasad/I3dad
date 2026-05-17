@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import { institutionsCatalog } from '../data/majorCatalog';
 import { getGameHubItems } from '../features/games/catalog';
+import { isValidIsraeliId, normalizeIsraeliId } from '../src/utils/israeliId';
 
 const emptyResult = (error = null) => ({ rows: [], count: 0, error });
 const RECENT_IN_PROGRESS_HOURS = 24;
@@ -64,8 +65,8 @@ function normalizeQuestionRow(row) {
 }
 
 function normalizeIdentityNumber(value) {
-  const digits = String(value || '').replace(/\D/g, '');
-  return digits.length === 9 ? digits : 'غير متوفر';
+  const digits = normalizeIsraeliId(value);
+  return isValidIsraeliId(digits) ? digits : 'غير متوفر';
 }
 
 function studentDisplayFromRelation(row) {
@@ -461,7 +462,7 @@ export async function updateAdminStudent(studentId, payload) {
   if (!validation.valid) return { success: false, error: { message: validation.message } };
 
   const clean = {
-    student_id: String(payload.student_id || '').trim(),
+    student_id: normalizeIsraeliId(payload.student_id),
     first_name: String(payload.first_name || '').trim(),
     last_name: String(payload.last_name || '').trim(),
     email: String(payload.email || '').trim(),
@@ -525,7 +526,7 @@ export async function createAdminStudent(payload) {
 
   const { data, error } = await supabase.functions.invoke('create-student', {
     body: {
-      studentId: String(payload.student_id || '').trim(),
+      studentId: normalizeIsraeliId(payload.student_id),
       firstName: String(payload.first_name || '').trim(),
       lastName: String(payload.last_name || '').trim(),
       email: String(payload.email || '').trim(),
@@ -601,9 +602,10 @@ export async function deleteAdminStudent(studentId) {
 }
 
 function validateAdminStudentPayload(payload) {
-  const identity = String(payload.student_id || '').trim();
-  if (!/^[0-9]{9}$/.test(identity)) {
-    return { valid: false, message: 'رقم الهوية يجب أن يكون 9 أرقام فقط.' };
+  const rawIdentity = String(payload.student_id || '').replace(/\D/g, '');
+  const identity = normalizeIsraeliId(payload.student_id);
+  if (!rawIdentity || !isValidIsraeliId(identity)) {
+    return { valid: false, message: 'رقم الهوية غير صحيح' };
   }
   if (!String(payload.first_name || '').trim()) return { valid: false, message: 'الاسم الأول مطلوب.' };
   if (!String(payload.last_name || '').trim()) return { valid: false, message: 'اسم العائلة مطلوب.' };

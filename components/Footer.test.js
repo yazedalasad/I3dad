@@ -29,7 +29,7 @@ describe('Footer', () => {
   it('navigates to About when pressing "من نحن"', () => {
     const { getByText } = render(<Footer />);
     fireEvent.press(getByText('من نحن'));
-    expect(mockNavigate).toHaveBeenCalledWith('About');
+    expect(mockNavigate).toHaveBeenCalledWith('about');
   });
 
   // ❌ Negative 1 (pressing non-clickable links should NOT navigate)

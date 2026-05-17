@@ -15,10 +15,12 @@ import {
   StatusBadge,
   useAdminLocale,
 } from '../../components/Admin/AdminLayout';
+import InstitutionProgramsManager from '../../components/Admin/InstitutionProgramsManager';
 import { adminColors } from '../../components/Admin/adminTheme';
 import { useAdminTranslator } from '../../components/Admin/adminTranslations';
 import { supabase } from '../../config/supabase';
 import { israeliSchools } from '../../data/israeliSchools';
+import { isValidIsraeliId, normalizeIsraeliId } from '../../src/utils/israeliId';
 import {
   createAdminInstitution,
   createAdminStudent,
@@ -284,6 +286,8 @@ const statusLabels = {
   ar: { active: 'نشط', inactive: 'موقوف' },
   he: { active: 'פעיל', inactive: 'לא פעיל' },
 };
+
+const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 const adminGameCopy = {
   'doctor-soroka': {
@@ -554,7 +558,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     setEditingStudent({
       mode: student?.id ? 'edit' : 'create',
       id: student?.id || null,
-      student_id: /^[0-9]{9}$/.test(String(student?.student_id || '')) ? String(student.student_id) : '',
+      student_id: isValidIsraeliId(student?.student_id) ? normalizeIsraeliId(student.student_id) : '',
       first_name: student?.first_name || '',
       last_name: student?.last_name || '',
       email: student?.email || '',
@@ -572,10 +576,18 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
 
   const saveStudent = async () => {
     if (!editingStudent) return;
+    if (!hasIsraeliIdDigits(editingStudent.student_id) || !isValidIsraeliId(editingStudent.student_id)) {
+      Alert.alert(tr('تعذر حفظ الطالب'), tr('رقم الهوية غير صحيح'));
+      return;
+    }
     setSavingStudent(true);
-    const result = editingStudent.mode === 'create'
-      ? await createAdminStudent(editingStudent)
-      : await updateAdminStudent(editingStudent.id, editingStudent);
+    const normalizedStudent = {
+      ...editingStudent,
+      student_id: normalizeIsraeliId(editingStudent.student_id),
+    };
+    const result = normalizedStudent.mode === 'create'
+      ? await createAdminStudent(normalizedStudent)
+      : await updateAdminStudent(normalizedStudent.id, normalizedStudent);
     setSavingStudent(false);
 
     if (!result.success) {
@@ -901,6 +913,7 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
 
       {config.extra === 'abilities' && <AbilitiesSection />}
       {config.extra === 'permissions' && <PermissionsSection />}
+      {entity === 'institutions' && <InstitutionProgramsManager />}
       {config.chartMode && <ReportsCharts rows={filteredRows} />}
       <StudentEditModal
         visible={!!editingStudent}
@@ -1035,6 +1048,7 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
   if (!student) return null;
   const setField = (key, value) => onChange((current) => ({ ...current, [key]: value }));
   const isCreate = student.mode === 'create';
+  const identityIsValid = hasIsraeliIdDigits(student.student_id) && isValidIsraeliId(student.student_id);
   const gradeOptions = ['9', '10', '11', '12'];
   const sectionOptions = [
     { value: 'alef', label: 'أ' },
@@ -1058,9 +1072,10 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
           <EditInput
             label="رقم الهوية"
             value={student.student_id}
-            onChangeText={(value) => setField('student_id', value.replace(/\D/g, '').slice(0, 9))}
+            onChangeText={(value) => setField('student_id', value.replace(/[^\d\s-]/g, '').slice(0, 12))}
             keyboardType="number-pad"
             placeholder="9 أرقام"
+            error={hasIsraeliIdDigits(student.student_id) && !identityIsValid ? 'رقم الهوية غير صحيح' : ''}
           />
           <View style={styles.formRow}>
             <EditInput label="الاسم الأول" value={student.first_name} onChangeText={(value) => setField('first_name', value)} />
@@ -1112,7 +1127,7 @@ function StudentEditModal({ visible, student, saving, onChange, onClose, onSave 
             <TouchableOpacity style={styles.modalCancel} onPress={onClose} disabled={saving}>
               <Text style={styles.modalCancelText}>{tr('إلغاء')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSave} onPress={onSave} disabled={saving}>
+            <TouchableOpacity style={[styles.modalSave, (!identityIsValid || saving) && styles.disabled]} onPress={onSave} disabled={saving || !identityIsValid}>
               <Text style={styles.modalSaveText}>{tr(saving ? 'جار الحفظ...' : isCreate ? 'إضافة الطالب' : 'حفظ التعديلات')}</Text>
             </TouchableOpacity>
           </View>
@@ -1327,7 +1342,7 @@ function ConfirmInstitutionDeleteModal({ visible, institution, saving, onClose, 
   );
 }
 
-function EditInput({ label, ...props }) {
+function EditInput({ label, error, ...props }) {
   const tr = useAdminTranslator();
   return (
     <View style={styles.editField}>
@@ -1340,6 +1355,7 @@ function EditInput({ label, ...props }) {
         textAlign="right"
         writingDirection="rtl"
       />
+      {!!error && <Text style={styles.inputError}>{tr(error)}</Text>}
     </View>
   );
 }
@@ -1599,6 +1615,7 @@ const styles = StyleSheet.create({
   autocompleteFieldOpen: { marginBottom: 166 },
   modalLabel: { color: adminColors.text, fontWeight: '900', fontSize: 12, textAlign: 'right' },
   editInput: { minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: adminColors.border, backgroundColor: adminColors.bg, color: adminColors.text, paddingHorizontal: 12, fontWeight: '800' },
+  inputError: { marginTop: -4, marginBottom: 8, color: adminColors.danger, fontSize: 12, fontWeight: '900', textAlign: 'right' },
   autocompleteWrap: { position: 'relative', zIndex: 50 },
   schoolResults: { position: 'absolute', top: 50, left: 0, right: 0, maxHeight: 150, borderRadius: 14, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff', zIndex: 100, elevation: 12, shadowColor: '#102A68', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
   schoolOption: { minHeight: 42, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: adminColors.border, alignItems: 'flex-end', justifyContent: 'center' },
@@ -1611,6 +1628,7 @@ const styles = StyleSheet.create({
   choiceTextActive: { color: adminColors.primary },
   modalActions: { flexDirection: 'row-reverse', gap: 10, justifyContent: 'flex-start', marginTop: 4 },
   modalSave: { minHeight: 42, borderRadius: 14, backgroundColor: adminColors.primary2, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  disabled: { opacity: 0.55 },
   modalDelete: { backgroundColor: adminColors.danger },
   modalSaveText: { color: '#fff', fontWeight: '900' },
   modalCancel: { minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },

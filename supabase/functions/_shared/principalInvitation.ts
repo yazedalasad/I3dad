@@ -146,7 +146,7 @@ function invitationCopy(language: string, fullName: string, schoolName: string, 
   if (language === "en") {
     return {
       dir: "ltr",
-      subject: "Activate your I3dad principal account",
+      subject: "Activate your i3dad / إعداد principal account",
       html: `
         <div dir="ltr" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
           <h2>Activate Principal Account</h2>
@@ -193,7 +193,7 @@ export async function sendInvitationEmail({
   const provider = String(Deno.env.get("EMAIL_PROVIDER") || "").trim().toLowerCase();
   const from = provider === "gmail"
     ? Deno.env.get("GMAIL_FROM")
-    : Deno.env.get("INVITATION_EMAIL_FROM") || "I3dad <onboarding@resend.dev>";
+    : Deno.env.get("INVITATION_EMAIL_FROM") || "i3dad / إعداد <onboarding@resend.dev>";
 
   const copy = invitationCopy(normalizeLanguage(preferredLanguage), fullName || "", schoolName || "", inviteLink, invitationCode);
   const result = await sendEmail({

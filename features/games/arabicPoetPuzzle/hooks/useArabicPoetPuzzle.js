@@ -208,7 +208,11 @@ export function useArabicPoetPuzzle({ levelId = 'arabic_poet_puzzle_level_1' } =
     };
   }
 
-  const startLevel = useCallback(async (studentId = 'demo-student-id') => {
+  const startLevel = useCallback(async (studentId = null) => {
+    if (!studentId) {
+      throw new Error('studentId is required');
+    }
+
     if (!hasStartedLevelRef.current) {
       hasStartedLevelRef.current = true;
       timerApi.restart();

@@ -7,14 +7,14 @@ import desertThemeBgImage from '../assets/desert-theme-bg.png';
 import { getCompletedArabicPoetPuzzleLevels } from '../services/levelProgressService';
 import { getStudentGameSessions } from '../../shared/services/gameSessionService';
 
-export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = 'demo-student-id' }) {
+export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = null }) {
   const colors = desertTheme.colors;
   const [completedLevels, setCompletedLevels] = useState([]);
 
   const loadCompletedLevels = useCallback(() => {
     Promise.all([
       getCompletedArabicPoetPuzzleLevels(studentId),
-      getStudentGameSessions(studentId, 'arabic_poet_puzzle').catch(() => []),
+      studentId ? getStudentGameSessions(studentId, 'arabic_poet_puzzle').catch(() => []) : Promise.resolve([]),
     ])
       .then(([localLevels, gameSessions]) => {
         const savedLevels = (gameSessions || [])

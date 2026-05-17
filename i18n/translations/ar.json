@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "I3dad",
+    "appName": "i3dad / إعداد",
     "loading": "جاري التحميل...",
     "error": "خطأ",
     "success": "نجح!",
@@ -13,7 +13,7 @@
     "or": "أو"
   },
   "home": {
-    "title": "I3dad",
+    "title": "i3dad / إعداد",
     "subtitle": "اكتشف شغفك، شكل مستقبلك",
     "description": "منصتك الشاملة لاكتشاف المسار المهني المثالي، التحضير للجامعة، وبناء مستقبلك في إسرائيل",
     "getStarted": "ابدأ رحلتك المجانية",
@@ -115,10 +115,10 @@
     },
     "successStories": {
       "title": "قصص نجاح ملهمة",
-      "subtitle": "طلاب عرب وجدوا طريقهم وحققوا أحلامهم مع I3dad"
+      "subtitle": "طلاب عرب وجدوا طريقهم وحققوا أحلامهم مع i3dad / إعداد"
     },
     "howItWorks": {
-      "title": "كيف يعمل I3dad؟",
+      "title": "كيف يعمل i3dad / إعداد؟",
       "subtitle": "أربع خطوات بسيطة لاكتشاف مسارك المهني",
       "step1": {
         "title": "سجل مجاناً",
@@ -139,7 +139,7 @@
     },
     "cta": {
       "title": "جاهز لتحقيق أحلامك؟",
-      "subtitle": "انضم إلى آلاف الطلاب العرب الذين يبنون مستقبلهم مع I3dad",
+      "subtitle": "انضم إلى آلاف الطلاب العرب الذين يبنون مستقبلهم مع i3dad / إعداد",
       "button": "سجل الآن مجاناً",
       "buttonLoggedIn": "ابدأ التقييم الآن",
       "note": "✓ مجاني تماماً  ✓ بدون بطاقة ائتمان  ✓ نتائج فورية"
@@ -261,8 +261,21 @@
     "passwordTooShort": "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل",
     "passwordsNotMatch": "كلمات المرور غير متطابقة",
     "invalidStudentId": "رقم الهوية يجب أن يكون 9 أرقام",
+    "invalidIsraeliId": "رقم الهوية غير صحيح",
     "invalidPhone": "رقم الهاتف غير صالح",
     "invalidDate": "التاريخ غير صالح"
+  },
+  "academic": {
+    "whereCanIStudy": "أين يمكنني دراسة هذا المجال؟",
+    "availablePrograms": "البرامج المتاحة",
+    "matchingInstitutions": "مؤسسات مناسبة لهذا التخصص",
+    "institutionType": "نوع المؤسسة",
+    "degreeType": "نوع الشهادة",
+    "studyDuration": "مدة الدراسة",
+    "admissionRequirements": "شروط القبول",
+    "programWebsite": "رابط البرنامج",
+    "sameRegion": "نفس المنطقة",
+    "closestToYou": "الأقرب إليك"
   },
   "nav": {
     "home": "الرئيسية",

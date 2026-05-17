@@ -229,8 +229,12 @@ export default function SuccessStoriesScreen({ navigateTo }) {
   };
 
   const submitStory = () => {
-    if (user) navigateTo?.('submitStory');
-    else navigateTo?.('signup');
+    if (!user) {
+      navigateTo?.('signup');
+      return;
+    }
+
+    Alert.alert(t('alerts.submitUnavailableTitle'), t('alerts.submitUnavailableBody'));
   };
 
   const clearFilters = () => {

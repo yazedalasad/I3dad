@@ -10,7 +10,7 @@ import { markArabicPoetPuzzleLevelCompleted } from '../services/levelProgressSer
 export default function ArabicPoetPuzzleResultScreen({ route, navigation }) {
   const colors = desertTheme.colors;
   const levelId = route?.params?.levelId;
-  const studentId = route?.params?.studentId || 'demo-student-id';
+  const studentId = route?.params?.studentId || null;
   const stats = route?.params?.result?.stats || route?.params?.stats || {};
   const level = arabicPoetPuzzleLevels.find((item) => item.id === levelId) || arabicPoetPuzzleLevels[0];
   const solvedWords = stats?.solvedWords || level.words.length;
@@ -21,6 +21,7 @@ export default function ArabicPoetPuzzleResultScreen({ route, navigation }) {
   const seconds = String(Math.floor((elapsedMs % 60000) / 1000)).padStart(2, '0');
 
   useEffect(() => {
+    if (!studentId) return;
     markArabicPoetPuzzleLevelCompleted(level.id, studentId).catch(() => {});
   }, [level.id, studentId]);
 

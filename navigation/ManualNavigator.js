@@ -12,6 +12,7 @@ import ActivitiesScreen from '../screens/Activities/ActivitiesScreen';
 import AdaptiveTestScreen from '../screens/AdaptiveTest/AdaptiveTestScreen';
 import TestResultsScreen from '../screens/AdaptiveTest/TestResultsScreen';
 import TotalExamScreen from '../screens/AdaptiveTest/TotalExamScreen';
+import ReviewAnswersScreen from '../components/AdaptiveTest/ReviewAnswersScreen';
 
 import ChangePasswordScreen from '../screens/Auth/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
@@ -114,6 +115,28 @@ const NAVBAR_TAB_SCREENS = [
   'login',
 ];
 
+const STUDENT_ID_REQUIRED_SCREENS = new Set([
+  'adaptiveTest',
+  'startAdaptiveTest',
+  'testResults',
+  'reviewAnswers',
+  'personalityTest',
+  'personalityResults',
+  'studentInsightReport',
+  'finalReport',
+  'DoctorSorokaHome',
+  'DoctorSorokaCase',
+  'DoctorSorokaSummary',
+  'PhysicsLabHome',
+  'PhysicsLabLevel',
+  'PhysicsLabResult',
+  'ArabicPoetPuzzleHome',
+  'ArabicPoetPuzzleLevel',
+  'ArabicPoetPuzzleResult',
+  'physicsBridgeLevelSelect',
+  'physicsBridgeGame',
+]);
+
 export default function ManualNavigator() {
   const { user, loading, profile, studentData, studentDataLoading, studentId, studentIdentity } = useAuth();
   const { i18n } = useTranslation();
@@ -135,7 +158,7 @@ export default function ManualNavigator() {
       return;
     }
 
-    const role = String(user?.app_metadata?.role || user?.user_metadata?.role || profile?.role || '').toLowerCase();
+    const role = String(user?.app_metadata?.role || profile?.role || '').toLowerCase();
     const shouldRouteAfterAuth =
       currentScreen === 'login' ||
       (currentScreen === 'home' && ['admin', 'principal', 'school_admin'].includes(role));
@@ -146,7 +169,7 @@ export default function ManualNavigator() {
       navigateTo('roleRouter', {}, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading, profile?.role, user?.app_metadata?.role, user?.user_metadata?.role, currentScreen]);
+  }, [user, loading, profile?.role, user?.app_metadata?.role, currentScreen]);
 
   const navigateTo = (screen, params = {}, options = {}) => {
     const currentLang = normalizeLang(i18n.language);
@@ -230,7 +253,7 @@ export default function ManualNavigator() {
 
   const gameNavigation = {
     navigate: (screen, params = {}) => navigateTo(screen, params),
-    replace: (screen, params = {}) => navigateTo(screen, params),
+    replace: (screen, params = {}) => navigateTo(screen, params, { replace: true }),
   };
 
   const resolvedStudentId = screenParams.studentId || studentId || studentData?.id || null;
@@ -283,6 +306,21 @@ export default function ManualNavigator() {
 
     if (currentScreen === 'roleRouter') {
       return <RoleRouterScreen navigateTo={navigateTo} />;
+    }
+
+    if (user && STUDENT_ID_REQUIRED_SCREENS.has(currentScreen) && !resolvedStudentId) {
+      if (studentDataLoading) {
+        return (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#27ae60" />
+            <Text style={styles.loadingText}>
+              {normalizeLang(i18n.language) === 'he' ? 'טוען את פרטי התלמיד...' : 'جاري تحميل بيانات الطالب...'}
+            </Text>
+          </View>
+        );
+      }
+
+      return <EditStudentProfileScreen navigateTo={navigateTo} />;
     }
 
     // App screens
@@ -442,6 +480,16 @@ export default function ManualNavigator() {
             subjectId={screenParams.subjectId}
             personalitySessionId={screenParams.personalitySessionId || null}
             studentId={resolvedStudentId}
+            language={screenParams.language || normalizeLang(i18n.language)}
+          />
+        );
+
+      case 'reviewAnswers':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <ReviewAnswersScreen
+            navigateTo={navigateTo}
+            sessionId={screenParams.sessionId}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );
@@ -741,6 +789,7 @@ export default function ManualNavigator() {
     'personalityTest',
     'personalityResults',
     'testResults',
+    'reviewAnswers',
   ];
 
   return (

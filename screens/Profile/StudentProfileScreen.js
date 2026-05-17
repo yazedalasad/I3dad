@@ -530,7 +530,7 @@ function GameSignalsCard({ signals, copy, language }) {
         <>
           <View style={styles.chipList}>
             {(signals.skills || []).slice(0, 4).map((skill) => (
-              <View key={skill.skill_tag} style={styles.gameSkillChip}>
+              <View key={skill.key || `${skill.game_key || 'game'}:${skill.skill_tag}`} style={styles.gameSkillChip}>
                 <Text style={styles.strengthText}>{skill.label}</Text>
                 <Text style={styles.sourceText}>{skill.score}%</Text>
               </View>

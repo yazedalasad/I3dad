@@ -21,11 +21,13 @@ import {
   getClassSectionOptions,
   normalizeClassSection,
 } from '../../utils/classSections';
+import { isValidIsraeliId, normalizeIsraeliId } from '../../src/utils/israeliId';
 
 const gradeOptions = ['9', '10', '11', '12'];
 const genderOptions = ['male', 'female'];
 const AVATAR_BUCKET = 'avatars';
 const AVATAR_COLUMN = 'avatar_url';
+const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 export default function EditStudentProfileScreen({ navigateTo }) {
   const { i18n } = useTranslation();
@@ -123,6 +125,11 @@ export default function EditStudentProfileScreen({ navigateTo }) {
           save: 'Save changes',
           saving: 'Saving...',
         };
+  const invalidIsraeliIdMessage = isHebrew
+    ? 'מספר תעודת הזהות אינו תקין'
+    : isArabic
+      ? 'رقم الهوية غير صحيح'
+      : 'Invalid Israeli ID number';
 
   const [saving, setSaving] = useState(false);
   const [schools, setSchools] = useState([]);
@@ -130,6 +137,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [form, setForm] = useState({
+    student_id: '',
     first_name: '',
     last_name: '',
     phone: '',
@@ -160,6 +168,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     setAvatarUrl(url);
     setForm((prev) => ({
       ...prev,
+      student_id: prev.student_id || (studentData?.student_id || studentData?.identity_number || ''),
       first_name: prev.first_name || (studentData?.first_name || ''),
       last_name: prev.last_name || (studentData?.last_name || ''),
       phone: prev.phone || (studentData?.phone || ''),
@@ -182,6 +191,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     setForm((prev) => ({
       ...prev,
       first_name: prev.first_name || metadata.first_name || firstName || '',
+      student_id: prev.student_id || metadata.student_id || metadata.studentId || '',
       last_name: prev.last_name || metadata.last_name || lastName || '',
       phone: prev.phone || metadata.phone || '',
     }));
@@ -215,6 +225,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
   const resolved = useMemo(
     () => ({
       first_name: (form.first_name.trim() || studentData?.first_name || '').trim(),
+      student_id: normalizeIsraeliId(form.student_id || studentData?.student_id || studentData?.identity_number || ''),
       last_name: (form.last_name.trim() || studentData?.last_name || '').trim(),
       phone: (form.phone.trim() || studentData?.phone || '').trim(),
       school_name: (form.school_name || studentData?.school_name || '').trim(),
@@ -229,13 +240,15 @@ export default function EditStudentProfileScreen({ navigateTo }) {
   const canSave = useMemo(
     () =>
       resolved.first_name.length > 0 &&
+      hasIsraeliIdDigits(form.student_id || studentData?.student_id || studentData?.identity_number) &&
+      isValidIsraeliId(resolved.student_id) &&
       resolved.last_name.length > 0 &&
       resolved.school_name.length > 0 &&
       gradeOptions.includes(String(resolved.grade)) &&
       !!resolved.class_section &&
       isValidDate(resolved.birthday) &&
       genderOptions.includes(String(resolved.gender)),
-    [resolved]
+    [form.student_id, resolved, studentData?.identity_number, studentData?.student_id]
   );
 
   const uploadAvatar = async ({ uri, file }) => {
@@ -343,6 +356,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
 
     const updates = {
       first_name: resolved.first_name,
+      student_id: resolved.student_id,
       last_name: resolved.last_name,
       phone: resolved.phone,
       school_name: resolved.school_name,
@@ -372,6 +386,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
     placeholder,
     keyboardType = 'default',
     autoCapitalize = 'none',
+    error,
   }) => (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -384,6 +399,7 @@ export default function EditStudentProfileScreen({ navigateTo }) {
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
       />
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 
@@ -441,10 +457,14 @@ export default function EditStudentProfileScreen({ navigateTo }) {
               <Text style={styles.readOnlyValue}>{user?.email || '-'}</Text>
             </View>
 
-            <View style={styles.readOnlyRow}>
-              <Text style={styles.readOnlyLabel}>{copy.studentId}</Text>
-              <Text style={styles.readOnlyValue}>{studentData?.student_id || '-'}</Text>
-            </View>
+            <Field
+              label={copy.studentId}
+              value={form.student_id}
+              onChangeText={(v) => setField('student_id', v.replace(/[^\d\s-]/g, ''))}
+              placeholder={studentData?.student_id || '123456789'}
+              keyboardType="number-pad"
+              error={hasIsraeliIdDigits(form.student_id) && !isValidIsraeliId(form.student_id) ? invalidIsraeliIdMessage : ''}
+            />
           </View>
 
           <View style={styles.card}>
@@ -663,6 +683,13 @@ const styles = StyleSheet.create({
   inputText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  errorText: {
+    marginTop: 6,
+    color: '#fca5a5',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
   },
   selectInput: {
     justifyContent: 'center',

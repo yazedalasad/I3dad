@@ -37,7 +37,11 @@ export function usePhysicsLabGame({ levelId = 'physics_lab_level_1' } = {}) {
     setParams((prev) => ({ ...prev, [control.key]: Number(nextValue.toFixed(2)) }));
   }
 
-  async function startLevel(studentId = 'demo-student-id') {
+  async function startLevel(studentId = null) {
+    if (!studentId) {
+      throw new Error('studentId is required');
+    }
+
     if (!sessionApi.session?.id) {
       await sessionApi.startSession({
         studentId,

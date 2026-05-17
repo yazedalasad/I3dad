@@ -9,11 +9,11 @@ if (!to) {
 
 sendMail({
   to,
-  subject: 'I3dad email test',
+  subject: 'i3dad / إعداد email test',
   html: `
     <div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7;color:#064E3B">
-      <h2>I3dad</h2>
-      <p>هذه رسالة اختبار من نظام البريد في I3dad.</p>
+      <h2>i3dad / إعداد</h2>
+      <p>هذه رسالة اختبار من نظام البريد في i3dad / إعداد.</p>
       <p style="font-size:24px;font-weight:900;color:#16A34A">إذا وصلت هذه الرسالة، فإرسال Gmail يعمل.</p>
     </div>
   `,
