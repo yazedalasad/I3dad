@@ -135,3 +135,39 @@ jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
    Optional: stop noisy RN warnings during tests
 ------------------------------------------------------------------ */
 jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+const ORIGINAL_ERROR = console.error;
+const ORIGINAL_LOG = console.log;
+
+const EXPECTED_ERROR_NOISE = [
+  'not wrapped in act',
+  'Error changing language:',
+  '❌ Missing sessionId or studentId',
+];
+
+const EXPECTED_LOG_NOISE = [
+  'Failed to load subjects:',
+  'getAllSubjects error:',
+  'Start exam failed:',
+  'loadNextQuestion error:',
+  'finishPersonality error:',
+  'Next question error:',
+  'CHANGE PASSWORD ERROR:',
+  'PersonalityResultsScreen error:',
+  'ExamHistoryScreen error:',
+];
+
+function shouldSuppressConsole(args, patterns) {
+  const message = args.map((arg) => (typeof arg === 'string' ? arg : arg?.message || '')).join(' ');
+  return patterns.some((pattern) => message.includes(pattern));
+}
+
+jest.spyOn(console, 'error').mockImplementation((...args) => {
+  if (shouldSuppressConsole(args, EXPECTED_ERROR_NOISE)) return;
+  ORIGINAL_ERROR(...args);
+});
+
+jest.spyOn(console, 'log').mockImplementation((...args) => {
+  if (shouldSuppressConsole(args, EXPECTED_LOG_NOISE)) return;
+  ORIGINAL_LOG(...args);
+});

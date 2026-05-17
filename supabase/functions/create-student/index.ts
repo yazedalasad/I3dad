@@ -75,8 +75,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const callerId = authData.user.id;
-    const callerMetadataRole =
-      authData.user.app_metadata?.role || authData.user.user_metadata?.role;
+    const callerMetadataRole = authData.user.app_metadata?.role;
     let callerIsAdmin = isAdminRole(callerMetadataRole);
 
     if (!callerIsAdmin) {

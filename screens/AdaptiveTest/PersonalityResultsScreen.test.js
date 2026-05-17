@@ -112,14 +112,17 @@ describe('PersonalityResultsScreen', () => {
 
       // ✅ Buttons exist
       expect(getByText('العودة للرئيسية')).toBeTruthy();
-      expect(getByText('نتائج الاختبار الكامل')).toBeTruthy();
+      expect(getByText('فتح التقرير الكامل')).toBeTruthy();
     });
 
     fireEvent.press(getByText('العودة للرئيسية'));
     expect(navigateTo).toHaveBeenCalledWith('home');
 
-    fireEvent.press(getByText('نتائج الاختبار الكامل'));
-    expect(navigateTo).toHaveBeenCalledWith('testResults');
+    fireEvent.press(getByText('فتح التقرير الكامل'));
+    expect(navigateTo).toHaveBeenCalledWith('studentInsightReport', {
+      studentId: 'stu-1',
+      language: 'ar',
+    });
   });
 
   /* =========================================================

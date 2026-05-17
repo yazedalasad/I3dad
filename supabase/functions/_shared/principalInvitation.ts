@@ -79,7 +79,7 @@ export async function assertAdmin(req: Request) {
     return { ok: false as const, response: json(401, { success: false, error: "Unauthorized" }) };
   }
 
-  let callerIsAdmin = isAdminRole(authData.user.app_metadata?.role) || isAdminRole(authData.user.user_metadata?.role);
+  let callerIsAdmin = isAdminRole(authData.user.app_metadata?.role);
   if (!callerIsAdmin) {
     const { data: profile } = await admin
       .from("user_profiles")
@@ -94,7 +94,6 @@ export async function assertAdmin(req: Request) {
     if (error) return { ok: false as const, response: json(500, { success: false, error: error.message }) };
     callerIsAdmin =
       isAdminRole(fresh.user?.app_metadata?.role) ||
-      isAdminRole(fresh.user?.user_metadata?.role) ||
       String(fresh.user?.email || "").toLowerCase() === "yazedassad@gmail.com";
   }
 

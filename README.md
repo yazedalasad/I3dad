@@ -1,36 +1,81 @@
 # i3dad / إعداد
-Description
-i3dad is a bilingual (Arabic–Hebrew) academic orientation application implemented using React Native and Expo.
-The system provides a personalized assessment flow based on a structured questionnaire and maps user responses to recommended academic study domains.
-The application is designed as a proof of concept, focusing on frontend logic, data modeling, and system architecture.
+## Overview
+i3dad is an academic orientation platform implemented with React Native, Expo, and Supabase. It supports student assessment, educational games, explainable major recommendations, institution/program matching, principal dashboards, and admin management.
 
-Features
-Structured personality and interest questionnaire (30 questions, multi-dimensional)
-Domain matching logic with ranked recommendations
-Academic field and institution information modules
-Success stories module
-Multi-language support (i18n)
-User authentication via Supabase
+## Main Features
+- Student signup/login, profile, adaptive assessment, results, recommendations, and final insight report.
+- Educational games that save supporting skill/career signals without dominating recommendations.
+- Explainable recommendation engine with confidence levels and missing-step guidance.
+- Institution, college, university, major, and program matching through Supabase tables.
+- Principal dashboard for school-level students, analytics, reports, and activities.
+- Admin dashboard for schools, principals, subjects, questions, games, reports, translations, and academic catalog data.
+- Arabic and Hebrew RTL support, with English fallbacks in several areas.
 
-Tech Stack
-Frontend: React Native, Expo
-Language: JavaScript (primary), TypeScript (partial)
-Navigation: React Navigation
-Backend & Auth: Supabase
-Database: PostgreSQL
-Build Tools: Node.js, npm, Webpack, Babel
+## Tech Stack
+- Frontend: React Native and Expo.
+- Backend/Auth/Database: Supabase and PostgreSQL.
+- Testing: Jest and React Native Testing Library.
+- Localization: i18next/react-i18next.
 
-Project Structure:
-components/    Reusable UI components  
-screens/       Application screens  
-services/      Business logic and assessment services  
-contexts/      Global state management  
-database/      SQL schema and tables  
-i18n/          Localization files  
+## Setup
+1. Install dependencies:
 
-Setup:
+```bash
 npm install
-npx expo start
+```
 
-Status:
-This project is under active development and currently serves as an academic and technical proof of concept.
+2. Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+3. Set at least:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+Use `SUPABASE_SERVICE_ROLE_KEY` only for trusted local scripts or server utilities. Never expose the service role key in frontend code.
+
+4. Start the app:
+
+```bash
+npx expo start
+```
+
+For web:
+
+```bash
+npm run web
+```
+
+## Testing
+Run the Jest suite:
+
+```bash
+npm test -- --runInBand
+```
+
+Useful smoke checks before a demo:
+- Student signup/login/profile opens.
+- Assessment starts, shows questions, saves answers, and opens results.
+- Recommendations show confidence, reasons, and institution links.
+- At least one game can start, complete, and save a game session.
+- Principal dashboard loads only school-scoped students.
+- Admin dashboard loads management screens for schools, questions, subjects, reports, and institutions.
+
+## Database Notes
+Core Supabase tables include `students`, `schools`, `principals`, `subjects`, `questions`, `test_sessions`, `student_responses`, `student_abilities`, `student_interests`, `game_sessions`, `student_career_signals`, `majors`, `institutions`, and `institution_programs`.
+
+SQL files in `database/` and `supabase/migrations/` document schema and migration changes. Apply schema changes through reviewed Supabase migrations, not by editing frontend code.
+
+## Deployment Notes
+- Configure Supabase Edge Function secrets: `PROJECT_URL`, `PROJECT_ANON_KEY`, `PROJECT_SERVICE_ROLE_KEY`, and `INVITE_REDIRECT_URL`.
+- Enable Supabase Auth leaked-password protection before production.
+- Review public storage bucket listing policies before production.
+- Add an `eas.json` profile before building native production artifacts with EAS.
+
+## Status
+The project is demo-ready for an academic presentation, with remaining production work around full device/browser E2E testing, final deployment configuration, and hardening several Supabase warnings.

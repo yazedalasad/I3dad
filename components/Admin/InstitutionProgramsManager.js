@@ -51,6 +51,13 @@ export default function InstitutionProgramsManager() {
   const [form, setForm] = useState(initialForm);
   const [majorForm, setMajorForm] = useState(initialMajorForm);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    institutionId: '',
+    majorKey: '',
+    degreeType: '',
+    language: '',
+    status: 'all',
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -75,9 +82,17 @@ export default function InstitutionProgramsManager() {
 
   const filteredPrograms = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return programs;
-    return programs.filter((program) => JSON.stringify(program).toLowerCase().includes(q));
-  }, [programs, search]);
+    return programs.filter((program) => {
+      if (q && !JSON.stringify(program).toLowerCase().includes(q)) return false;
+      if (filters.institutionId && program.institution_id !== filters.institutionId) return false;
+      if (filters.majorKey && program.major_key !== filters.majorKey && program.major_id !== filters.majorKey) return false;
+      if (filters.degreeType && program.degree_type !== filters.degreeType) return false;
+      if (filters.language && !String(program.language_of_study || '').toLowerCase().includes(filters.language.toLowerCase())) return false;
+      if (filters.status === 'active' && program.is_active === false) return false;
+      if (filters.status === 'inactive' && program.is_active !== false) return false;
+      return true;
+    });
+  }, [programs, search, filters]);
 
   const canSave = form.institution_id && (form.major_id || form.major_key) && (form.program_name_ar || form.program_name_en);
 
@@ -280,6 +295,61 @@ export default function InstitutionProgramsManager() {
             style={styles.search}
             textAlign="right"
           />
+          <View style={styles.filterPanel}>
+            <Text style={styles.sectionTitle}>{tr('فلاتر البرامج')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              <ChoiceChip label={tr('كل المؤسسات')} active={!filters.institutionId} onPress={() => setFilters((current) => ({ ...current, institutionId: '' }))} />
+              {institutions.map((institution) => (
+                <ChoiceChip
+                  key={`filter-inst-${institution.id}`}
+                  label={institution.name_ar || institution.name_he || institution.name_en}
+                  active={filters.institutionId === institution.id}
+                  onPress={() => setFilters((current) => ({ ...current, institutionId: institution.id }))}
+                />
+              ))}
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              <ChoiceChip label={tr('كل التخصصات')} active={!filters.majorKey} onPress={() => setFilters((current) => ({ ...current, majorKey: '' }))} />
+              {majors.map((major) => (
+                <ChoiceChip
+                  key={`filter-major-${major.id}`}
+                  label={major.name_ar || major.name_he || major.name_en || major.key}
+                  active={filters.majorKey === (major.key || major.code || major.id)}
+                  onPress={() => setFilters((current) => ({ ...current, majorKey: major.key || major.code || major.id }))}
+                />
+              ))}
+            </ScrollView>
+            <View style={styles.chipRow}>
+              {['', 'bachelor', 'practical_engineer', 'certificate', 'other'].map((degreeType) => (
+                <ChoiceChip
+                  key={`filter-degree-${degreeType || 'all'}`}
+                  label={degreeType || tr('كل الشهادات')}
+                  active={filters.degreeType === degreeType}
+                  onPress={() => setFilters((current) => ({ ...current, degreeType }))}
+                />
+              ))}
+            </View>
+            <View style={styles.chipRow}>
+              {['', 'arabic', 'hebrew', 'english'].map((language) => (
+                <ChoiceChip
+                  key={`filter-language-${language || 'all'}`}
+                  label={language || tr('كل اللغات')}
+                  active={filters.language === language}
+                  onPress={() => setFilters((current) => ({ ...current, language }))}
+                />
+              ))}
+            </View>
+            <View style={styles.chipRow}>
+              {['all', 'active', 'inactive'].map((status) => (
+                <ChoiceChip
+                  key={`filter-status-${status}`}
+                  label={tr(status === 'all' ? 'الكل' : status === 'active' ? 'نشط' : 'معطل')}
+                  active={filters.status === status}
+                  onPress={() => setFilters((current) => ({ ...current, status }))}
+                />
+              ))}
+            </View>
+          </View>
           {!filteredPrograms.length ? (
             <EmptyState title="لا توجد برامج مرتبطة بعد" icon="link" />
           ) : (
@@ -332,6 +402,7 @@ const styles = StyleSheet.create({
   managerGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 14 },
   editor: { flexGrow: 1, flexBasis: 360 },
   list: { flexGrow: 1, flexBasis: 320 },
+  filterPanel: { borderRadius: 16, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff', padding: 10, marginBottom: 10 },
   label: { marginBottom: 6, color: adminColors.text, fontWeight: '900', fontSize: 12, textAlign: 'right' },
   chipRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, paddingBottom: 10 },
   chip: { maxWidth: 220, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff' },

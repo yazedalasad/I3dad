@@ -44,6 +44,9 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
         details: 'פרטי מסלול',
         miniTask: 'משימת טעימה',
         institutions: 'מוסדות לימוד',
+        confidence: 'רמת ביטחון',
+        missingSteps: 'מה ישלים את הדיוק',
+        preliminary: 'המלצות ראשוניות',
         back: 'חזרה לפרופיל',
         noGames: 'עדיין אין נתוני משחקים.',
         noStrengths: 'עדיין אין נתוני יכולות.',
@@ -66,6 +69,9 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           details: 'تفاصيل التخصص',
           miniTask: 'مهمة تجريبية',
           institutions: 'المؤسسات التعليمية',
+          confidence: 'مستوى الثقة',
+          missingSteps: 'خطوات لتحسين الدقة',
+          preliminary: 'توصيات أولية',
           back: 'العودة للملف الشخصي',
           noGames: 'لا توجد بيانات ألعاب بعد.',
           noStrengths: 'لا توجد بيانات قدرات بعد.',
@@ -87,6 +93,9 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           details: 'Major details',
           miniTask: 'Try a mini task',
           institutions: 'Institutions',
+          confidence: 'Confidence',
+          missingSteps: 'Improve accuracy',
+          preliminary: 'Preliminary suggestions',
           back: 'Back to profile',
           noGames: 'No game data yet.',
           noStrengths: 'No ability data yet.',
@@ -317,6 +326,14 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                   <Text style={[styles.score, isRtl && styles.rtlText]}>
                     {copy.score}: {recommendation.scorePercent}%
                   </Text>
+                  <View style={[styles.confidenceRow, isRtl && styles.chipsRowRtl]}>
+                    <Text style={[styles.confidenceBadge, styles[`confidence_${recommendation.confidence_level || 'low'}`]]}>
+                      {copy.confidence}: {recommendation.confidence_level || 'low'}
+                    </Text>
+                    {recommendation.is_preliminary ? (
+                      <Text style={styles.preliminaryBadge}>{copy.preliminary}</Text>
+                    ) : null}
+                  </View>
                 </View>
               </View>
 
@@ -326,9 +343,31 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
 
               <View style={styles.infoSection}>
                 <Text style={[styles.infoTitle, isRtl && styles.rtlText]}>{copy.why}</Text>
+                {!!recommendation.explanation && (
+                  <Text style={[styles.infoItem, isRtl && styles.rtlText]}>
+                    {recommendation.explanation}
+                  </Text>
+                )}
+                {(recommendation.top_reasons || []).map((reason, reasonIndex) => (
+                  <Text key={`${recommendation.degree_id}-top-reason-${reasonIndex}`} style={[styles.infoItem, isRtl && styles.rtlText]}>
+                    • {reason}
+                  </Text>
+                ))}
                 {(recommendation.reasons || []).map((reason, reasonIndex) => (
                   <Text key={`${recommendation.degree_id}-reason-${reasonIndex}`} style={[styles.infoItem, isRtl && styles.rtlText]}>
                     • {reason}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={[styles.infoTitle, isRtl && styles.rtlText]}>{copy.missingSteps}</Text>
+                <Text style={[styles.infoItem, isRtl && styles.rtlText]}>
+                  {localizeCopy(recommendation.confidence_reason, i18n.language)}
+                </Text>
+                {(recommendation.missing_steps || []).slice(0, 3).map((step) => (
+                  <Text key={`${recommendation.degree_id}-missing-${step.key}`} style={[styles.infoItem, isRtl && styles.rtlText]}>
+                    • {localizeCopy(step.label, i18n.language)}
                   </Text>
                 ))}
               </View>
@@ -444,6 +483,16 @@ function pickLocalized(record, field, language) {
       ? 'ar'
       : 'en';
   return record?.[`${field}_${lang}`] || record?.[`${field}_en`] || record?.[`${field}_ar`] || record?.[`${field}_he`] || '';
+}
+
+function localizeCopy(copy, language) {
+  if (typeof copy === 'string') return copy;
+  const lang = String(language || '').toLowerCase().startsWith('he')
+    ? 'he'
+    : String(language || '').toLowerCase().startsWith('ar')
+      ? 'ar'
+      : 'en';
+  return copy?.[lang] || copy?.en || copy?.ar || copy?.he || '';
 }
 
 function InstitutionProgramCard({ program, copy, language, isRtl, navigateTo, majorName }) {
@@ -732,6 +781,37 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '800',
     fontSize: 13,
+  },
+  confidenceRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  confidenceBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    overflow: 'hidden',
+    color: '#0b1223',
+    backgroundColor: '#fde68a',
+    fontWeight: '900',
+    fontSize: 11,
+  },
+  confidence_low: { backgroundColor: '#fecaca' },
+  confidence_medium: { backgroundColor: '#fde68a' },
+  confidence_high: { backgroundColor: '#bbf7d0' },
+  preliminaryBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    overflow: 'hidden',
+    color: '#e2e8f0',
+    backgroundColor: '#334155',
+    fontWeight: '900',
+    fontSize: 11,
   },
   progressTrack: {
     marginTop: 12,

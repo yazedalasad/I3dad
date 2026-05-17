@@ -87,7 +87,7 @@ export async function savePhysicsBridgeLevelResult(studentId, levelId, result) {
   try {
     const session = await createGameSession({
       studentId,
-      gameId: 'physics_bridge',
+      gameId: 'physics_bridge_game',
       levelId,
       language: 'ar',
       currentSceneId: levelId,

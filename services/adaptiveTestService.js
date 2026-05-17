@@ -1,5 +1,7 @@
 import { supabase } from '../config/supabase';
 import { buildBehaviorSignals } from '../features/games/shared/utils/gameAnalytics';
+import { getNextDiverseQuestion } from '../src/services/questionSelectionService';
+import { recommendTopDegreesAfterSession } from './recommendationService';
 
 /* -------------------------------------------------- */
 /* CONFIG                                              */
@@ -629,7 +631,6 @@ export async function getComprehensiveQuestion(sessionId, subjectStatesFromUi = 
         continue;
       }
 
-      // ✅ AGREED CHANGE: fast ramp difficulty selection
       const pick = pickQuestionFastRamp({
         available,
         answeredCount: answered,
@@ -638,7 +639,17 @@ export async function getComprehensiveQuestion(sessionId, subjectStatesFromUi = 
         lastAnswerCorrect: state.lastAnswerCorrect,
       });
 
-      const question = pick?.question;
+      const diversePick = await getNextDiverseQuestion({
+        studentId: session.student_id,
+        sessionId,
+        subjectId: sid,
+        difficultyTarget: pick?.targetDifficulty,
+        language: session.language,
+        usedQuestionIds: [...used],
+        candidates: available,
+      });
+
+      const question = diversePick?.question || pick?.question;
       if (!question) return { success: false, error: 'NO_QUESTION_SELECTED' };
 
       const nextUsed = [...used, question.id];
@@ -647,6 +658,7 @@ export async function getComprehensiveQuestion(sessionId, subjectStatesFromUi = 
         .from('test_session_subjects')
         .update({
           metadata: {
+            ...(state.metadata || {}),
             usedQuestionIds: nextUsed,
             minQuestions: minQ,
             maxQuestions: maxQ,
@@ -656,6 +668,7 @@ export async function getComprehensiveQuestion(sessionId, subjectStatesFromUi = 
             lastPickedDifficulty: safeNum(question.difficulty, null),
             lastPickedQuestionId: question.id,
             lastTargetDifficulty: pick.targetDifficulty,
+            diversity: diversePick?.selectionMeta || null,
             // keep previous value until an answer is submitted
             lastAnswerCorrect: state.lastAnswerCorrect ?? null,
           },
@@ -672,6 +685,7 @@ export async function getComprehensiveQuestion(sessionId, subjectStatesFromUi = 
         metadata: {
           ...questionAnalysisMeta(question),
           targetDifficulty: pick.targetDifficulty,
+          diversity: diversePick?.selectionMeta || null,
           answeredCount: answered,
           minQuestions: minQ,
           maxQuestions: maxQ,
@@ -905,7 +919,12 @@ export async function completeComprehensiveAssessment({
 /* -------------------------------------------------- */
 
 export async function generateStudentRecommendations(studentId) {
-  return { success: true, recommendations: [] };
+  const result = await recommendTopDegreesAfterSession(studentId, { limit: 5 });
+  return {
+    success: !!result?.success,
+    recommendations: result?.data || [],
+    error: result?.error || null,
+  };
 }
 
 /* -------------------------------------------------- */

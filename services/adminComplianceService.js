@@ -121,8 +121,8 @@ export async function revokePrincipalInvitation(invitationId) {
   return { success: true };
 }
 
-export function principalInvitationLink(token) {
-  return buildPrincipalInvitationLink(token);
+export function principalInvitationLink(token, code) {
+  return buildPrincipalInvitationLink(token, code);
 }
 
 export async function updateUserRole({ userId, role }) {

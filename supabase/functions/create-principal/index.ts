@@ -73,10 +73,10 @@ Deno.serve(async (req: Request) => {
     }
     const callerId = authData.user.id;
 
-    // 2) Verify caller is admin. Prefer Auth metadata because this project has
-    // a prevent_multi_role trigger that may keep user_profiles as student.
+    // 2) Verify caller is admin. Only app_metadata is trusted for privileged
+    // authorization; user_metadata is editable by end users.
     let callerIsAdmin = isAdminRole(
-      authData.user.app_metadata?.role || authData.user.user_metadata?.role,
+      authData.user.app_metadata?.role,
     );
 
     if (!callerIsAdmin) {
@@ -84,7 +84,6 @@ Deno.serve(async (req: Request) => {
       if (callerUserErr) return json(500, { success: false, error: callerUserErr.message });
       callerIsAdmin =
         isAdminRole(callerUser.user?.app_metadata?.role) ||
-        isAdminRole(callerUser.user?.user_metadata?.role) ||
         String(callerUser.user?.email || "").toLowerCase() === "yazedassad@gmail.com";
     }
 

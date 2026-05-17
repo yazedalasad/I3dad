@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -57,6 +58,15 @@ function formatDateISO(iso) {
   } catch {
     return '';
   }
+}
+function localizeCopy(copy, language) {
+  if (typeof copy === 'string') return copy;
+  const lang = String(language || '').toLowerCase().startsWith('he')
+    ? 'he'
+    : String(language || '').toLowerCase().startsWith('ar')
+      ? 'ar'
+      : 'en';
+  return copy?.[lang] || copy?.en || copy?.ar || copy?.he || '';
 }
 
 /* ----------------------- tiny UI components ---------------------- */
@@ -255,12 +265,17 @@ function buildReportHtml({
   const recHtml = recTop
     .map((r, idx) => {
       const name = escapeHtml(r?.name_he || r?.name_en || r?.name_ar || '—');
-      const score = clamp(safeNum(r?.score, 0) * 100, 0, 100);
+      const score = clamp(safeNum(r?.score_percent, safeNum(r?.score, 0) * 100), 0, 100);
       const topSubjects = (r?.explanation?.top_subjects || [])
         .slice(0, 4)
         .map((s) => escapeHtml(s?.subject_name_he || s?.subject_name_en || s?.subject_name_ar || ''))
         .filter(Boolean)
         .join(' • ');
+      const topReasons = (r?.top_reasons || [])
+        .slice(0, 3)
+        .map((reason) => escapeHtml(reason))
+        .join(' • ');
+      const confidence = escapeHtml(localizeCopy(r?.confidence_reason, lang));
 
       return `
         <div class="rec">
@@ -272,7 +287,8 @@ function buildReportHtml({
           <div class="bar"><div class="fill fill3" style="width:${score}%"></div></div>
           <div class="recWhy">${escapeHtml(
             t('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ')
-          )}: <span>${topSubjects || '—'}</span></div>
+          )}: <span>${topReasons || topSubjects || escapeHtml(r?.explanation || '') || '—'}</span></div>
+          <div class="muted">${confidence}</div>
         </div>
       `;
     })
@@ -752,7 +768,6 @@ export default function StudentInsightReportScreen({
       mimeType: 'application/pdf',
     });
   } catch (e) {
-    console.log('export pdf error:', e?.message || e);
     Alert.alert(
       tt('errors.title', 'خطأ', 'שגיאה'),
       tt(
@@ -1237,6 +1252,9 @@ export default function StudentInsightReportScreen({
                 '—';
 
               const topSubjects = (rec?.explanation?.top_subjects || []).slice(0, 4);
+              const topReasons = (rec?.top_reasons || rec?.reasons || []).slice(0, 4);
+              const confidenceText = localizeCopy(rec?.confidence_reason, lang);
+              const missingSteps = (rec?.missing_steps || []).slice(0, 3);
 
               return (
                 <View key={rec.degree_id || `${idx}`} style={styles.recCard}>
@@ -1252,6 +1270,9 @@ export default function StudentInsightReportScreen({
 
                       <Text style={styles.recSub}>
                         {tt('studentInsightReport.compatibility', 'نسبة التوافق', 'אחוז התאמה')}: {scorePct}%
+                      </Text>
+                      <Text style={styles.recSub}>
+                        {tt('studentInsightReport.confidence', 'الثقة', 'ביטחון')}: {rec?.confidence_level || 'low'}
                       </Text>
                     </View>
 
@@ -1269,10 +1290,19 @@ export default function StudentInsightReportScreen({
                     {tt('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ')}
                   </Text>
 
-                  {topSubjects.length === 0 ? (
-                    <Text style={styles.muted}>—</Text>
+                  {!!rec?.explanation && typeof rec.explanation === 'string' ? (
+                    <Text style={styles.bullet}>• {rec.explanation}</Text>
+                  ) : null}
+
+                  {topReasons.length === 0 && topSubjects.length === 0 ? (
+                    <Text style={styles.muted}>{confidenceText || '—'}</Text>
                   ) : (
                     <View style={styles.bullets}>
+                      {topReasons.map((reason, i) => (
+                        <Text key={`reason-${i}`} style={styles.bullet}>
+                          • {reason}
+                        </Text>
+                      ))}
                       {topSubjects.map((s, i) => (
                         <Text key={`${s.subject_id}-${i}`} style={styles.bullet}>
                           • {s.subject_name_he || s.subject_name_en || s.subject_name_ar || '—'}
@@ -1280,6 +1310,12 @@ export default function StudentInsightReportScreen({
                       ))}
                     </View>
                   )}
+                  {!!confidenceText && <Text style={styles.muted}>{confidenceText}</Text>}
+                  {missingSteps.map((step) => (
+                    <Text key={step.key} style={styles.bullet}>
+                      • {localizeCopy(step.label, lang)}
+                    </Text>
+                  ))}
                 </View>
               );
             })}

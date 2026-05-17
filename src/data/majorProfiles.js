@@ -1,0 +1,285 @@
+const high = 0.9;
+const medium = 0.6;
+const low = 0.3;
+
+export const majorProfiles = [
+  {
+    key: 'computer_science',
+    aliases: ['cs_bsc', 'software_engineering', 'se_bsc', 'data_science', 'data_bsc'],
+    name_ar: 'علوم الحاسوب وهندسة البرمجيات',
+    name_he: 'מדעי המחשב והנדסת תוכנה',
+    name_en: 'Computer Science / Software Engineering',
+    skillProfile: {
+      math: high,
+      logic: high,
+      technology: high,
+      creativity: medium,
+      language: low,
+      business: low,
+    },
+    personality_tags: ['O', 'C'],
+    interest_tags: ['technology', 'programming', 'data', 'problem_solving'],
+    related_subjects: ['math', 'computer_science', 'physics'],
+  },
+  {
+    key: 'medicine',
+    aliases: ['emergency_medicine', 'paramedic_studies'],
+    name_ar: 'الطب وطب الطوارئ',
+    name_he: 'רפואה ורפואת חירום',
+    name_en: 'Medicine / Emergency Medicine',
+    skillProfile: {
+      science: high,
+      biology: high,
+      chemistry: high,
+      medical: high,
+      social: medium,
+      language: medium,
+      logic: medium,
+    },
+    personality_tags: ['A', 'C'],
+    interest_tags: ['medicine', 'health', 'biology', 'helping_people'],
+    related_subjects: ['biology', 'chemistry', 'hebrew', 'science'],
+  },
+  {
+    key: 'nursing',
+    aliases: ['nurs_bn', 'nursing_health'],
+    name_ar: 'التمريض',
+    name_he: 'סיעוד',
+    name_en: 'Nursing',
+    skillProfile: {
+      biology: high,
+      medical: high,
+      social: high,
+      communication: high,
+      language: medium,
+      decision_making: medium,
+    },
+    personality_tags: ['A', 'C', 'E'],
+    interest_tags: ['nursing', 'health', 'patient_care', 'helping_people'],
+    related_subjects: ['biology', 'hebrew', 'science'],
+  },
+  {
+    key: 'biology',
+    aliases: ['bio_bsc', 'life_sciences', 'biotechnology', 'biotech_bsc'],
+    name_ar: 'الأحياء والتكنولوجيا الحيوية',
+    name_he: 'ביולוגיה וביוטכנולוגיה',
+    name_en: 'Biology / Biotechnology',
+    skillProfile: {
+      biology: high,
+      science: high,
+      chemistry: medium,
+      research: high,
+      logic: medium,
+      medical: medium,
+    },
+    personality_tags: ['O', 'C'],
+    interest_tags: ['biology', 'research', 'life_sciences', 'experiments'],
+    related_subjects: ['biology', 'chemistry', 'science'],
+  },
+  {
+    key: 'medical_laboratory_science',
+    aliases: ['medical_sciences', 'pharmacy'],
+    name_ar: 'علوم المختبرات الطبية والصيدلة',
+    name_he: 'מדעי המעבדה הרפואית ורוקחות',
+    name_en: 'Medical Laboratory Science / Pharmacy',
+    skillProfile: {
+      chemistry: high,
+      biology: high,
+      medical: high,
+      science: high,
+      research: medium,
+      planning: medium,
+    },
+    personality_tags: ['C', 'O'],
+    interest_tags: ['laboratory', 'pharmacy', 'chemistry', 'medicine'],
+    related_subjects: ['chemistry', 'biology', 'science'],
+  },
+  {
+    key: 'civil_engineering',
+    aliases: ['ce_bsc', 'structural_engineering', 'practical_engineering'],
+    name_ar: 'الهندسة المدنية',
+    name_he: 'הנדסה אזרחית',
+    name_en: 'Civil Engineering',
+    skillProfile: {
+      math: high,
+      physics: high,
+      engineering: high,
+      spatial_reasoning: high,
+      planning: high,
+      logic: medium,
+      creativity: medium,
+    },
+    personality_tags: ['C', 'O'],
+    interest_tags: ['engineering', 'building', 'physics', 'design'],
+    related_subjects: ['math', 'physics', 'science'],
+  },
+  {
+    key: 'architecture',
+    aliases: ['arch_barch', 'architectural_design'],
+    name_ar: 'العمارة',
+    name_he: 'אדריכלות',
+    name_en: 'Architecture',
+    skillProfile: {
+      spatial_reasoning: high,
+      creativity: high,
+      planning: high,
+      engineering: medium,
+      physics: medium,
+      humanities: low,
+    },
+    personality_tags: ['O', 'C'],
+    interest_tags: ['architecture', 'design', 'buildings', 'visual_planning'],
+    related_subjects: ['physics', 'math', 'art'],
+  },
+  {
+    key: 'mechanical_engineering',
+    aliases: ['me_bsc', 'robotics'],
+    name_ar: 'الهندسة الميكانيكية',
+    name_he: 'הנדסת מכונות',
+    name_en: 'Mechanical Engineering',
+    skillProfile: {
+      physics: high,
+      math: high,
+      engineering: high,
+      logic: high,
+      problem_solving: high,
+      spatial_reasoning: medium,
+    },
+    personality_tags: ['C', 'O'],
+    interest_tags: ['machines', 'robotics', 'physics', 'engineering'],
+    related_subjects: ['physics', 'math', 'science'],
+  },
+  {
+    key: 'industrial_engineering',
+    aliases: ['ie_bsc', 'engineering_management'],
+    name_ar: 'الهندسة الصناعية والإدارة الهندسية',
+    name_he: 'הנדסה תעשייה וניהול',
+    name_en: 'Industrial Engineering / Engineering Management',
+    skillProfile: {
+      math: high,
+      planning: high,
+      business: medium,
+      decision_making: high,
+      optimization: high,
+      engineering: medium,
+    },
+    personality_tags: ['C', 'E'],
+    interest_tags: ['optimization', 'management', 'systems', 'engineering'],
+    related_subjects: ['math', 'physics', 'economics'],
+  },
+  {
+    key: 'law',
+    aliases: ['law_llb', 'communication', 'com_ba'],
+    name_ar: 'القانون والاتصال',
+    name_he: 'משפטים ותקשורת',
+    name_en: 'Law / Communication',
+    skillProfile: {
+      language: high,
+      humanities: high,
+      logic: medium,
+      social: high,
+      communication: high,
+      business: low,
+    },
+    personality_tags: ['E', 'A', 'C'],
+    interest_tags: ['law', 'debate', 'society', 'communication'],
+    related_subjects: ['arabic', 'hebrew', 'citizenship', 'history'],
+  },
+  {
+    key: 'education',
+    aliases: ['edu_bed', 'arabic_edu_bed', 'social_work', 'socw_bsw', 'psychology', 'psy_ba'],
+    name_ar: 'التربية والعمل الاجتماعي',
+    name_he: 'חינוך ועבודה סוציאלית',
+    name_en: 'Education / Social Work',
+    skillProfile: {
+      language: medium,
+      social: high,
+      humanities: medium,
+      creativity: medium,
+      patience: high,
+      communication: high,
+    },
+    personality_tags: ['A', 'C', 'E'],
+    interest_tags: ['education', 'helping_people', 'children', 'community'],
+    related_subjects: ['arabic', 'hebrew', 'social_sciences'],
+  },
+  {
+    key: 'business_management',
+    aliases: ['bus_ba'],
+    name_ar: 'إدارة الأعمال والإدارة الهندسية',
+    name_he: 'מנהל עסקים וניהול הנדסי',
+    name_en: 'Business / Management',
+    skillProfile: {
+      math: medium,
+      business: high,
+      social: medium,
+      decision_making: high,
+      communication: high,
+      logic: medium,
+    },
+    personality_tags: ['E', 'C'],
+    interest_tags: ['business', 'management', 'leadership', 'economics'],
+    related_subjects: ['math', 'economics', 'citizenship'],
+  },
+  {
+    key: 'arabic_language',
+    aliases: ['arabic', 'arabic_edu_bed', 'lit_ba', 'ling_ba', 'translation', 'lang_ba', 'humanities'],
+    name_ar: 'اللغة العربية والإنسانيات',
+    name_he: 'ערבית ומדעי הרוח',
+    name_en: 'Arabic Language / Humanities',
+    skillProfile: {
+      language: high,
+      humanities: high,
+      creativity: medium,
+      memory: medium,
+      social: low,
+    },
+    personality_tags: ['O', 'A'],
+    interest_tags: ['arabic', 'literature', 'writing', 'culture'],
+    related_subjects: ['arabic', 'literature', 'history'],
+  },
+  {
+    key: 'physics_science',
+    aliases: ['physics', 'phys_bsc', 'chemistry', 'chem_bsc', 'biotech_bsc', 'research_science'],
+    name_ar: 'العلوم والفيزياء والكيمياء',
+    name_he: 'מדעים, פיזיקה וכימיה',
+    name_en: 'Science / Physics / Chemistry',
+    skillProfile: {
+      science: high,
+      physics: high,
+      chemistry: medium,
+      math: high,
+      logic: high,
+      research: high,
+    },
+    personality_tags: ['O', 'C'],
+    interest_tags: ['science', 'research', 'physics', 'experiments'],
+    related_subjects: ['physics', 'chemistry', 'math', 'science'],
+  },
+];
+
+export function normalizeMajorKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+export function findMajorProfile(value) {
+  const key = normalizeMajorKey(value);
+  return majorProfiles.find((profile) =>
+    [profile.key, ...(profile.aliases || [])].some((candidate) => normalizeMajorKey(candidate) === key)
+  ) || null;
+}
+
+export function getMajorProfileForRow(row = {}) {
+  return (
+    findMajorProfile(row.key) ||
+    findMajorProfile(row.code) ||
+    findMajorProfile(row.category) ||
+    findMajorProfile(row.name_en) ||
+    findMajorProfile(row.name_ar) ||
+    findMajorProfile(row.name_he)
+  );
+}

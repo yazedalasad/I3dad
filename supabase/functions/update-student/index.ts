@@ -66,7 +66,7 @@ async function requireAdmin(req: Request) {
     return { error: json(401, { success: false, error: "Unauthorized: login required" }) };
   }
 
-  let callerIsAdmin = isAdminRole(authData.user.app_metadata?.role || authData.user.user_metadata?.role);
+  let callerIsAdmin = isAdminRole(authData.user.app_metadata?.role);
   if (!callerIsAdmin) {
     const { data: profile, error: roleErr } = await adminClient
       .from("user_profiles")

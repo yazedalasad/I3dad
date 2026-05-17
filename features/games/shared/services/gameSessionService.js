@@ -4,6 +4,27 @@ import { supabase } from '../../../../config/supabase';
 import { processCompletedGameSession } from '../../../../services/gameCareerSignalService';
 
 const GAME_CATALOG_ROWS = {
+  doctor_soroka: {
+    game: { id: 'doctor_soroka', title: 'Doctor at Soroka', domain: 'clinical_reasoning', language: 'he', status: 'active' },
+    levels: {
+      doctor_soroka_level_1: {
+        id: 'doctor_soroka_level_1',
+        game_id: 'doctor_soroka',
+        title: 'Clinical Case 1',
+        difficulty: 'beginner',
+        estimated_minutes: 8,
+        is_active: true,
+      },
+      doctor_soroka_level_2: {
+        id: 'doctor_soroka_level_2',
+        game_id: 'doctor_soroka',
+        title: 'Clinical Case 2',
+        difficulty: 'intermediate',
+        estimated_minutes: 10,
+        is_active: true,
+      },
+    },
+  },
   physics_lab: {
     game: { id: 'physics_lab', title: 'Physics Lab', domain: 'physics', language: 'en', status: 'active' },
     levels: {
@@ -29,6 +50,64 @@ const GAME_CATALOG_ROWS = {
         title: 'Level 3 - Acceleration',
         difficulty: 'advanced',
         estimated_minutes: 10,
+        is_active: true,
+      },
+    },
+  },
+  arabic_poet_puzzle: {
+    game: { id: 'arabic_poet_puzzle', title: 'Word Treasures', domain: 'arabic_language', language: 'ar', status: 'active' },
+    levels: {
+      arabic_poet_puzzle_level_1: {
+        id: 'arabic_poet_puzzle_level_1',
+        game_id: 'arabic_poet_puzzle',
+        title: 'Word Treasures 1',
+        difficulty: 'beginner',
+        estimated_minutes: 6,
+        is_active: true,
+      },
+      arabic_poet_puzzle_level_2: {
+        id: 'arabic_poet_puzzle_level_2',
+        game_id: 'arabic_poet_puzzle',
+        title: 'Word Treasures 2',
+        difficulty: 'intermediate',
+        estimated_minutes: 8,
+        is_active: true,
+      },
+      arabic_poet_puzzle_level_3: {
+        id: 'arabic_poet_puzzle_level_3',
+        game_id: 'arabic_poet_puzzle',
+        title: 'Word Treasures 3',
+        difficulty: 'advanced',
+        estimated_minutes: 10,
+        is_active: true,
+      },
+    },
+  },
+  physics_bridge_game: {
+    game: { id: 'physics_bridge_game', title: 'Bridge Engineer', domain: 'engineering', language: 'ar', status: 'active' },
+    levels: {
+      physics_bridge_level_1: {
+        id: 'physics_bridge_level_1',
+        game_id: 'physics_bridge_game',
+        title: 'Bridge Level 1',
+        difficulty: 'beginner',
+        estimated_minutes: 7,
+        is_active: true,
+      },
+      physics_bridge_level_2: {
+        id: 'physics_bridge_level_2',
+        game_id: 'physics_bridge_game',
+        title: 'Bridge Level 2',
+        difficulty: 'intermediate',
+        estimated_minutes: 9,
+        is_active: true,
+      },
+      physics_bridge_level_3: {
+        id: 'physics_bridge_level_3',
+        game_id: 'physics_bridge_game',
+        title: 'Bridge Level 3',
+        difficulty: 'advanced',
+        estimated_minutes: 11,
         is_active: true,
       },
     },
