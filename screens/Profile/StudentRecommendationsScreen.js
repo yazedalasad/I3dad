@@ -33,6 +33,10 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
         empty: 'עדיין אין המלצות. כדאי להשלים את המבחנים והמשחקים תחילה.',
         overview: '3 המסלולים המובילים שלך',
         overviewBody: 'כאן רואים לא רק ציון, אלא למה המסלול מתאים לך, מה כדאי לחזק, ומהו הצעד הבא.',
+        preliminaryDirections: 'כיוונים ראשוניים לפי משחקים',
+        gameOnlyWarning: 'ההמלצות מבוססות כרגע על משחק אחד בלבד, ולכן רמת הביטחון נמוכה. כדי לקבל התאמה מדויקת יותר, מומלץ להשלים את המבחן המלא.',
+        lowConfidence: 'ביטחון נמוך',
+        completeFullAssessment: 'השלם את המבחן המלא',
         score: 'אחוז התאמה',
         why: 'למה זה מתאים לך',
         improve: 'מה לחזק',
@@ -50,6 +54,12 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
         back: 'חזרה לפרופיל',
         noGames: 'עדיין אין נתוני משחקים.',
         noStrengths: 'עדיין אין נתוני יכולות.',
+        lowScoresHint: 'כל ההתאמות עדיין נמוכות. השלמת המבחן המקיף תשפר את הדיוק.',
+        fitVeryHigh: 'התאמה גבוהה מאוד',
+        fitHigh: 'התאמה גבוהה',
+        fitGood: 'התאמה טובה',
+        fitMedium: 'התאמה בינונית',
+        fitWeak: 'התאמה חלשה',
       }
     : isArabic
       ? {
@@ -58,6 +68,10 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           empty: 'لا توجد توصيات بعد. من الأفضل إكمال الاختبارات والألعاب أولًا.',
           overview: 'أفضل 3 مسارات لك',
           overviewBody: 'هنا لا نعرض فقط نسبة التوافق، بل لماذا يناسبك المسار، ماذا تحتاج أن تطور، وما الخطوة التالية.',
+          preliminaryDirections: 'اتجاهات أولية حسب الألعاب',
+          gameOnlyWarning: 'التوصيات الحالية مبنية على لعبة واحدة فقط، لذلك مستوى الثقة منخفض. للحصول على نتائج أدق، يُفضّل إكمال الاختبار الشامل.',
+          lowConfidence: 'ثقة منخفضة',
+          completeFullAssessment: 'أكمل الاختبار الشامل',
           score: 'نسبة التوافق',
           why: 'لماذا يناسبك',
           improve: 'ما الذي تحتاج تطويره',
@@ -75,6 +89,12 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           back: 'العودة للملف الشخصي',
           noGames: 'لا توجد بيانات ألعاب بعد.',
           noStrengths: 'لا توجد بيانات قدرات بعد.',
+          lowScoresHint: 'كل نسب الملاءمة ما زالت منخفضة. أكمل الاختبار الشامل للحصول على توصيات أدق.',
+          fitVeryHigh: 'ملاءمة عالية جداً',
+          fitHigh: 'ملاءمة عالية',
+          fitGood: 'ملاءمة جيدة',
+          fitMedium: 'ملاءمة متوسطة',
+          fitWeak: 'ملاءمة ضعيفة',
         }
       : {
           title: 'Academic Recommendations',
@@ -82,6 +102,10 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           empty: 'No recommendations yet. Complete the tests and games first.',
           overview: 'Your top 3 paths',
           overviewBody: 'This view shows more than a score: why the path fits, what to improve, and what to do next.',
+          preliminaryDirections: 'Preliminary directions based on games',
+          gameOnlyWarning: 'Current recommendations are based on one game only, so confidence is low. Complete the full assessment for more accurate matches.',
+          lowConfidence: 'Low confidence',
+          completeFullAssessment: 'Complete Full Assessment',
           score: 'Match score',
           why: 'Why it fits you',
           improve: 'What to improve',
@@ -99,6 +123,12 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           back: 'Back to profile',
           noGames: 'No game data yet.',
           noStrengths: 'No ability data yet.',
+          lowScoresHint: 'All match scores are still low. Complete the comprehensive assessment for better recommendations.',
+          fitVeryHigh: 'Very high match',
+          fitHigh: 'High match',
+          fitGood: 'Good match',
+          fitMedium: 'Medium match',
+          fitWeak: 'Weak match',
         };
 
   const institutionCopy = isHebrew
@@ -185,6 +215,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
   const strongestAbilities = snapshot?.strongestAbilities || [];
   const gameHighlights = snapshot?.gameHighlights || [];
   const gameCareerSignals = snapshot?.gameCareerSignals || { skills: [], topics: [], degrees: [], explanations: [] };
+  const isGameOnlyPreliminary = recommendations.some((recommendation) => recommendation.is_game_only_preliminary);
+  const hasLowConfidence = recommendations.some((recommendation) => Number(recommendation.confidence_score || 0) < 40);
 
   return (
     <View style={styles.container}>
@@ -212,8 +244,21 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.heroCard}>
-            <Text style={[styles.heroTitle, isRtl && styles.rtlText]}>{copy.overview}</Text>
-            <Text style={[styles.heroBody, isRtl && styles.rtlText]}>{copy.overviewBody}</Text>
+            <Text style={[styles.heroTitle, isRtl && styles.rtlText]}>
+              {isGameOnlyPreliminary ? copy.preliminaryDirections : copy.overview}
+            </Text>
+            <Text style={[styles.heroBody, isRtl && styles.rtlText]}>
+              {isGameOnlyPreliminary ? copy.gameOnlyWarning : copy.overviewBody}
+            </Text>
+
+            {hasLowConfidence ? (
+              <View style={[styles.warningActions, isRtl && styles.chipsRowRtl]}>
+                <Text style={styles.lowConfidenceChip}>{copy.lowConfidence}</Text>
+                <TouchableOpacity style={styles.assessmentCta} onPress={() => navigateTo('adaptiveTest')}>
+                  <Text style={styles.assessmentCtaText}>{copy.completeFullAssessment}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
 
             {topRecommendation ? (
               <View style={[styles.heroScoreRow, isRtl && styles.heroScoreRowRtl]}>
@@ -228,6 +273,12 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
               </View>
             ) : null}
           </View>
+
+          {recommendations.every((recommendation) => Number(recommendation.scorePercent || recommendation.match_percentage || 0) < 55) ? (
+            <View style={styles.lowScoresNotice}>
+              <Text style={[styles.lowScoresText, isRtl && styles.rtlText]}>{copy.lowScoresHint}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.signalsCard}>
             <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{copy.profileSignals}</Text>
@@ -326,9 +377,12 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                   <Text style={[styles.score, isRtl && styles.rtlText]}>
                     {copy.score}: {recommendation.scorePercent}%
                   </Text>
+                  <Text style={[styles.fitLabel, isRtl && styles.rtlText]}>
+                    {fitLabel(recommendation.scorePercent, copy)}
+                  </Text>
                   <View style={[styles.confidenceRow, isRtl && styles.chipsRowRtl]}>
                     <Text style={[styles.confidenceBadge, styles[`confidence_${recommendation.confidence_level || 'low'}`]]}>
-                      {copy.confidence}: {recommendation.confidence_level || 'low'}
+                      {copy.confidence}: {recommendation.confidence_score ?? 0}%
                     </Text>
                     {recommendation.is_preliminary ? (
                       <Text style={styles.preliminaryBadge}>{copy.preliminary}</Text>
@@ -495,6 +549,15 @@ function localizeCopy(copy, language) {
   return copy?.[lang] || copy?.en || copy?.ar || copy?.he || '';
 }
 
+function fitLabel(score, copy) {
+  const value = Number(score) || 0;
+  if (value >= 80) return copy.fitVeryHigh;
+  if (value >= 70) return copy.fitHigh;
+  if (value >= 60) return copy.fitGood;
+  if (value >= 45) return copy.fitMedium;
+  return copy.fitWeak;
+}
+
 function InstitutionProgramCard({ program, copy, language, isRtl, navigateTo, majorName }) {
   const institution = program.institution || {};
   const institutionName = pickLocalized(institution, 'name', language) || institution.name || '-';
@@ -655,6 +718,44 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 15,
   },
+  warningActions: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lowConfidenceChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#fecaca',
+    color: '#7f1d1d',
+    fontWeight: '900',
+  },
+  assessmentCta: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#dbeafe',
+  },
+  assessmentCtaText: {
+    color: '#1d4ed8',
+    fontWeight: '900',
+  },
+  lowScoresNotice: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#451a03',
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  lowScoresText: {
+    color: '#fed7aa',
+    fontWeight: '800',
+    lineHeight: 20,
+  },
   signalsCard: {
     marginTop: 14,
     backgroundColor: '#0f172a',
@@ -781,6 +882,12 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '800',
     fontSize: 13,
+  },
+  fitLabel: {
+    marginTop: 4,
+    color: '#86efac',
+    fontWeight: '900',
+    fontSize: 12,
   },
   confidenceRow: {
     marginTop: 8,

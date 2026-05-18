@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { recommendTopDegrees } from './recommendationService';
+import { recommendTopDegrees, getRecommendedMajorsWithInstitutions } from './recommendationService';
 import { getStudentGameCareerSignalSummary, refreshStudentGameCareerSignals } from './gameCareerSignalService';
 
 function safeNum(value, fallback = 0) {
@@ -165,6 +165,9 @@ function buildExplanation(bestRecommendation, strengths, gameSignals) {
   if (!bestRecommendation) {
     return 'لا توجد توصية جاهزة بعد. أكمل الاختبار الشامل أولاً.';
   }
+  if (bestRecommendation.explanation) {
+    return bestRecommendation.explanation;
+  }
 
   const examPart = strengths.filter((item) => item.sourceType === 'exam' || item.sourceType === 'both').slice(0, 2);
   const gameExplanation = gameSignals.explanations?.[0]?.reason_ar;
@@ -207,6 +210,71 @@ function buildNextSteps({ bestRecommendation, hasPersonality, hasGames }) {
   return steps.slice(0, 6);
 }
 
+function institutionKey(program) {
+  const institution = program?.institution || {};
+  return String(program?.institution_id || institution.id || program?.institution_name || institution.name || '').trim();
+}
+
+function buildRecommendedInstitutions(recommendations = [], language = 'ar') {
+  const institutions = new Map();
+
+  recommendations.forEach((recommendation) => {
+    const majorName = pickName(recommendation, language) || recommendation.name;
+    const scorePercent = Math.round(clamp(recommendation.score_percent ?? recommendation.match_percentage ?? safeNum(recommendation.score, 0) * 100));
+
+    (recommendation.institutions || []).forEach((program) => {
+      const key = institutionKey(program);
+      if (!key) return;
+
+      const institution = program.institution || {};
+      const existing = institutions.get(key) || {
+        id: program.institution_id || institution.id || key,
+        institution,
+        programs: [],
+        majors: [],
+        bestScore: 0,
+        distance_km: program.distance_km ?? null,
+        same_region: !!program.same_region,
+        active_match: program.active_match !== false,
+        type: institution.type || institution.institution_type || program.institution_type || '',
+        city_ar: institution.city_ar || program.city || '',
+        city_he: institution.city_he || program.city || '',
+        city_en: institution.city_en || program.city || '',
+        region: institution.region || program.region || '',
+      };
+
+      existing.programs.push(program);
+      existing.bestScore = Math.max(existing.bestScore, scorePercent);
+      if (program.distance_km !== null && program.distance_km !== undefined) {
+        existing.distance_km = existing.distance_km === null ? program.distance_km : Math.min(existing.distance_km, program.distance_km);
+      }
+      existing.same_region = existing.same_region || !!program.same_region;
+      existing.active_match = existing.active_match || program.active_match !== false;
+
+      if (majorName && !existing.majors.some((major) => major.name === majorName)) {
+        existing.majors.push({
+          id: recommendation.major_id || recommendation.degree_id || recommendation.major_key || recommendation.code,
+          name: majorName,
+          score_percent: scorePercent,
+        });
+      }
+
+      institutions.set(key, existing);
+    });
+  });
+
+  const typeRank = { university: 0, academic_college: 1, college: 1, engineering_college: 1, practical_engineering: 2, open_university: 3, other: 4 };
+
+  return [...institutions.values()]
+    .sort((left, right) => {
+      if (left.same_region !== right.same_region) return left.same_region ? -1 : 1;
+      if (left.distance_km !== null || right.distance_km !== null) return (left.distance_km ?? Infinity) - (right.distance_km ?? Infinity);
+      if (right.bestScore !== left.bestScore) return right.bestScore - left.bestScore;
+      return (typeRank[left.type] ?? 5) - (typeRank[right.type] ?? 5);
+    })
+    .slice(0, 5);
+}
+
 export async function buildStudentProfileSummary(studentId, options = {}) {
   if (!studentId) throw new Error('studentId is required');
   const language = options.language || 'ar';
@@ -226,6 +294,7 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     careerSignalsRes,
     gameSignalSummary,
     topDegreesRes,
+    institutionsRes,
   ] = await Promise.all([
     supabase.from('students').select('*').eq('id', studentId).maybeSingle(),
     supabase.from('student_abilities').select('*, subjects(name_ar, name_he, name_en, code)').eq('student_id', studentId),
@@ -239,6 +308,7 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     supabase.from('student_career_signals').select('*').eq('student_id', studentId).order('career_signal', { ascending: false }).limit(50),
     getStudentGameCareerSignalSummary(studentId),
     recommendTopDegrees(studentId, { language, limit: 5 }),
+    getRecommendedMajorsWithInstitutions(studentId, { language, limit: 5 }),
   ]);
 
   if (studentRes.error) throw studentRes.error;
@@ -254,11 +324,12 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
   const gameInterests = gameInterestsRes.error ? [] : gameInterestsRes.data || [];
   const careerSignals = careerSignalsRes.error ? [] : careerSignalsRes.data || [];
   const topFields = topDegreesRes?.success ? topDegreesRes.data || [] : [];
+  const institutionRecommendations = institutionsRes?.success ? institutionsRes.data || [] : [];
   const bestRecommendation = topFields[0] || null;
   const gameSignals = gameSignalSummary || { skills: [], topics: [], degrees: [], explanations: [] };
   const strengths = buildStrengths(abilities, gameSignals, language);
   const improvements = buildImprovements({ abilities, interests, personality, gameSignals });
-  const hasAssessment = abilities.length > 0;
+  const hasAssessment = abilities.length > 0 || !!topFields[0]?.breakdown?.evidence?.hasAssessment;
   const hasGames = gameSkills.length > 0 || gameInterests.length > 0 || careerSignals.length > 0 || gameSessions.some((s) => s.status === 'completed');
   const confidence = confidenceLevel({
     hasAssessment,
@@ -301,7 +372,10 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     student: { ...student, display_name: studentName(student) },
     profileCompletion,
     bestRecommendation,
-    confidenceLevel: confidence,
+    confidenceLevel: {
+      ...confidence,
+      score: bestRecommendation?.confidence_score ?? 0,
+    },
     abilityHighlights,
     interestHighlights,
     personalityHighlights,
@@ -309,6 +383,7 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     strengths,
     improvements,
     topFields,
+    recommendedInstitutions: buildRecommendedInstitutions(institutionRecommendations, language),
     learningPotential,
     nextSteps: buildNextSteps({ bestRecommendation, hasPersonality: Boolean(personality), hasGames }),
     explanation,

@@ -54,6 +54,19 @@ function normalizeLang(language) {
   return lang === 'he' ? 'he' : 'ar';
 }
 
+function createUuid() {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 /**
  * Map raw average on scale [min..max] => 0..100
  */
@@ -123,21 +136,23 @@ export async function startPersonalityTest(studentId, language = 'ar') {
 
     const lang = normalizeLang(language);
 
-    const { data: session, error: sessionError } = await supabase
+    const sessionId = createUuid();
+    const session = {
+      id: sessionId,
+      student_id: studentId,
+      language: lang,
+      total_questions: FAST_RESULT_LIMIT,
+      status: 'in_progress',
+      questions_answered: 0,
+    };
+
+    const { error: sessionError } = await supabase
       .from('personality_test_sessions')
-      .insert({
-        student_id: studentId,
-        language: lang,
-        total_questions: FAST_RESULT_LIMIT, // ✅ fast mode
-        status: 'in_progress',
-        questions_answered: 0,
-      })
-      .select()
-      .single();
+      .insert(session);
 
     if (sessionError) throw sessionError;
 
-    return { success: true, sessionId: session.id, session };
+    return { success: true, sessionId, session };
   } catch (error) {
     console.error('Error starting personality test:', error);
     return { success: false, error: error.message };
@@ -646,11 +661,16 @@ export async function completePersonalityTest(sessionId) {
       },
     };
 
-    const { data: savedProfile, error: profileErr } = await supabase
+    const savedProfile = {
+      ...profileRow,
+      id: createUuid(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: profileErr } = await supabase
       .from('student_personality_profiles')
-      .insert(profileRow)
-      .select()
-      .single();
+      .insert(savedProfile);
 
     if (profileErr) throw profileErr;
 

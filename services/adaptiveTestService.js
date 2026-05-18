@@ -73,6 +73,19 @@ function ensureArray(x) {
   return Array.isArray(x) ? x : [];
 }
 
+function createUuid() {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 function paceBucket(seconds) {
   const value = safeNum(seconds, 0);
   if (value <= 0) return 'unknown';
@@ -439,9 +452,11 @@ export async function startComprehensiveAssessment({
 
     const totalQuestions = activeSubjectIds.length * maxQ;
 
-    const { data: session, error: sessionErr } = await supabase
+    const sessionId = createUuid();
+    const { error: sessionErr } = await supabase
       .from('test_sessions')
       .insert({
+        id: sessionId,
         student_id: studentId,
         session_type: 'full_assessment',
         language: lang,
@@ -456,14 +471,12 @@ export async function startComprehensiveAssessment({
           questionsPerSubject: safeNum(questionsPerSubject, minQ), // legacy
           startedAt: new Date().toISOString(),
         },
-      })
-      .select()
-      .single();
+      });
 
     if (sessionErr) return { success: false, error: 'SESSION_CREATION_FAILED: ' + sessionErr.message };
 
     const subjectRows = activeSubjectIds.map((sid) => ({
-      session_id: session.id,
+      session_id: sessionId,
       student_id: studentId,
       subject_id: sid,
       target_questions: maxQ,
@@ -487,7 +500,7 @@ export async function startComprehensiveAssessment({
 
     const { error: insertErr } = await supabase.from('test_session_subjects').insert(subjectRows);
     if (insertErr) {
-      await supabase.from('test_sessions').update({ status: 'abandoned' }).eq('id', session.id);
+      await supabase.from('test_sessions').update({ status: 'abandoned' }).eq('id', sessionId);
       return { success: false, error: 'SUBJECT_STATE_CREATE_FAILED: ' + insertErr.message };
     }
 
@@ -508,7 +521,7 @@ export async function startComprehensiveAssessment({
     });
 
     await recordHeartbeat({
-      sessionId: session.id,
+      sessionId,
       studentId,
       eventType: 'start',
       metadata: { subjectCount: activeSubjectIds.length, minQ, maxQ, language: lang },
@@ -516,7 +529,7 @@ export async function startComprehensiveAssessment({
 
     return {
       success: true,
-      sessionId: session.id,
+      sessionId,
       studentId,
       subjectIds: activeSubjectIds,
       subjectStates,

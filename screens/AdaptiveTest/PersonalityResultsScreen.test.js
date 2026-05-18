@@ -1,28 +1,20 @@
 // screens/AdaptiveTest/PersonalityResultsScreen.test.js
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-/**
- * ✅ LOCAL i18n FIX (do NOT touch jest.setup.js):
- * PersonalityResultsScreen uses:
- *   const { t, i18n } = useTranslation();
- *   i18n.language + i18n.changeLanguage()
- * Your global mock may not include i18n for this run, so we ensure it here.
- */
+let mockLanguage = 'ar';
+let mockWidth = 390;
+
 jest.mock('react-i18next', () => ({
   __esModule: true,
   useTranslation: () => ({
-    // return key (so component will use its built-in fallbacks)
-    t: (key) => key,
     i18n: {
-      language: 'ar',
+      language: mockLanguage,
       changeLanguage: jest.fn(() => Promise.resolve()),
     },
   }),
 }));
 
-/**
- * ✅ Alert mock: component calls Alert.alert on errors/missing studentId
- */
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
   const descriptors = Object.getOwnPropertyDescriptors(RN);
@@ -31,27 +23,15 @@ jest.mock('react-native', () => {
   Object.defineProperties(mockRN, descriptors);
   Object.defineProperty(mockRN, 'Alert', {
     configurable: true,
-    value: {
-      ...RN.Alert,
-      alert: jest.fn(),
-    },
+    value: { ...RN.Alert, alert: jest.fn() },
+  });
+  Object.defineProperty(mockRN, 'useWindowDimensions', {
+    configurable: true,
+    value: () => ({ width: mockWidth, height: 800, scale: 1, fontScale: 1 }),
   });
   return mockRN;
 });
 
-const PersonalityResultsScreen = require('./PersonalityResultsScreen').default;
-
-/* -------------------- UI mocks -------------------- */
-jest.mock('../../components/AdaptiveTest/RadarChart', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-
-  return function RadarChartMock() {
-    return React.createElement(View, { testID: 'radar-chart' });
-  };
-});
-
-/* -------------------- Service mock -------------------- */
 const mockGetStudentPersonalityProfile = jest.fn();
 
 jest.mock('../../services/personalityTestService', () => ({
@@ -59,7 +39,8 @@ jest.mock('../../services/personalityTestService', () => ({
   getStudentPersonalityProfile: (...args) => mockGetStudentPersonalityProfile(...args),
 }));
 
-/* -------------------- Shared data -------------------- */
+const PersonalityResultsScreen = require('./PersonalityResultsScreen').default;
+
 const successPayload = {
   success: true,
   profile: {
@@ -73,119 +54,146 @@ const successPayload = {
   insights: {
     personality_type_description_ar: 'وصف عربي',
     personality_type_description_he: 'תיאור בעברית',
+    personality_type_description_en: 'English description',
   },
 };
 
 describe('PersonalityResultsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLanguage = 'ar';
+    mockWidth = 390;
   });
 
-  it('shows loading then renders traits, chart, and buttons (success UI)', async () => {
+  it('renders polished Arabic report with traits, chart, interpretation, and buttons', async () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
-
     const navigateTo = jest.fn();
 
-    const { getByText, queryByText, getByTestId } = render(
+    const { getByText, getAllByText, queryByText } = render(
       <PersonalityResultsScreen navigateTo={navigateTo} studentId="stu-1" language="ar" />
     );
 
-    // ✅ loading text in the component is common.loading fallback:
-    // "جاري التحميل…"
     expect(getByText('جاري التحميل…')).toBeTruthy();
 
     await waitFor(() => {
       expect(queryByText('جاري التحميل…')).toBeNull();
-
-      // ✅ Title is: "نتائج الشخصية"
       expect(getByText('نتائج الشخصية')).toBeTruthy();
-
-      // ✅ Traits section + one trait label
-      expect(getByText('الصفات')).toBeTruthy();
-      expect(getByText('الانفتاح')).toBeTruthy();
-
-      // ✅ Insights description
-      expect(getByText('وصف عربي')).toBeTruthy();
-
-      // ✅ Chart is rendered
-      expect(getByTestId('radar-chart')).toBeTruthy();
-
-      // ✅ Buttons exist
-      expect(getByText('العودة للرئيسية')).toBeTruthy();
-      expect(getByText('فتح التقرير الكامل')).toBeTruthy();
+      expect(getByText('ثقة 90%')).toBeTruthy();
+      expect(getByText('ملخص سريع')).toBeTruthy();
+      expect(getAllByText('الانفتاح').length).toBeGreaterThan(0);
+      expect(getAllByText(/80/).length).toBeGreaterThan(0);
+      expect(getByText('الرسم')).toBeTruthy();
+      expect(getByText('ماذا تعني هذه النتائج؟')).toBeTruthy();
+      expect(getByText('كيف يؤثر هذا على التوصيات؟')).toBeTruthy();
+      expect(getByText('عرض التقرير الكامل')).toBeTruthy();
+      expect(getByText('العودة للصفحة الرئيسية')).toBeTruthy();
     });
 
-    fireEvent.press(getByText('العودة للرئيسية'));
-    expect(navigateTo).toHaveBeenCalledWith('home');
-
-    fireEvent.press(getByText('فتح التقرير الكامل'));
+    fireEvent.press(getByText('عرض التقرير الكامل'));
     expect(navigateTo).toHaveBeenCalledWith('studentInsightReport', {
       studentId: 'stu-1',
       language: 'ar',
     });
+
+    fireEvent.press(getByText('العودة للصفحة الرئيسية'));
+    expect(navigateTo).toHaveBeenCalledWith('home');
   });
 
-  /* =========================================================
-     getStudentPersonalityProfile — 2 positive + 2 negative
-     ========================================================= */
-
-  it('getStudentPersonalityProfile (positive): called with correct studentId', async () => {
+  it('renders Hebrew RTL copy', async () => {
+    mockLanguage = 'he';
     mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
 
-    render(
-      <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-999" language="ar" />
-    );
-
-    await waitFor(() => {
-      expect(mockGetStudentPersonalityProfile).toHaveBeenCalledTimes(1);
-    });
-
-    const args = mockGetStudentPersonalityProfile.mock.calls[0];
-    expect(args[0]).toBe('stu-999');
-  });
-
-  it('getStudentPersonalityProfile (positive): called with exactly 1 argument (studentId)', async () => {
-    mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
-
-    render(
+    const { findByText, findAllByText } = render(
       <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="he" />
     );
 
-    await waitFor(() => {
-      expect(mockGetStudentPersonalityProfile).toHaveBeenCalledTimes(1);
-    });
-
-    const args = mockGetStudentPersonalityProfile.mock.calls[0];
-    expect(args).toHaveLength(1);
-    expect(args[0]).toBe('stu-1');
+    expect(await findByText('תוצאות אישיות')).toBeTruthy();
+    expect(await findByText('ביטחון 90%')).toBeTruthy();
+    expect(await findByText('סיכום מהיר')).toBeTruthy();
+    expect((await findAllByText('מצפוניות')).length).toBeGreaterThan(0);
+    expect(await findByText('מה זה אומר?')).toBeTruthy();
+    expect(await findByText('פירוט הדוח המלא')).toBeTruthy();
   });
 
-  it('getStudentPersonalityProfile (negative): NOT called when studentId is missing', async () => {
-    render(
-      <PersonalityResultsScreen navigateTo={jest.fn()} studentId={null} language="ar" />
+  it('renders English LTR copy', async () => {
+    mockLanguage = 'en';
+    mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
+
+    const { findByText, findAllByText } = render(
+      <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="en" />
     );
 
-    // effect runs, but should early-return before service call
+    expect(await findByText('Personality Results')).toBeTruthy();
+    expect(await findByText('Confidence 90%')).toBeTruthy();
+    expect(await findByText('Quick Summary')).toBeTruthy();
+    expect((await findAllByText('Conscientiousness')).length).toBeGreaterThan(0);
+    expect(await findByText('What does this mean?')).toBeTruthy();
+  });
+
+  it('handles missing Big Five data without NaN or empty chart space', async () => {
+    mockGetStudentPersonalityProfile.mockResolvedValueOnce({
+      success: true,
+      profile: { confidence_level: null },
+      insights: {},
+    });
+
+    const { findByText, findAllByText, queryByText } = render(
+      <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="ar" />
+    );
+
+    expect(await findByText('ثقة 0%')).toBeTruthy();
+    expect((await findAllByText(/0/)).length).toBeGreaterThan(0);
+    expect(await findByText('لا توجد بيانات كافية لعرض الرسم.')).toBeTruthy();
+    expect(queryByText('NaN%')).toBeNull();
+  });
+
+  it('supports partial data safely', async () => {
+    mockGetStudentPersonalityProfile.mockResolvedValueOnce({
+      success: true,
+      profile: { openness: 55, confidence_level: 75 },
+      insights: {},
+    });
+
+    const { findAllByText, queryByText } = render(
+      <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="ar" />
+    );
+
+    expect((await findAllByText(/55/)).length).toBeGreaterThan(0);
+    expect((await findAllByText(/0/)).length).toBeGreaterThan(0);
+    expect(queryByText('NaN%')).toBeNull();
+  });
+
+  it('uses wide layout without breaking rendering', async () => {
+    mockWidth = 900;
+    mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
+
+    const { findByText, findAllByText } = render(
+      <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="ar" />
+    );
+
+    expect(await findByText('سمات الشخصية الخمس')).toBeTruthy();
+    expect((await findAllByText('التعاون')).length).toBeGreaterThan(0);
+  });
+
+  it('does not call service when studentId is missing', async () => {
+    render(<PersonalityResultsScreen navigateTo={jest.fn()} studentId={null} language="ar" />);
+
     await waitFor(() => {
       expect(mockGetStudentPersonalityProfile).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalled();
     });
   });
 
-  it('getStudentPersonalityProfile (negative): handles failure response gracefully (no crash)', async () => {
-    mockGetStudentPersonalityProfile.mockResolvedValueOnce({
-      success: false,
-      error: 'FAILED',
-    });
+  it('handles service failure without crashing', async () => {
+    mockGetStudentPersonalityProfile.mockResolvedValueOnce({ success: false, error: 'FAILED' });
 
     const { queryByText } = render(
       <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="ar" />
     );
 
     await waitFor(() => {
-      // loading should disappear eventually
       expect(queryByText('جاري التحميل…')).toBeNull();
+      expect(Alert.alert).toHaveBeenCalledWith('خطأ', 'FAILED');
     });
-
-    // No assertion on Alert text needed — just ensuring it doesn't crash.
   });
 });

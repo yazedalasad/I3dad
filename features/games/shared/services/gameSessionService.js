@@ -2,6 +2,7 @@ import { buildCreateSessionPayload, buildUpdateSessionPayload } from '../utils/g
 import { validateGameSessionInput } from '../utils/gameValidation';
 import { supabase } from '../../../../config/supabase';
 import { processCompletedGameSession } from '../../../../services/gameCareerSignalService';
+import { recommendTopDegreesAfterSession } from '../../../../services/recommendationService';
 
 const GAME_CATALOG_ROWS = {
   doctor_soroka: {
@@ -210,9 +211,13 @@ export async function updateGameSession(sessionId, input) {
   if (error) throw error;
 
   if (data?.status === 'completed') {
-    processCompletedGameSession(data).catch((signalError) => {
-      console.warn('Failed to update game career signals:', signalError?.message || signalError);
-    });
+    processCompletedGameSession(data)
+      .then(async () => {
+        await recommendTopDegreesAfterSession(data.student_id, { limit: 5 });
+      })
+      .catch((signalError) => {
+        console.warn('Failed to update game career signals:', signalError?.message || signalError);
+      });
   }
 
   return data;

@@ -161,6 +161,10 @@ export function AdminShell({ activeKey, title, subtitle, navigateTo, children, p
       <View style={styles.main}>
         <View style={[styles.topbar, isMobile && styles.topbarMobile]}>
           <View style={[styles.topbarHead, isMobile && styles.topbarHeadMobile]}>
+            <View style={[styles.topbarText, isMobile && styles.topbarTextMobile]}>
+              <Text style={[styles.pageTitle, isMobile && styles.pageTitleMobile]} numberOfLines={2} ellipsizeMode="tail">{tr(title)}</Text>
+              <Text style={[styles.pageSubtitle, isMobile && styles.pageSubtitleMobile]} numberOfLines={2} ellipsizeMode="tail">{tr(subtitle)}</Text>
+            </View>
             {isMobile && (
               <Pressable
                 style={styles.menuButton}
@@ -172,10 +176,6 @@ export function AdminShell({ activeKey, title, subtitle, navigateTo, children, p
                 <FontAwesome name="bars" size={18} color={adminColors.primary} />
               </Pressable>
             )}
-            <View style={[styles.topbarText, isMobile && styles.topbarTextMobile]}>
-              <Text style={[styles.pageTitle, isMobile && styles.pageTitleMobile]} numberOfLines={2} ellipsizeMode="tail">{tr(title)}</Text>
-              <Text style={[styles.pageSubtitle, isMobile && styles.pageSubtitleMobile]} numberOfLines={2} ellipsizeMode="tail">{tr(subtitle)}</Text>
-            </View>
           </View>
           <View style={[styles.topbarActions, isMobile && styles.topbarActionsMobile]}>
             {primaryAction}
@@ -250,6 +250,7 @@ export function StatCard({ icon, label, value, hint, tone = adminColors.primary 
 export function FilterBar({ search, onSearch, filters = [], action }) {
   const { isMobile } = useAdminBreakpoints();
   const tr = useAdminTranslator();
+  const [openFilter, setOpenFilter] = useState(null);
   return (
     <View style={[styles.filterBar, isMobile && styles.filterBarMobile]}>
       <View style={[styles.searchBox, isMobile && styles.searchBoxMobile]}>
@@ -263,12 +264,51 @@ export function FilterBar({ search, onSearch, filters = [], action }) {
           textAlign="right"
         />
       </View>
-      {filters.map((filter) => (
-        <TouchableOpacity key={filter.label} style={[styles.filterChip, isMobile && styles.filterChipMobile]} onPress={filter.onPress}>
-          <Text style={styles.filterText}>{tr(filter.label)}</Text>
-          <FontAwesome name="chevron-down" size={11} color={adminColors.muted} />
-        </TouchableOpacity>
-      ))}
+      {filters.map((filter) => {
+        const key = filter.key || filter.label;
+        const hasOptions = Array.isArray(filter.options) && filter.options.length > 0;
+        const isOpen = openFilter === key;
+        return (
+          <View key={key} style={[styles.filterDropdownWrap, isMobile && styles.filterDropdownWrapMobile]}>
+            <TouchableOpacity
+              style={[styles.filterChip, isMobile && styles.filterChipMobile, isOpen && styles.filterChipOpen]}
+              onPress={() => {
+                if (!hasOptions) {
+                  filter.onPress?.();
+                  return;
+                }
+                setOpenFilter((current) => (current === key ? null : key));
+              }}
+            >
+              <Text style={styles.filterText} numberOfLines={1}>{tr(filter.label)}</Text>
+              <FontAwesome name={isOpen ? 'chevron-up' : 'chevron-down'} size={11} color={adminColors.muted} />
+            </TouchableOpacity>
+            {hasOptions && isOpen && (
+              <View style={styles.filterDropdown}>
+                <ScrollView nestedScrollEnabled style={styles.filterDropdownScroll}>
+                  {filter.options.map((option) => {
+                    const active = String(option.value) === String(filter.value || '');
+                    return (
+                      <TouchableOpacity
+                        key={`${key}-${option.value}`}
+                        style={[styles.filterOption, active && styles.filterOptionActive]}
+                        onPress={() => {
+                          filter.onSelect?.(option.value);
+                          setOpenFilter(null);
+                        }}
+                      >
+                        <Text style={[styles.filterOptionText, active && styles.filterOptionTextActive]} numberOfLines={1}>
+                          {tr(option.label)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        );
+      })}
       {action}
     </View>
   );
@@ -510,14 +550,37 @@ const styles = StyleSheet.create({
   statLabel: { marginTop: 8, color: adminColors.muted, fontSize: 11, fontWeight: '800', textAlign: 'right' },
   statValue: { marginTop: 3, color: adminColors.text, fontSize: 20, fontWeight: '900', textAlign: 'right' },
   statHint: { marginTop: 2, color: adminColors.muted, fontSize: 10, fontWeight: '700', textAlign: 'right' },
-  filterBar: { flexDirection: 'row-reverse', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 14 },
+  filterBar: { flexDirection: 'row-reverse', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 14, zIndex: 30 },
   filterBarMobile: { alignItems: 'stretch' },
   searchBox: { flexGrow: 1, flexBasis: 260, minHeight: 46, borderRadius: 16, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff', paddingHorizontal: 12, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   searchBoxMobile: { flexBasis: '100%', width: '100%' },
   searchInput: { flex: 1, color: adminColors.text, fontWeight: '700' },
-  filterChip: { minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff', paddingHorizontal: 12, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
+  filterDropdownWrap: { position: 'relative', flexBasis: 150, minWidth: 150, maxWidth: 280, zIndex: 40 },
+  filterDropdownWrapMobile: { flexGrow: 1, maxWidth: '100%' },
+  filterChip: { minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: adminColors.border, backgroundColor: '#fff', paddingHorizontal: 12, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  filterChipOpen: { borderColor: adminColors.primary, backgroundColor: adminColors.softBlue },
   filterChipMobile: { flexGrow: 1, justifyContent: 'center' },
-  filterText: { color: adminColors.text, fontWeight: '800', fontSize: 12 },
+  filterText: { flexShrink: 1, color: adminColors.text, fontWeight: '800', fontSize: 12, textAlign: 'center' },
+  filterDropdown: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    maxHeight: 220,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: adminColors.border,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+    zIndex: 200,
+    elevation: 20,
+    ...adminShadow,
+  },
+  filterDropdownScroll: { maxHeight: 220 },
+  filterOption: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: '#EEF3FF' },
+  filterOptionActive: { backgroundColor: adminColors.softBlue },
+  filterOptionText: { color: adminColors.text, fontWeight: '800', fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
+  filterOptionTextActive: { color: adminColors.primary, fontWeight: '900' },
   table: { minWidth: 860, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: adminColors.border },
   tableRowHead: { flexDirection: 'row-reverse', backgroundColor: adminColors.softBlue, borderBottomWidth: 1, borderBottomColor: adminColors.border },
   tableRow: { flexDirection: 'row-reverse', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: adminColors.border },

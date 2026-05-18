@@ -147,6 +147,15 @@ jest.mock('../../services/interestService', () => ({
   },
 }));
 
+const mockRegenerateRecommendations = jest
+  .fn()
+  .mockResolvedValue({ success: true, data: [] });
+
+jest.mock('../../services/recommendationService', () => ({
+  __esModule: true,
+  regenerateRecommendations: (...args) => mockRegenerateRecommendations(...args),
+}));
+
 /* -------------------- helpers -------------------- */
 function baseProps(overrides = {}) {
   return {
@@ -230,7 +239,7 @@ describe('AdaptiveTestScreen', () => {
     });
   });
 
-  it('navigates to personalityTest when ALL_SUBJECTS_COMPLETE happens', async () => {
+  it('navigates to modern testResults when ALL_SUBJECTS_COMPLETE happens', async () => {
     mockGetNextQuestion.mockResolvedValueOnce({
       success: false,
       error: 'ALL_SUBJECTS_COMPLETE',
@@ -243,14 +252,19 @@ describe('AdaptiveTestScreen', () => {
       expect(mockCompleteComprehensiveAssessment).toHaveBeenCalled();
       expect(mockUpdateAbilitiesFromSession).toHaveBeenCalledWith(props.sessionId);
       expect(mockUpdateInterestsFromSession).toHaveBeenCalledWith(props.sessionId);
+      expect(mockRegenerateRecommendations).toHaveBeenCalledWith(props.studentId, expect.objectContaining({
+        source: 'assessment_completed',
+        sessionId: props.sessionId,
+      }));
 
       expect(props.navigateTo).toHaveBeenCalledWith(
-        'personalityTest',
+        'testResults',
         expect.objectContaining({
           studentId: props.studentId,
+          sessionId: props.sessionId,
           language: 'ar',
-          abilitySessionId: props.sessionId,
           subjectNames: props.subjectNames,
+          assessmentCompleted: true,
         })
       );
     });

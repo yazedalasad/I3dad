@@ -16,6 +16,7 @@ import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
 import abilityService from '../../services/abilityService';
 import adaptiveTestService from '../../services/adaptiveTestService';
 import interestService from '../../services/interestService';
+import { regenerateRecommendations } from '../../services/recommendationService';
 
 const QUESTION_TIME_LIMIT = 60;
 const HEARTBEAT_MS = 15000;
@@ -473,19 +474,32 @@ export default function AdaptiveTestScreen({
       language,
     });
 
+    let recommendationRefreshError = null;
     try {
       await abilityService.updateAbilitiesFromSession(sessionId);
       await interestService.updateInterestsFromSession(sessionId);
-    } catch {}
+      const recommendationResult = await regenerateRecommendations(studentId, {
+        source: 'assessment_completed',
+        sessionId,
+        language,
+        limit: 5,
+      });
+      if (!recommendationResult?.success) {
+        recommendationRefreshError = recommendationResult?.error || 'recommendations_failed';
+      }
+    } catch (error) {
+      recommendationRefreshError = error?.message || String(error);
+    }
 
-    navigateTo('personalityTest', {
+    navigateTo('testResults', {
       studentId,
+      sessionId,
       language,
-      abilitySessionId: sessionId,
-      abilityJustFinished: true,
       subjectNames,
       skippedCount,
       totalTimeSpent: totalTimeSpentSeconds,
+      assessmentCompleted: true,
+      recommendationRefreshError,
     });
   }
 

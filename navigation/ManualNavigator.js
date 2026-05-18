@@ -479,7 +479,11 @@ export default function ManualNavigator() {
             sessionId={screenParams.sessionId}
             subjectId={screenParams.subjectId}
             personalitySessionId={screenParams.personalitySessionId || null}
-            studentId={resolvedStudentId}
+            studentId={screenParams.studentId || resolvedStudentId}
+            skippedCount={screenParams.skippedCount}
+            totalTimeSpent={screenParams.totalTimeSpent}
+            assessmentCompleted={!!screenParams.assessmentCompleted}
+            recommendationRefreshError={screenParams.recommendationRefreshError || null}
             language={screenParams.language || normalizeLang(i18n.language)}
           />
         );

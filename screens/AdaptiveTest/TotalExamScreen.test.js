@@ -296,7 +296,7 @@ describe('TotalExamScreen', () => {
     });
   });
 
-  it('start (negative): if profile is incomplete, it asks the student to edit profile', async () => {
+  it('start (positive): incomplete profile shows warning but does not block exam', async () => {
     mockUseAuth.mockReturnValue({
       studentData: {
         id: 'stu-auth',
@@ -321,7 +321,12 @@ describe('TotalExamScreen', () => {
     pressStart(utils);
 
     await waitFor(() => {
-      expect(mockStartComprehensiveAssessment).not.toHaveBeenCalled();
+      expect(mockStartComprehensiveAssessment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          studentId: 'stu-1',
+          subjectIds: ['s1', 's2'],
+        })
+      );
     });
 
     fireEvent.press(utils.getByText('تعديل البروفايل'));
@@ -344,5 +349,45 @@ describe('TotalExamScreen', () => {
     await waitFor(() => {
       expect(navigateTo).not.toHaveBeenCalled();
     });
+  });
+
+  it('start (positive): does not block start when student id exists but auth data is still loading', async () => {
+    mockUseAuth.mockReturnValue({
+      studentData: { id: 'stu-auth' },
+      studentDataLoading: true,
+      studentId: 'stu-auth',
+      loading: true,
+      user: null,
+    });
+
+    const navigateTo = jest.fn();
+    const utils = render(<TotalExamScreen {...baseProps({ navigateTo, studentId: 'stu-prop' })} />);
+    await waitScreenReady(utils);
+
+    pressStart(utils);
+
+    await waitFor(() => {
+      expect(mockStartComprehensiveAssessment).toHaveBeenCalledWith(
+        expect.objectContaining({ studentId: 'stu-prop' })
+      );
+      expect(navigateTo).toHaveBeenCalledWith(
+        'startAdaptiveTest',
+        expect.objectContaining({ sessionId: 'sess-1' })
+      );
+    });
+  });
+
+  it('start (negative): shows visible error when session creation fails', async () => {
+    mockStartComprehensiveAssessment.mockResolvedValueOnce({
+      success: false,
+      error: 'SESSION_CREATION_FAILED: row-level security policy',
+    });
+
+    const utils = render(<TotalExamScreen {...baseProps()} />);
+    await waitScreenReady(utils);
+
+    pressStart(utils);
+
+    expect(await utils.findByText('تعذر فتح الامتحان بسبب صلاحيات قاعدة البيانات. حدّث صلاحيات الامتحان ثم جرّب مرة أخرى.')).toBeTruthy();
   });
 });

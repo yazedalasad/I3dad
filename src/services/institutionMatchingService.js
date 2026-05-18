@@ -6,6 +6,7 @@ import {
   localizeRecord,
   normalizeKey,
 } from '../../services/academicCatalogHelpers';
+import { findMajorProfile, normalizeMajorKey } from '../data/majorProfiles';
 
 function safeNum(value, fallback = NaN) {
   const number = Number(value);
@@ -87,6 +88,47 @@ function languageMatches(program, studentLanguage) {
   return text.includes('english') || text.includes('en');
 }
 
+function uniqueValues(values = []) {
+  return [...new Set(values.map((value) => normalizeMajorKey(value)).filter(Boolean))];
+}
+
+function candidateMajorKeys(majorId, options = {}) {
+  const profile = findMajorProfile(options.majorKey) ||
+    findMajorProfile(options.code) ||
+    findMajorProfile(options.name_en) ||
+    findMajorProfile(options.name_ar) ||
+    findMajorProfile(options.name_he) ||
+    findMajorProfile(majorId);
+  return uniqueValues([
+    options.majorKey,
+    options.code,
+    options.name_en,
+    options.name_ar,
+    options.name_he,
+    getMajorKey(majorId),
+    profile?.key,
+    ...(profile?.aliases || []),
+  ]);
+}
+
+function programMatchesCandidate(program = {}, candidates = []) {
+  if (!candidates.length) return true;
+  const programKeys = uniqueValues([
+    program.major_key,
+    program.degree_code,
+    program.code,
+    program.majors?.key,
+    program.majors?.code,
+    program.majors?.name_ar,
+    program.majors?.name_he,
+    program.majors?.name_en,
+    program.program_name_ar,
+    program.program_name_he,
+    program.program_name_en,
+  ]);
+  return programKeys.some((key) => candidates.includes(key));
+}
+
 export function sortInstitutionPrograms(programs = [], studentLocation = {}, studentRegion = studentLocation.region) {
   const language = studentLocation.languagePreference || studentLocation.language || 'ar';
   return [...programs].map((program) => {
@@ -160,15 +202,20 @@ export async function getProgramsByInstitution(institutionId) {
 
 export async function getInstitutionsForMajor(majorId, studentLocation = {}, options = {}) {
   const majorKey = options.majorKey || getMajorKey(majorId);
+  const candidates = candidateMajorKeys(majorId, options);
   let rows = [];
   try {
     let query = supabase
       .from('institution_programs')
       .select('*, institutions(*), majors(*)')
       .eq('is_active', true);
-    query = isUuid(majorId)
-      ? query.or(`major_id.eq.${majorId},major_key.eq.${majorKey}`)
-      : query.eq('major_key', majorKey);
+    if (isUuid(majorId)) {
+      query = query.or(`major_id.eq.${majorId},major_key.in.(${candidates.join(',')})`);
+    } else if (candidates.length) {
+      query = query.in('major_key', candidates);
+    } else {
+      query = query.eq('major_key', majorKey);
+    }
     const { data, error } = await query;
     if (error) throw error;
     rows = data || [];
@@ -177,6 +224,7 @@ export async function getInstitutionsForMajor(majorId, studentLocation = {}, opt
     rows = buildCatalogProgramsForMajor(majorKey);
   }
 
+  rows = rows.filter((program) => programMatchesCandidate(program, candidates));
   if (!rows.length) rows = buildCatalogProgramsForMajor(majorKey);
   return sortInstitutionPrograms(rows.map(normalizeProgram), studentLocation, studentLocation.region)
     .map((program) => formatInstitutionCard(program, options.language || studentLocation.languagePreference || 'ar'));

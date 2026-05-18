@@ -14,6 +14,7 @@ import {
   getRecommendedMajors,
   getRecommendedMajorsWithInstitutions as getEngineRecommendationsWithInstitutions,
 } from '../src/services/recommendationEngine';
+import { supabase } from '../config/supabase';
 
 /* ----------------------------- Helpers ----------------------------- */
 
@@ -43,6 +44,91 @@ function toPercent(score01) {
   return clamp(s * 100, 0, 100);
 }
 
+function createUuid() {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === 'function') return cryptoApi.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16);
+  });
+}
+
+function normalizeKey(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function uuidOrNull(value) {
+  const text = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)
+    ? text
+    : null;
+}
+
+async function loadSubjectMap() {
+  const { data, error } = await supabase.from('subjects').select('id, code, name_ar, name_he, name_en').eq('is_active', true);
+  if (error) return new Map();
+  const map = new Map();
+  (data || []).forEach((subject) => {
+    [subject.code, subject.name_ar, subject.name_he, subject.name_en].filter(Boolean).forEach((key) => {
+      map.set(normalizeKey(key), subject.id);
+    });
+  });
+  return map;
+}
+
+function subjectIdForRecommendation(recommendation, subjectMap) {
+  const candidates = [
+    ...(recommendation.related_subjects || []),
+    recommendation.major_key,
+    recommendation.code,
+    recommendation.category,
+  ];
+  for (const candidate of candidates) {
+    const id = subjectMap.get(normalizeKey(candidate));
+    if (id) return id;
+  }
+  return subjectMap.values().next().value || null;
+}
+
+async function persistRecommendations(studentId, recommendations = []) {
+  try {
+    const subjectMap = await loadSubjectMap();
+    await supabase.from('student_recommendations').delete().eq('student_id', studentId);
+    if (!recommendations.length) return;
+
+    const rows = recommendations
+      .map((recommendation, index) => {
+        const subjectId = subjectIdForRecommendation(recommendation, subjectMap);
+        if (!subjectId) return null;
+        return {
+          id: createUuid(),
+          student_id: studentId,
+          subject_id: subjectId,
+          rank: index + 1,
+          recommendation_score: recommendation.match_score ?? recommendation.score_percent ?? recommendation.match_percentage ?? 0,
+          match_score: recommendation.match_score ?? recommendation.score_percent ?? recommendation.match_percentage ?? 0,
+          confidence_score: recommendation.confidence_score ?? 0,
+          explanation: recommendation.explanation || '',
+          data_sources_used: recommendation.data_sources_used || [],
+          recommended_major_id: uuidOrNull(recommendation.major_id || recommendation.degree_id),
+          recommended_major_key: recommendation.major_key || recommendation.code || null,
+          reason_ar: recommendation.name_ar ? recommendation.explanation : null,
+          reason_he: recommendation.name_he ? recommendation.explanation : null,
+          reason_en: recommendation.name_en ? recommendation.explanation : null,
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
+
+    if (rows.length) {
+      await supabase.from('student_recommendations').insert(rows);
+    }
+  } catch (_error) {
+    // Persistence is useful for reports/admin, but recommendations should still render live.
+  }
+}
+
 /* ------------------------ Public API ------------------------------- */
 
 export async function recommendTopDegrees(studentId, options = {}) {
@@ -70,8 +156,10 @@ export async function recommendTopDegrees(studentId, options = {}) {
       // score
       score: Number((deg.score ?? 0).toFixed(6)),
       score_percent: Number((deg.score_percent ?? deg.match_percentage ?? toPercent(deg.score)).toFixed(2)),
+      match_score: deg.match_score ?? deg.score_percent ?? deg.match_percentage ?? toPercent(deg.score),
       match_percentage: deg.match_percentage ?? deg.score_percent ?? toPercent(deg.score),
       base_score: deg.base_score ?? null,
+      confidence_score: deg.confidence_score ?? 0,
       game_signal_bonus: deg.game_signal_bonus ?? 0,
       confidence_level: deg.confidence_level,
       confidence_reason: deg.confidence_reason,
@@ -80,10 +168,16 @@ export async function recommendTopDegrees(studentId, options = {}) {
       explanation: deg.explanation,
       top_reasons: deg.top_reasons || [],
       usedWeights: deg.usedWeights,
+      data_sources_used: deg.data_sources_used || [],
+      related_subjects: deg.related_subjects || [],
 
       // explanation / breakdown from new service
       breakdown: deg.breakdown ?? null,
     }));
+
+    if (options.persist !== false) {
+      persistRecommendations(studentId, mapped).catch(() => {});
+    }
 
     return {
       success: true,
@@ -100,9 +194,24 @@ export async function recommendTopDegreesAfterSession(studentId, options = {}) {
   return recommendTopDegrees(studentId, options);
 }
 
+export async function regenerateRecommendations(studentId, options = {}) {
+  if (!studentId) {
+    return { success: false, error: 'studentId is required', data: [] };
+  }
+
+  return recommendTopDegrees(studentId, {
+    ...options,
+    persist: true,
+    limit: options.limit || 5,
+  });
+}
+
 export async function getRecommendedMajorsWithInstitutions(studentId, options = {}) {
   try {
     const data = await getEngineRecommendationsWithInstitutions(studentId, options);
+    if (options.persist !== false) {
+      persistRecommendations(studentId, data).catch(() => {});
+    }
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message, data: [] };
@@ -112,5 +221,6 @@ export async function getRecommendedMajorsWithInstitutions(studentId, options = 
 export default {
   recommendTopDegrees,
   recommendTopDegreesAfterSession,
+  regenerateRecommendations,
   getRecommendedMajorsWithInstitutions,
 };

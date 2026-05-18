@@ -61,6 +61,21 @@ function SubjectTile({ subject, t, isArabic }) {
   );
 }
 
+function formatStartError(error, isArabic) {
+  const text = String(error || '');
+  if (text.includes('NO_ACTIVE_SUBJECTS') || text.includes('NO_SUBJECT_IDS')) {
+    return isArabic ? 'لا توجد مواد مفعّلة لبدء الامتحان حالياً.' : 'אין מקצועות פעילים להתחלת המבחן כרגע.';
+  }
+  if (text.includes('SESSION_CREATION_FAILED') || text.includes('row-level security') || text.includes('permission denied')) {
+    return isArabic
+      ? 'تعذر فتح الامتحان بسبب صلاحيات قاعدة البيانات. حدّث صلاحيات الامتحان ثم جرّب مرة أخرى.'
+      : 'לא ניתן לפתוח את המבחן בגלל הרשאות מסד הנתונים. עדכנו את הרשאות המבחן ונסו שוב.';
+  }
+  return isArabic
+    ? 'تعذر فتح الامتحان الآن. جرّب مرة أخرى بعد لحظات.'
+    : 'לא ניתן לפתוח את המבחן כרגע. נסו שוב בעוד רגע.';
+}
+
 const firstValue = (source, fields) => {
   for (const field of fields) {
     const value = source?.[field];
@@ -138,6 +153,7 @@ export default function TotalExamScreen({
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState('');
 
   const effectiveStudentId =
     studentId ||
@@ -147,6 +163,7 @@ export default function TotalExamScreen({
     user?.user_metadata?.student_id ||
     null;
   const resolvingStudentId = authLoading || studentDataLoading || authStudentDataLoading;
+  const waitingForStudentId = !effectiveStudentId && resolvingStudentId;
   const effectiveStudentData = {
     ...(user?.user_metadata || {}),
     ...(profile || {}),
@@ -203,8 +220,18 @@ export default function TotalExamScreen({
   }, []);
 
   const startTotalExam = async () => {
+    setStartError('');
+
     if (!effectiveStudentId) {
       console.log('TotalExamScreen: missing studentId after navigator + auth fallback');
+      setStartError(
+        t(
+          'totalExam.missingStudentId',
+          isArabic
+            ? 'تعذر العثور على ملف الطالب. سجل الدخول بحساب طالب صالح ثم جرب مرة أخرى.'
+            : 'לא נמצא פרופיל תלמיד/ה. התחבר/י עם חשבון תלמיד תקין ונסה/י שוב.'
+        )
+      );
       return;
     }
 
@@ -215,6 +242,12 @@ export default function TotalExamScreen({
 
     if (!subjectIdsToUse.length) {
       console.log('No subjects available to start exam');
+      setStartError(
+        t(
+          'totalExam.noSubjects',
+          isArabic ? 'لا توجد مواد متاحة حالياً.' : 'אין מקצועות זמינים כרגע.'
+        )
+      );
       return;
     }
 
@@ -236,6 +269,7 @@ export default function TotalExamScreen({
 
       if (!res?.success) {
         console.log('Start exam failed:', res?.error);
+        setStartError(formatStartError(res?.error, isArabic));
         return;
       }
 
@@ -389,26 +423,23 @@ export default function TotalExamScreen({
               disabled={
                 starting ||
                 loading ||
-                resolvingStudentId ||
+                waitingForStudentId ||
                 subjects.length === 0 ||
-                !effectiveStudentId ||
-                !profileComplete
+                !effectiveStudentId
               }
               style={({ pressed }) => [
                 styles.startBtn,
                 (starting ||
                   loading ||
-                  resolvingStudentId ||
+                  waitingForStudentId ||
                   subjects.length === 0 ||
-                  !effectiveStudentId ||
-                  !profileComplete) &&
+                  !effectiveStudentId) &&
                   styles.startBtnDisabled,
                 pressed &&
                 !starting &&
                 !loading &&
-                !resolvingStudentId &&
-                effectiveStudentId &&
-                profileComplete
+                !waitingForStudentId &&
+                effectiveStudentId
                   ? styles.startBtnPressed
                   : null,
               ]}
@@ -427,6 +458,8 @@ export default function TotalExamScreen({
                 </>
               )}
             </Pressable>
+
+            {!!startError && <Text style={styles.warnText}>{startError}</Text>}
 
             {effectiveStudentId && !resolvingStudentId && !profileComplete && (
               <View style={styles.profileWarningBox}>
@@ -453,7 +486,7 @@ export default function TotalExamScreen({
               </View>
             )}
 
-            {!effectiveStudentId && resolvingStudentId && (
+            {waitingForStudentId && (
               <Text style={styles.loadingText}>
                 {t(
                   'totalExam.resolvingStudent',

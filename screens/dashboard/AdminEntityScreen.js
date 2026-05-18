@@ -287,6 +287,79 @@ const statusLabels = {
   he: { active: 'פעיל', inactive: 'לא פעיל' },
 };
 
+const difficultyLabels = {
+  ar: {
+    easy: 'سهل',
+    medium: 'متوسط',
+    hard: 'صعب',
+    quantitative_reasoning: 'الاستدلال الكمي',
+    logical_reasoning: 'الاستدلال المنطقي',
+    logical_abstract_reasoning: 'التفكير المنطقي والمجرد',
+  },
+  he: {
+    easy: 'קל',
+    medium: 'בינוני',
+    hard: 'קשה',
+    سهل: 'קל',
+    متوسط: 'בינוני',
+    صعب: 'קשה',
+    'الاستدلال الكمي': 'הסקה כמותית',
+    'الاستدلال المنطقي': 'הסקה לוגית',
+    'التفكير المنطقي والمجرد': 'חשיבה לוגית ומופשטת',
+    quantitative_reasoning: 'הסקה כמותית',
+    logical_reasoning: 'הסקה לוגית',
+    logical_abstract_reasoning: 'חשיבה לוגית ומופשטת',
+  },
+};
+
+const genericFilterLabels = {
+  he: {
+    'المدرسة': 'בית ספר',
+    'الصف': 'כיתה',
+    'الحالة': 'סטטוס',
+    'اللغة': 'שפה',
+    'المدينة': 'עיר',
+    'المنطقة': 'אזור',
+    'التصنيف': 'קטגוריה',
+    'الصعوبة': 'קושי',
+    'المادة': 'מקצוע',
+    'النوع': 'סוג',
+    'التاريخ': 'תאריך',
+    'الصفحة': 'עמוד',
+    'ناقص': 'חסר',
+    'الدور': 'תפקיד',
+    'صلاحية حساسة': 'הרשאה רגישה',
+    'المستخدم': 'משתמש',
+    'العملية': 'פעולה',
+    'الخصوصية': 'פרטיות',
+    'الأمان': 'אבטחה',
+  },
+};
+
+const subjectLabels = {
+  he: {
+    'الاستدلال الكمي': 'הסקה כמותית',
+    'استدلال كمي': 'הסקה כמותית',
+    'الاستدلال المنطقي': 'הסקה לוגית',
+    'استدلال منطقي': 'הסקה לוגית',
+    'التفكير المنطقي والمجرد': 'חשיבה לוגית ומופשטת',
+    'تفكير منطقي ومجرد': 'חשיבה לוגית ומופשטת',
+    'اللغة العربية': 'ערבית',
+    'العربية': 'ערבית',
+    'اللغة العبرية': 'עברית',
+    'العبرية': 'עברית',
+    'الرياضيات': 'מתמטיקה',
+    'رياضيات': 'מתמטיקה',
+    'الفيزياء': 'פיזיקה',
+    'فيزياء': 'פיזיקה',
+    'الكيمياء': 'כימיה',
+    'كيمياء': 'כימיה',
+    'الأحياء': 'ביולוגיה',
+    'احياء': 'ביולוגיה',
+    'أحياء': 'ביולוגיה',
+  },
+};
+
 const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 const adminGameCopy = {
@@ -388,6 +461,20 @@ function getStudentLanguageLabel(value, isHebrew = false) {
   return (isHebrew ? languageLabels.he : languageLabels.ar)[key] || value || '-';
 }
 
+function getDifficultyLabel(value, isHebrew = false) {
+  const key = normalizeSearch(value);
+  return (isHebrew ? difficultyLabels.he : difficultyLabels.ar)[key] || value || '-';
+}
+
+function getGenericFilterLabel(label, isHebrew = false) {
+  return isHebrew ? genericFilterLabels.he[label] || label : label;
+}
+
+function getSubjectLabel(value, isHebrew = false) {
+  if (!isHebrew) return value || '-';
+  return subjectLabels.he[String(value || '').trim()] || value || '-';
+}
+
 function getStudentStatusKey(row) {
   return row.is_active === false ? 'inactive' : 'active';
 }
@@ -428,14 +515,6 @@ function uniqueOptions(values) {
   });
 }
 
-function nextFilterValue(options, currentValue) {
-  if (!options.length) return '';
-  const currentIndex = options.findIndex((option) => option.value === currentValue);
-  if (currentIndex < 0) return options[0].value;
-  if (currentIndex === options.length - 1) return '';
-  return options[currentIndex + 1].value;
-}
-
 function buildStudentFilterChips(rows, activeFilters, setActiveFilters, isHebrew) {
   const copy = isHebrew
     ? { school: 'בית ספר', grade: 'כיתה', status: 'סטטוס', language: 'שפה' }
@@ -466,13 +545,147 @@ function buildStudentFilterChips(rows, activeFilters, setActiveFilters, isHebrew
   ].map((spec) => {
     const selected = spec.options.find((option) => option.value === activeFilters[spec.key]);
     return {
+      key: spec.key,
       label: selected ? `${spec.baseLabel}: ${selected.label}` : spec.baseLabel,
-      onPress: () => {
-        const value = nextFilterValue(spec.options, activeFilters[spec.key]);
+      options: [
+        { value: '', label: isHebrew ? 'הכול' : 'الكل' },
+        ...spec.options,
+      ],
+      value: activeFilters[spec.key] || '',
+      onSelect: (value) => {
         setActiveFilters((current) => ({ ...current, [spec.key]: value }));
       },
     };
   });
+}
+
+function firstValue(row, keys = []) {
+  for (const key of keys) {
+    const value = key.split('.').reduce((current, part) => current?.[part], row);
+    if (value !== null && value !== undefined && String(value).trim() !== '') return value;
+  }
+  return '';
+}
+
+function dateFilterValue(row) {
+  const value = firstValue(row, ['completed_at', 'started_at', 'updated_at', 'created_at', 'last_sign_in_at']);
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { value: String(value), label: String(value) };
+  return {
+    value: date.toISOString().slice(0, 10),
+    label: formatAdminDate(value),
+  };
+}
+
+function getGenericFilterOption(row, label, isHebrew) {
+  const normalizedLabel = normalizeSearch(label);
+  let value = '';
+  let display = '';
+
+  if (normalizedLabel === 'المدرسة') {
+    value = row.school_id || getStudentSchoolName(row, false);
+    display = getStudentSchoolName(row, isHebrew);
+  } else if (normalizedLabel === 'الصف') {
+    value = row.grade;
+    display = row.grade;
+  } else if (normalizedLabel === 'الحالة') {
+    value = row.is_active === false || row.is_visible === false
+      ? 'inactive'
+      : firstValue(row, ['status']) || 'active';
+    display = value === 'active' ? (isHebrew ? 'פעיל' : 'نشط') : value === 'inactive' ? (isHebrew ? 'לא פעיל' : 'غير نشط') : value;
+  } else if (normalizedLabel === 'اللغة') {
+    value = firstValue(row, ['preferred_language', 'target_language', 'language', 'locale']);
+    display = getStudentLanguageLabel(value, isHebrew);
+  } else if (normalizedLabel === 'المدينة') {
+    value = firstValue(row, ['city_ar', 'city_he', 'city', 'city_en']);
+    display = isHebrew ? row.city_he || row.city_ar || row.city || value : row.city_ar || row.city || row.city_he || value;
+  } else if (normalizedLabel === 'المنطقة') {
+    value = firstValue(row, ['region_ar', 'region_he', 'region']);
+    display = getSchoolRegion(row, isHebrew);
+  } else if (normalizedLabel === 'التصنيف') {
+    value = firstValue(row, ['category', 'subject_category']);
+    display = value;
+  } else if (normalizedLabel === 'الصعوبة') {
+    value = firstValue(row, ['difficulty', 'difficulty_level', 'point_level']);
+    display = getDifficultyLabel(value, isHebrew);
+  } else if (normalizedLabel === 'المادة') {
+    value = firstValue(row, ['subject_id', 'subject_code', 'subjects.id', 'subject_name']);
+    display = isHebrew
+      ? row.subjects?.name_he || row.subject_name_he || row.subjects?.name_ar || row.subject_name_ar || row.subject_name || value
+      : row.subjects?.name_ar || row.subject_name_ar || row.subjects?.name_he || row.subject_name_he || row.subject_name || value;
+    display = getSubjectLabel(display, isHebrew);
+  } else if (normalizedLabel === 'النوع') {
+    value = firstValue(row, ['session_type', 'type', 'asset_type', 'entity_type']);
+    display = value;
+  } else if (normalizedLabel === 'التاريخ') {
+    return dateFilterValue(row);
+  } else if (normalizedLabel === 'الصفحة') {
+    value = firstValue(row, ['asset_type', 'entity_type', 'page', 'screen']);
+    display = value;
+  } else if (normalizedLabel === 'ناقص') {
+    const missing = !row.title_ar || !row.title_he || !row.content_en;
+    value = missing ? 'missing' : 'complete';
+    display = missing ? (isHebrew ? 'חסר' : 'ناقص') : (isHebrew ? 'מלא' : 'مكتمل');
+  } else if (normalizedLabel === 'الدور') {
+    value = firstValue(row, ['role', 'app_role']);
+    display = value;
+  } else if (normalizedLabel === 'صلاحية حساسة') {
+    const sensitive = row.is_sensitive || row.sensitive || row.requires_admin || row.high_risk;
+    value = sensitive ? 'sensitive' : 'regular';
+    display = sensitive ? (isHebrew ? 'רגישה' : 'حساسة') : (isHebrew ? 'רגילה' : 'عادية');
+  } else if (normalizedLabel === 'المستخدم') {
+    value = firstValue(row, ['actor_id', 'user_id', 'email']);
+    display = value;
+  } else if (normalizedLabel === 'العملية') {
+    value = firstValue(row, ['action', 'event_type']);
+    display = value;
+  } else if (normalizedLabel === 'الخصوصية') {
+    value = normalizeSearch(row.message || row.event_type || '').includes('privacy') ? 'privacy' : firstValue(row, ['severity', 'event_type']);
+    display = value;
+  } else if (normalizedLabel === 'الأمان') {
+    value = firstValue(row, ['severity', 'event_type', 'action']);
+    display = value;
+  }
+
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  return { value: String(value), label: String(display || value) };
+}
+
+function buildGenericFilterChips(filterLabels, rows, activeFilters, setActiveFilters, isHebrew) {
+  return (filterLabels || []).map((label) => {
+    const key = `filter_${normalizeSearch(label)}`;
+    const options = uniqueOptions(
+      rows
+        .map((row) => getGenericFilterOption(row, label, isHebrew))
+        .filter(Boolean)
+    ).sort((a, b) => a.label.localeCompare(b.label, isHebrew ? 'he' : 'ar'));
+    const selected = options.find((option) => option.value === activeFilters[key]);
+    const baseLabel = getGenericFilterLabel(label, isHebrew);
+    return {
+      key,
+      label: selected ? `${baseLabel}: ${selected.label}` : baseLabel,
+      value: activeFilters[key] || '',
+      options: [
+        { value: '', label: isHebrew ? 'הכול' : 'الكل' },
+        ...options,
+      ],
+      onSelect: (value) => {
+        setActiveFilters((current) => ({ ...current, [key]: value }));
+      },
+    };
+  });
+}
+
+function filterGenericRows(rows, filterLabels, activeFilters, isHebrew) {
+  return rows.filter((row) => (
+    (filterLabels || []).every((label) => {
+      const key = `filter_${normalizeSearch(label)}`;
+      const active = activeFilters[key];
+      if (!active) return true;
+      return getGenericFilterOption(row, label, isHebrew)?.value === active;
+    })
+  ));
 }
 
 function filterStudentRows(rows, search, activeFilters, isHebrew) {
@@ -530,19 +743,17 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
     if (entity === 'students') {
       return filterStudentRows(rows, search, activeFilters, isHebrew);
     }
-    if (!q) return rows;
-    return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
-  }, [activeFilters, entity, isHebrew, rows, search]);
+    const byFilters = filterGenericRows(rows, config.filters || [], activeFilters, isHebrew);
+    if (!q) return byFilters;
+    return byFilters.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
+  }, [activeFilters, config.filters, entity, isHebrew, rows, search]);
 
   const filterChips = useMemo(() => {
     if (entity === 'students') {
       return buildStudentFilterChips(rows, activeFilters, setActiveFilters, isHebrew);
     }
-    return (config.filters || []).map((label) => ({
-      label,
-      onPress: () => Alert.alert(tr('ÙÙ„ØªØ±'), tr(`Ø±Ø¨Ø· ÙÙ„ØªØ± ${label} Ù…Ø¹ Ø§Ù„Ø§Ø³ØªØ¹Ù„Ø§Ù…`)),
-    }));
-  }, [activeFilters, config.filters, entity, isHebrew, rows, tr]);
+    return buildGenericFilterChips(config.filters || [], rows, activeFilters, setActiveFilters, isHebrew);
+  }, [activeFilters, config.filters, entity, isHebrew, rows]);
 
   const primaryAction = config.addLabel ? (
     <TouchableOpacity
@@ -678,6 +889,20 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
       return {
         ...column,
         render: () => <Actions labels={isHebrew ? ['דוח', 'PDF'] : ['تقرير', 'PDF']} />,
+      };
+    }
+
+    if (entity === 'questions' && column.key === 'question_text') {
+      return {
+        ...column,
+        render: (row) => <QuestionTextCell row={row} />,
+      };
+    }
+
+    if (entity === 'questions' && column.key === 'subject_id') {
+      return {
+        ...column,
+        render: (row) => <QuestionSubjectCell row={row} />,
       };
     }
 
@@ -994,6 +1219,23 @@ function SchoolRegionCell({ row }) {
 function ReportSubjectCell({ row }) {
   const { isHebrew } = useAdminLocale();
   return <Cell text={getReportSubjectName(row, isHebrew)} />;
+}
+
+function QuestionTextCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  const text = isHebrew
+    ? row.question_text_he || row.question_he || row.text_he || row.question_text || row.question_text_ar
+    : row.question_text_ar || row.question_ar || row.text_ar || row.question_text || row.question_text_he;
+  return <Cell text={text} />;
+}
+
+function QuestionSubjectCell({ row }) {
+  const { isHebrew } = useAdminLocale();
+  const subject = row.subjects || row.subject || {};
+  const text = isHebrew
+    ? subject.name_he || row.subject_name_he || subject.name_ar || row.subject_name_ar || row.subject_name
+    : subject.name_ar || row.subject_name_ar || subject.name_he || row.subject_name_he || row.subject_name;
+  return <Cell text={text || row.subject_id} />;
 }
 
 function AdminDateCell({ value }) {

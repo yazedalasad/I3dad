@@ -62,6 +62,7 @@ const profileCopy = {
     bestPath: 'أفضل مسار لك حالياً',
     noRecommendation: 'لا توجد توصية جاهزة بعد. أكمل الاختبار الشامل أولاً.',
     match: 'ملاءمة',
+    confidenceScore: 'ثقة البيانات',
     whyPath: 'لماذا هذا المسار؟',
     breakdownTitle: 'كيف وصلنا لهذه النتيجة؟',
     breakdownHint: 'الامتحان هو الأساس. الألعاب تضيف إشارة داعمة فقط ولا تحدد مستقبلك وحدها.',
@@ -77,6 +78,18 @@ const profileCopy = {
     topFields: 'أفضل المسارات المقترحة',
     majorDetails: 'تفاصيل التخصص',
     nearbyUniversities: 'جامعات قريبة',
+    recommendedInstitutionsTitle: 'الجامعات والكليات المناسبة لك',
+    recommendedInstitutionsEmpty: 'أكمل الاختبار أو الألعاب حتى نعرض لك الجامعات والكليات الأنسب لك.',
+    noMatchingInstitutions: 'لم نجد مؤسسة مناسبة لهذا التخصص حالياً. جرّب إكمال الاختبار الشامل لتحسين النتائج.',
+    institutionDetails: 'تفاصيل المؤسسة',
+    relatedPrograms: 'تخصصات قريبة',
+    university: 'جامعة',
+    college: 'كلية',
+    closeBy: 'قريبة',
+    teachesMajor: 'تدرس تخصصك',
+    highFit: 'ملاءمة عالية',
+    weakFit: 'ملاءمة ضعيفة',
+    weakFitHint: 'أكمل الاختبار الشامل لتحسين دقة النتائج.',
     shortTask: 'جرّب مهمة قصيرة',
     suitableWith: (subject) => `مناسب بسبب قوة ${subject} وإشارة داعمة من الألعاب.`,
     suitableExam: (subject) => `مناسب بسبب قوة ${subject} في الامتحان.`,
@@ -123,6 +136,7 @@ const profileCopy = {
     bestPath: 'המסלול המתאים ביותר כרגע',
     noRecommendation: 'אין עדיין המלצה מוכנה. השלם קודם את המבחן המקיף.',
     match: 'התאמה',
+    confidenceScore: 'ביטחון',
     whyPath: 'למה המסלול הזה?',
     breakdownTitle: 'איך הגענו לתוצאה הזאת?',
     breakdownHint: 'המבחן הוא הבסיס. המשחקים מוסיפים אות תומך בלבד ולא קובעים לבד את העתיד שלך.',
@@ -138,6 +152,18 @@ const profileCopy = {
     topFields: 'המסלולים המומלצים ביותר',
     majorDetails: 'פרטי תחום',
     nearbyUniversities: 'אוניברסיטאות קרובות',
+    recommendedInstitutionsTitle: 'האוניברסיטאות והמכללות המתאימות לך',
+    recommendedInstitutionsEmpty: 'השלם את המבחן או המשחקים כדי שנציג לך את המוסדות המתאימים ביותר.',
+    noMatchingInstitutions: 'לא נמצאה כרגע מסגרת מתאימה לתחום זה. השלם את המבחן המלא כדי לשפר את התוצאות.',
+    institutionDetails: 'פרטי המוסד',
+    relatedPrograms: 'מסלולים קרובים',
+    university: 'אוניברסיטה',
+    college: 'מכללה',
+    closeBy: 'קרובה',
+    teachesMajor: 'מלמדת את התחום שלך',
+    highFit: 'התאמה גבוהה',
+    weakFit: 'התאמה חלשה',
+    weakFitHint: 'השלם את המבחן המקיף כדי לשפר את דיוק התוצאות.',
     shortTask: 'נסה משימה קצרה',
     suitableWith: (subject) => `מתאים בגלל חוזק ב${subject} ואות תומך מהמשחקים.`,
     suitableExam: (subject) => `מתאים בגלל חוזק ב${subject} במבחן.`,
@@ -155,6 +181,80 @@ const profileCopy = {
     personalityTest: 'מבחן אישיות',
     games: 'משחקים',
     miniTasks: 'משימות קצרות',
+  },
+  en: {
+    studentFallback: 'Student',
+    grade: 'Grade',
+    section: 'Section',
+    loadErrorTitle: 'Could not load profile',
+    loadErrorMessage: 'An unexpected error occurred.',
+    deleteTitle: 'Delete account?',
+    deleteMessage: 'Your account data will be removed from the system.',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    deleteError: 'Delete failed',
+    loading: 'Building your profile...',
+    noProfileTitle: 'No student profile is ready yet',
+    noProfileText: 'Complete student details first to show the profile.',
+    examPower: 'Assessment strength',
+    interests: 'Interests',
+    gameSignals: 'Game signals',
+    editProfile: 'Edit my details',
+    logout: 'Log out',
+    deleteAccount: 'Delete account',
+    profileTitle: 'Student Profile',
+    headerTitle: (name) => `Hi ${name}, this is your learning journey summary`,
+    headerSubtitle: 'Your profile is based on the assessment, personality, interests, and games.',
+    completion: (value) => `${value}% of your data is complete`,
+    completionHint: 'Every completed assessment or game makes the recommendation more accurate.',
+    bestPath: 'Best current path for you',
+    noRecommendation: 'No recommendation is ready yet. Complete the comprehensive assessment first.',
+    match: 'Match',
+    confidenceScore: 'Confidence',
+    whyPath: 'Why this path?',
+    breakdownTitle: 'How did we reach this result?',
+    breakdownHint: 'The assessment is the base. Games add supporting signals only and do not decide your future alone.',
+    abilitiesFromExam: 'Assessment abilities',
+    personality: 'Personality',
+    bonus: (value) => `Game signals: ${value > 0 ? `+${value}` : value} supporting points only`,
+    strengths: 'Your strengths',
+    strengthsEmpty: 'Your strengths will appear after completing the assessment or some games.',
+    improvements: 'Areas to improve',
+    improvementsEmpty: 'No clear improvement notes yet. Keep going, your profile improves with each attempt.',
+    gameHint: 'Games do not decide your future alone, but help us understand your thinking in practice.',
+    gameEmpty: 'Not enough game data yet. Try games to improve the recommendation.',
+    topFields: 'Top suggested paths',
+    majorDetails: 'Major details',
+    nearbyUniversities: 'Nearby universities',
+    recommendedInstitutionsTitle: 'Recommended Universities and Colleges',
+    recommendedInstitutionsEmpty: 'Complete the assessment or games to see the most suitable institutions.',
+    noMatchingInstitutions: 'No suitable institution was found for this major yet. Complete the full assessment to improve results.',
+    institutionDetails: 'Institution Details',
+    relatedPrograms: 'Related Programs',
+    university: 'University',
+    college: 'College',
+    closeBy: 'Nearby',
+    teachesMajor: 'Teaches your major',
+    highFit: 'High match',
+    weakFit: 'Weak match',
+    weakFitHint: 'Complete the full assessment to improve accuracy.',
+    shortTask: 'Try a short task',
+    suitableWith: (subject) => `Suitable because of strength in ${subject} and supporting game signals.`,
+    suitableExam: (subject) => `Suitable because of strength in ${subject} in the assessment.`,
+    gameSupportOnly: 'Games added a supporting signal, but they are not the main source of the recommendation.',
+    generalReason: 'Suitable based on the available assessment, personality, and interest results.',
+    learningPotential: 'Learning potential',
+    learningFallback: 'Learning potential becomes clearer as you complete more attempts and experiences.',
+    persistence: 'Persistence',
+    improvement: 'Improvement',
+    focus: 'Focus',
+    speedStability: 'Speed stability',
+    nextSteps: 'Next steps',
+    improveAccuracy: 'To improve recommendation accuracy',
+    fullAssessment: 'Comprehensive assessment',
+    personalityTest: 'Personality test',
+    games: 'Games',
+    miniTasks: 'Mini tasks',
   },
 };
 
@@ -183,10 +283,31 @@ function localizeConfidence(confidence, copy, language) {
   };
 }
 
+const RecommendedInstitutionsCard = ({ institutions, hasRecommendations, copy, language, onNavigate }) => (
+  <Card icon="business-outline" title={copy.recommendedInstitutionsTitle}>
+    {!hasRecommendations ? (
+      <Text style={styles.emptyText}>{copy.recommendedInstitutionsEmpty}</Text>
+    ) : !institutions.length ? (
+      <Text style={styles.emptyText}>{copy.noMatchingInstitutions}</Text>
+    ) : (
+      institutions.slice(0, 5).map((item) => (
+        <InstitutionMatchCard
+          key={item.id || getInstitutionName(item, language)}
+          item={item}
+          copy={copy}
+          language={language}
+          onNavigate={onNavigate}
+        />
+      ))
+    )}
+  </Card>
+);
+
 export default function StudentProfileScreen({ navigateTo }) {
   const { user, studentData, signOut, deleteAccount } = useAuth();
   const { i18n } = useTranslation();
-  const language = String(i18n.language || '').toLowerCase().startsWith('he') ? 'he' : 'ar';
+  const rawLanguage = String(i18n.language || '').toLowerCase();
+  const language = rawLanguage.startsWith('he') ? 'he' : rawLanguage.startsWith('en') ? 'en' : 'ar';
   const copy = profileCopy[language];
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -278,6 +399,14 @@ export default function StudentProfileScreen({ navigateTo }) {
 
       <BestMatchCard best={best} confidence={confidence} explanation={localizedExplanation(summary?.explanation, language)} copy={copy} />
 
+      <RecommendedInstitutionsCard
+        institutions={summary?.recommendedInstitutions || []}
+        hasRecommendations={(summary?.topFields || []).length > 0}
+        copy={copy}
+        language={language}
+        onNavigate={go}
+      />
+
       <BreakdownCard summary={summary} copy={copy} />
 
       <View style={styles.threeGrid}>
@@ -325,10 +454,27 @@ function localizedExplanation(explanation, language) {
 
 function localizedName(item, language) {
   if (!item) return '';
+  if (language === 'en') {
+    return item.name_en || item.subject_name_en || item.label_en || item.name || item.name_ar || item.subject_name_ar || item.label || '';
+  }
   if (language === 'he') {
     return item.name_he || item.subject_name_he || item.label_he || item.name || item.name_ar || item.subject_name_ar || item.label || '';
   }
   return item.name_ar || item.subject_name_ar || item.label_ar || item.name || item.name_he || item.subject_name_he || item.label || '';
+}
+
+function getInstitutionName(item, language) {
+  const institution = item?.institution || {};
+  if (language === 'he') return institution.name_he || institution.name_en || institution.name_ar || institution.name || item?.institution_name || '';
+  if (language === 'en') return institution.name_en || institution.name_he || institution.name_ar || institution.name || item?.institution_name || '';
+  return institution.name_ar || institution.name_he || institution.name_en || institution.name || item?.institution_name || '';
+}
+
+function getInstitutionCity(item, language) {
+  const institution = item?.institution || {};
+  if (language === 'he') return institution.city_he || institution.city_en || institution.city_ar || institution.city || item?.city || '';
+  if (language === 'en') return institution.city_en || institution.city_he || institution.city_ar || institution.city || item?.city || '';
+  return institution.city_ar || institution.city_he || institution.city_en || institution.city || item?.city || '';
 }
 
 function localizedStrength(item, language) {
@@ -442,7 +588,9 @@ function BestMatchCard({ best, confidence, explanation, copy }) {
           <Text style={styles.reasonText}>{explanation}</Text>
           <View style={styles.confidencePill}>
             <Ionicons name="shield-checkmark-outline" size={15} color={colors.greenDark} />
-            <Text style={styles.confidenceText}>{confidence.label}</Text>
+            <Text style={styles.confidenceText}>
+              {copy.confidenceScore}: {pct(best.confidence_score)}% · {confidence.label}
+            </Text>
           </View>
           <Text style={styles.confidenceHint}>{confidence.message}</Text>
         </View>
@@ -451,19 +599,78 @@ function BestMatchCard({ best, confidence, explanation, copy }) {
   );
 }
 
+function InstitutionMatchCard({ item, copy, language, onNavigate }) {
+  const institution = item.institution || {};
+  const name = getInstitutionName(item, language);
+  const city = getInstitutionCity(item, language);
+  const type = institution.type || institution.institution_type || item.type || 'other';
+  const bestMajor = item.majors?.[0] || {};
+  const score = pct(item.bestScore || bestMajor.score_percent);
+  const isWeak = score < 55;
+  const typeLabel = type.includes('university') ? copy.university : copy.college;
+  const locationLabel = item.distance_km ? `${item.distance_km} km` : item.same_region ? item.region || copy.closeBy : item.region || '';
+
+  return (
+    <View style={styles.institutionCard}>
+      <View style={styles.institutionTop}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.institutionName}>{name}</Text>
+          <Text style={styles.institutionMeta}>{[typeLabel, city, locationLabel].filter(Boolean).join(' | ')}</Text>
+        </View>
+        <View style={[styles.institutionScore, isWeak && styles.weakScore]}>
+          <Text style={[styles.institutionScoreText, isWeak && styles.weakScoreText]}>{score}%</Text>
+        </View>
+      </View>
+
+      <View style={styles.chipList}>
+        <View style={styles.matchChip}><Text style={styles.matchChipText}>{typeLabel}</Text></View>
+        {item.distance_km || item.same_region ? <View style={styles.matchChip}><Text style={styles.matchChipText}>{copy.closeBy}</Text></View> : null}
+        <View style={styles.matchChip}><Text style={styles.matchChipText}>{copy.teachesMajor}</Text></View>
+        <View style={[styles.matchChip, isWeak ? styles.weakChip : styles.highChip]}>
+          <Text style={[styles.matchChipText, isWeak ? styles.weakChipText : styles.highChipText]}>
+            {isWeak ? copy.weakFit : copy.highFit}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={styles.relatedMajors}>
+        {(item.majors || []).map((major) => `${major.name}${major.score_percent ? ` (${pct(major.score_percent)}%)` : ''}`).join(' | ')}
+      </Text>
+      {isWeak ? <Text style={styles.weakHint}>{copy.weakFitHint}</Text> : null}
+
+      <View style={styles.fieldActions}>
+        <SmallButton
+          text={copy.institutionDetails}
+          onPress={() => onNavigate('institutionDetails', { institutionId: item.id, institutionName: name })}
+        />
+        <SmallButton
+          text={copy.relatedPrograms}
+          onPress={() =>
+            onNavigate('universitiesAndColleges', {
+              institutionId: item.id,
+              majorId: bestMajor.id,
+              majorName: bestMajor.name,
+            })
+          }
+        />
+      </View>
+    </View>
+  );
+}
+
 function BreakdownCard({ summary, copy }) {
   const best = summary?.bestRecommendation;
-  const ability = pct((best?.breakdown?.ability?.score || 0) * 100);
-  const personality = pct((best?.breakdown?.personality?.score || 0) * 100);
-  const interest = pct((best?.breakdown?.interest?.score || 0) * 100);
+  const ability = pct((best?.breakdown?.sources?.assessment || best?.breakdown?.ability?.score || 0) * 100);
+  const personality = pct((best?.breakdown?.sources?.personality || best?.breakdown?.personality?.score || 0) * 100);
+  const interest = pct((best?.breakdown?.sources?.interests || best?.breakdown?.interest?.score || 0) * 100);
   const gameBonus = Number(best?.game_signal_bonus || 0);
 
   return (
     <Card icon="stats-chart-outline" title={copy.breakdownTitle}>
       <Text style={styles.cardHint}>{copy.breakdownHint}</Text>
-      <SignalBar label={copy.abilitiesFromExam} weight="40%" value={ability} color={colors.blue} />
-      <SignalBar label={copy.personality} weight="40%" value={personality} color={colors.green} />
-      <SignalBar label={copy.interests} weight="20%" value={interest} color="#0EA5E9" />
+      <SignalBar label={copy.abilitiesFromExam} weight="45%" value={ability} color={colors.blue} />
+      <SignalBar label={copy.personality} weight="15%" value={personality} color={colors.green} />
+      <SignalBar label={copy.interests} weight="25%" value={interest} color="#0EA5E9" />
       <View style={styles.bonusRow}>
         <Ionicons name="game-controller-outline" size={18} color={colors.greenDark} />
         <Text style={styles.bonusText}>{copy.bonus(gameBonus)}</Text>
@@ -559,9 +766,13 @@ function TopFieldsCard({ fields, onNavigate, copy, language }) {
               <Text style={styles.rank}>#{index + 1}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldName}>{field.name}</Text>
-                <Text style={styles.fieldReason}>{buildFieldReason(field, copy, language)}</Text>
+              <Text style={styles.fieldReason}>{buildFieldReason(field, copy, language)}</Text>
               </View>
-              <Text style={styles.fieldScore}>{pct(field.score_percent)}%</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.fieldScore}>{pct(field.match_score ?? field.score_percent)}%</Text>
+                <Text style={styles.sourceText}>{copy.match}</Text>
+                <Text style={styles.sourceText}>{copy.confidenceScore}: {pct(field.confidence_score)}%</Text>
+              </View>
             </View>
             <View style={styles.fieldActions}>
               <SmallButton text={copy.majorDetails} onPress={() => onNavigate('majorDetails', { majorName: field.name })} />
@@ -576,6 +787,8 @@ function TopFieldsCard({ fields, onNavigate, copy, language }) {
 }
 
 function buildFieldReason(field, copy, language) {
+  const explicitReason = (field.top_reasons || []).find(Boolean) || field.explanation;
+  if (explicitReason) return explicitReason;
   const abilitySubject = field.breakdown?.ability?.top_subjects?.[0];
   const gameBonus = Number(field.game_signal_bonus || 0);
   const subjectName = localizedName(abilitySubject, language);
@@ -816,6 +1029,23 @@ const styles = StyleSheet.create({
   fieldActions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   smallButton: { borderRadius: 999, backgroundColor: colors.softBlue, paddingHorizontal: 10, paddingVertical: 8 },
   smallButtonText: { color: colors.blue, fontSize: 12, fontWeight: '900' },
+
+  institutionCard: { borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#FBFEFC', padding: 12, marginBottom: 10 },
+  institutionTop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10 },
+  institutionName: { color: colors.text, fontWeight: '900', fontSize: 16, textAlign: 'right' },
+  institutionMeta: { color: colors.muted, fontWeight: '700', fontSize: 12, textAlign: 'right', marginTop: 4, lineHeight: 18 },
+  institutionScore: { minWidth: 54, minHeight: 42, borderRadius: 14, backgroundColor: colors.softGreen, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  institutionScoreText: { color: colors.greenDark, fontWeight: '900' },
+  weakScore: { backgroundColor: '#FEF3C7' },
+  weakScoreText: { color: '#92400E' },
+  matchChip: { borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 6 },
+  matchChipText: { color: colors.text, fontWeight: '900', fontSize: 11, textAlign: 'center' },
+  highChip: { backgroundColor: colors.softGreen, borderColor: '#A7F3D0' },
+  highChipText: { color: colors.greenDark },
+  weakChip: { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
+  weakChipText: { color: '#92400E' },
+  relatedMajors: { color: colors.text, fontWeight: '800', lineHeight: 20, textAlign: 'right', marginTop: 10 },
+  weakHint: { color: '#92400E', fontWeight: '800', fontSize: 12, lineHeight: 18, textAlign: 'right', marginTop: 6 },
 
   nextGrid: { gap: 9 },
   nextButton: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, padding: 12 },
