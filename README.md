@@ -52,7 +52,28 @@ npm run web
 ```
 
 ## Testing
-Run the Jest suite:
+
+Automated tests use **Jest** with **jest-expo** and **React Native Testing Library**. The testing strategy (Section 6.2) and manual QA tables live under **`docs/testing/`** (`TESTING_STRATEGY.md`, `QA_CHECKLIST.md`). Jest specs are organized under **`__tests__/`** (unit, integration, and placeholders for system/security/performance/regression).
+
+Run the full suite:
+
+```bash
+npm test
+```
+
+Watch mode while developing:
+
+```bash
+npm run test:watch
+```
+
+Coverage report (HTML under `coverage/`):
+
+```bash
+npm run test:coverage
+```
+
+For slower machines you can serialize tests:
 
 ```bash
 npm test -- --runInBand
