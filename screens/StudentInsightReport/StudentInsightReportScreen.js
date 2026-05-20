@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 
 import RadarChart from '../../components/AdaptiveTest/RadarChart';
+import BigFiveRadarChart from '../../components/AdaptiveTest/BigFiveRadarChart';
 import { supabase } from '../../config/supabase';
 
 import { getStudentAbilities, updateAbilitiesFromSession } from '../../services/abilityService';
@@ -1090,10 +1091,7 @@ export default function StudentInsightReportScreen({
                   {tt('studentInsightReport.personalityRadar', 'خريطة السمات', 'מפת תכונות')}
                 </Text>
                 <View style={styles.chartWrap}>
-                  <RadarChart
-                    labels={personalityRadarData.map((tr) => tr.label)}
-                    values={personalityRadarData.map((tr) => tr.value)}
-                  />
+                  <BigFiveRadarChart data={personalityRadarData} />
                 </View>
               </View>
               ) : (
