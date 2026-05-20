@@ -68,7 +68,18 @@
   "recommendations": "מסלולים מומלצים",
   "noRecommendations": "אין המלצות כרגע. יש להשלים את המבחנים.",
   "compatibility": "אחוז התאמה",
-  "whyRecommended": "למה מומלץ",
+  "whyRecommended": "למה מומלץ?",
+  "personalityMapUnavailableTitle": "מפת התכונות עדיין לא זמינה",
+  "personalityMapUnavailableText": "אין מספיק נתוני אישיות כדי להציג תרשים מלא.",
+  "reasons": {
+    "fitCombinesAll": "ההתאמה מבוססת על שילוב של תוצאות המבחן, פרופיל האישיות ואותות מהמשחקים.",
+    "personalityPlanning": "פרופיל האישיות תומך ביכולת תכנון.",
+    "gameCreativity": "אותות המשחקים חיזקו במידה מסוימת יצירתיות.",
+    "gameProblemSolving": "אותות המשחקים חיזקו במידה מסוימת פתרון בעיות.",
+    "assessmentMath": "תוצאות המבחן תומכות ביכולת מתמטית.",
+    "assessmentDataInterpretation": "תוצאות המבחן תומכות בפירוש נתונים.",
+    "multipleSources": "ההמלצה מבוססת על כמה מקורות מידע."
+  },
 
   "backHome": "חזרה לדף הבית",
   "footnote": "דוח זה חינוכי והכוונתי ואינו אבחון או החלטה סופית.",

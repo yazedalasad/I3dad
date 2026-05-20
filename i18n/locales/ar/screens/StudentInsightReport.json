@@ -68,7 +68,18 @@
   "recommendations": "المسارات المقترحة",
   "noRecommendations": "لا توجد توصيات حالياً. تأكد من إكمال الاختبارات أولاً.",
   "compatibility": "نسبة التوافق",
-  "whyRecommended": "سبب التوصية",
+  "whyRecommended": "لماذا هذا المسار مناسب؟",
+  "personalityMapUnavailableTitle": "خريطة الشخصية غير متاحة بعد",
+  "personalityMapUnavailableText": "لا توجد بيانات شخصية كافية لعرض الرسم الكامل.",
+  "reasons": {
+    "fitCombinesAll": "تعتمد هذه المطابقة على دمج نتائج الاختبار، ملف الشخصية، وإشارات الألعاب.",
+    "personalityPlanning": "ملف الشخصية يدعم مهارة التخطيط.",
+    "gameCreativity": "إشارات الألعاب عززت الإبداع بدرجة خفيفة.",
+    "gameProblemSolving": "إشارات الألعاب عززت حل المشكلات بدرجة خفيفة.",
+    "assessmentMath": "نتائج الاختبار تدعم القدرة الرياضية.",
+    "assessmentDataInterpretation": "نتائج الاختبار تدعم تفسير البيانات.",
+    "multipleSources": "تعتمد التوصية على عدة مصادر بيانات."
+  },
 
   "backHome": "العودة للرئيسية",
   "footnote": "هذا التقرير تعليمي وإرشادي ولا يُعتبر تشخيصًا أو قرارًا نهائيًا.",

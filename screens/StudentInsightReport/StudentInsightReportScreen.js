@@ -16,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View
 } from 'react-native';
 
@@ -42,8 +43,18 @@ function pct(v) {
 function isHe(lang) {
   return String(lang || '').toLowerCase().startsWith('he');
 }
+function normalizeReportLanguage(lang) {
+  const value = String(lang || '').toLowerCase();
+  if (value.startsWith('he')) return 'he';
+  if (value.startsWith('en')) return 'en';
+  return 'ar';
+}
+function isRtlLanguage(lang) {
+  const normalized = normalizeReportLanguage(lang);
+  return normalized === 'ar' || normalized === 'he';
+}
 function dir(lang) {
-  return isHe(lang) ? 'rtl' : 'rtl'; // both AR/HE are RTL
+  return isRtlLanguage(lang) ? 'rtl' : 'ltr';
 }
 function getByLang({ ar, he, en }, lang) {
   if (String(lang).toLowerCase() === 'ar') return ar || en || he || '';
@@ -61,19 +72,86 @@ function formatDateISO(iso) {
 }
 function localizeCopy(copy, language) {
   if (typeof copy === 'string') return copy;
-  const lang = String(language || '').toLowerCase().startsWith('he')
-    ? 'he'
-    : String(language || '').toLowerCase().startsWith('ar')
-      ? 'ar'
-      : 'en';
+  const lang = normalizeReportLanguage(language);
   return copy?.[lang] || copy?.en || copy?.ar || copy?.he || '';
+}
+
+const REASON_FALLBACKS = {
+  fitCombinesAll: {
+    ar: 'تعتمد هذه المطابقة على دمج نتائج الاختبار، ملف الشخصية، وإشارات الألعاب.',
+    he: 'ההתאמה מבוססת על שילוב של תוצאות המבחן, פרופיל האישיות ואותות מהמשחקים.',
+    en: 'This fit combines assessment results, personality, and game signals.',
+  },
+  personalityPlanning: {
+    ar: 'ملف الشخصية يدعم مهارة التخطيط.',
+    he: 'פרופיל האישיות תומך ביכולת תכנון.',
+    en: 'Personality profile supports planning',
+  },
+  gameCreativity: {
+    ar: 'إشارات الألعاب عززت الإبداع بدرجة خفيفة.',
+    he: 'אותות המשחקים חיזקו במידה מסוימת יצירתיות.',
+    en: 'Game signals lightly reinforced creativity',
+  },
+  gameProblemSolving: {
+    ar: 'إشارات الألعاب عززت حل المشكلات بدرجة خفيفة.',
+    he: 'אותות המשחקים חיזקו במידה מסוימת פתרון בעיות.',
+    en: 'Game signals lightly reinforced problem solving',
+  },
+  assessmentMath: {
+    ar: 'نتائج الاختبار تدعم القدرة الرياضية.',
+    he: 'תוצאות המבחן תומכות ביכולת מתמטית.',
+    en: 'Assessment supports math',
+  },
+  assessmentDataInterpretation: {
+    ar: 'نتائج الاختبار تدعم تفسير البيانات.',
+    he: 'תוצאות המבחן תומכות בפירוש נתונים.',
+    en: 'Assessment supports data interpretation',
+  },
+  multipleSources: {
+    ar: 'تعتمد التوصية على عدة مصادر بيانات.',
+    he: 'ההמלצה מבוססת על כמה מקורות מידע.',
+    en: 'The recommendation is based on multiple data sources.',
+  },
+};
+
+function reasonKeyFromText(reason) {
+  const value = String(reason || '').trim().toLowerCase();
+  if (!value) return null;
+  if (value.includes('personality profile supports planning') || value.includes('personality supported planning')) return 'personalityPlanning';
+  if (value.includes('game signals lightly reinforced creativity') || value.includes('games added partial support in creativity')) return 'gameCreativity';
+  if (value.includes('game signals lightly reinforced problem solving') || value.includes('games added partial support in problem solving')) return 'gameProblemSolving';
+  if (value.includes('assessment supports data interpretation') || value.includes('assessment showed strength in data interpretation')) return 'assessmentDataInterpretation';
+  if (value.includes('assessment supports math') || value.includes('assessment showed strength in math')) return 'assessmentMath';
+  if (value.includes('recommendation is based on multiple data sources')) return 'multipleSources';
+  if (value.includes('fit combines assessment results') || value.includes('is recommended because')) return 'fitCombinesAll';
+  return null;
+}
+
+function getLocalizedReason(reason, language, translate) {
+  const lang = normalizeReportLanguage(language);
+  const key = reasonKeyFromText(reason);
+  if (key) {
+    const fallback = REASON_FALLBACKS[key][lang] || REASON_FALLBACKS[key].en;
+    if (typeof translate === 'function') {
+      const i18nKey = `studentInsightReport.reasons.${key}`;
+      const translated = translate(i18nKey);
+      if (typeof translated === 'string' && translated !== i18nKey) return translated;
+    }
+    return fallback;
+  }
+  if (lang === 'en') return String(reason || '');
+  return String(reason || '').trim() ? REASON_FALLBACKS.multipleSources[lang] : '';
+}
+
+function preserveDegreeCodeDirection(name) {
+  return String(name || '').replace(/\b(B\.Arch|B\.Sc|B\.A|LL\.B|M\.A|M\.Sc|Ph\.D)\b/g, '\u200E$1\u200E');
 }
 
 /* ----------------------- tiny UI components ---------------------- */
 
-function Chip({ icon, label, tone = 'soft' }) {
+function Chip({ icon, label, tone = 'soft', style }) {
   return (
-    <View style={[styles.chip, tone === 'strong' ? styles.chipStrong : null]}>
+    <View style={[styles.chip, tone === 'strong' ? styles.chipStrong : null, style]}>
       <Ionicons name={icon} size={14} color={tone === 'strong' ? '#0B2A66' : '#EAF0FF'} />
       <Text style={[styles.chipText, tone === 'strong' ? styles.chipTextStrong : null]}>
         {label}
@@ -108,11 +186,39 @@ function StatTile({ label, value, hint }) {
   );
 }
 
+function OverviewTile({ icon, label, value, hint }) {
+  return (
+    <View style={styles.overviewTile}>
+      <View style={styles.overviewIcon}>
+        <Ionicons name={icon} size={17} color="#1E4FBF" />
+      </View>
+      <View style={styles.overviewText}>
+        <Text style={styles.overviewLabel}>{label}</Text>
+        {!!hint && <Text style={styles.overviewHint}>{hint}</Text>}
+      </View>
+      <View style={styles.percentBadge}>
+        <Text style={styles.percentBadgeText}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function EmptyState({ icon = 'information-circle', text, tone = 'info' }) {
+  return (
+    <View style={[styles.emptyState, tone === 'warning' ? styles.emptyStateWarning : null]}>
+      <View style={[styles.emptyIcon, tone === 'warning' ? styles.emptyIconWarning : null]}>
+        <Ionicons name={icon} size={17} color={tone === 'warning' ? '#A16207' : '#1E4FBF'} />
+      </View>
+      <Text style={styles.emptyStateText}>{text}</Text>
+    </View>
+  );
+}
+
 function BarRow({ label, value, right, accent = '#F5B301' }) {
   const v = clamp(safeNum(value, 0), 0, 100);
   return (
     <View style={styles.barRow}>
-      <View style={{ flex: 1 }}>
+      <View style={styles.barContent}>
         <Text style={styles.barLabel} numberOfLines={1}>
           {label}
         </Text>
@@ -264,7 +370,7 @@ function buildReportHtml({
 
   const recHtml = recTop
     .map((r, idx) => {
-      const name = escapeHtml(r?.name_he || r?.name_en || r?.name_ar || '—');
+      const name = escapeHtml(preserveDegreeCodeDirection(r?.name_he || r?.name_en || r?.name_ar || '—'));
       const score = clamp(safeNum(r?.score_percent, safeNum(r?.score, 0) * 100), 0, 100);
       const topSubjects = (r?.explanation?.top_subjects || [])
         .slice(0, 4)
@@ -273,9 +379,12 @@ function buildReportHtml({
         .join(' • ');
       const topReasons = (r?.top_reasons || [])
         .slice(0, 3)
-        .map((reason) => escapeHtml(reason))
+        .map((reason) => escapeHtml(getLocalizedReason(reason, lang, t)))
         .join(' • ');
       const confidence = escapeHtml(localizeCopy(r?.confidence_reason, lang));
+      const explanation = typeof r?.explanation === 'string'
+        ? escapeHtml(getLocalizedReason(r.explanation, lang, t))
+        : '';
 
       return `
         <div class="rec">
@@ -286,8 +395,8 @@ function buildReportHtml({
           </div>
           <div class="bar"><div class="fill fill3" style="width:${score}%"></div></div>
           <div class="recWhy">${escapeHtml(
-            t('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ')
-          )}: <span>${topReasons || topSubjects || escapeHtml(r?.explanation || '') || '—'}</span></div>
+            t('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ?', 'Why recommended?')
+          )}: <span>${topReasons || topSubjects || explanation || '—'}</span></div>
           <div class="muted">${confidence}</div>
         </div>
       `;
@@ -430,10 +539,12 @@ export default function StudentInsightReportScreen({
   language = 'ar',
 }) {
   const { t, i18n } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 760;
 
   // Keep i18n synced with prop
   useEffect(() => {
-    const nextLang = String(language).toLowerCase() === 'he' ? 'he' : 'ar';
+    const nextLang = normalizeReportLanguage(language);
     if (i18n.language !== nextLang) {
       i18n.changeLanguage(nextLang).catch(() => {});
     }
@@ -441,11 +552,14 @@ export default function StudentInsightReportScreen({
   }, [language]);
 
   const lang = i18n.language;
-  const isArabic = !isHe(lang);
+  const currentLang = normalizeReportLanguage(lang);
+  const isArabic = currentLang === 'ar';
+  const isRtl = isRtlLanguage(currentLang);
 
-  const tt = (key, fallbackAr, fallbackHe) => {
+  const tt = (key, fallbackAr, fallbackHe, fallbackEn = fallbackHe) => {
     const v = t(key);
     if (typeof v === 'string' && v !== key) return v;
+    if (currentLang === 'en') return fallbackEn;
     return isArabic ? fallbackAr : fallbackHe;
   };
 
@@ -665,10 +779,14 @@ export default function StudentInsightReportScreen({
         : 0;
 
     const topRec = recommendations?.[0];
-    const topScore = topRec ? Math.round(clamp(safeNum(topRec.score, 0) * 100, 0, 100)) : 0;
+    const topScore = topRec
+      ? Math.round(clamp(safeNum(topRec.score_percent, safeNum(topRec.score, 0) * 100), 0, 100))
+      : 0;
 
     return { pConf, abilityConfAvg, topScore };
   }, [personality, abilities, recommendations]);
+
+  const hasPersonalityData = personalityTraits.some((tr) => clamp(tr.value, 0, 100) > 0);
 
   /* ---------------------------- export ---------------------------- */
 
@@ -678,7 +796,7 @@ export default function StudentInsightReportScreen({
 
     const html = buildReportHtml({
       lang,
-      t: (key, arFallback, heFallback) => tt(key, arFallback, heFallback),
+      t: (key, arFallback, heFallback, enFallback) => tt(key, arFallback, heFallback, enFallback),
       student,
       personality,
       abilities,
@@ -799,8 +917,8 @@ export default function StudentInsightReportScreen({
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       {/* HERO */}
       <LinearGradient colors={['#0B2A66', '#1E4FBF']} style={styles.hero}>
-        <View style={styles.heroTopRow}>
-          <View style={{ flex: 1 }}>
+        <View style={[styles.heroTopRow, !isWide ? styles.heroTopRowStacked : null]}>
+          <View style={styles.heroCopy}>
             <Text style={styles.heroEyebrow}>
               {tt(
                 'studentInsightReport.heroEyebrow',
@@ -851,8 +969,11 @@ export default function StudentInsightReportScreen({
           <Pressable
             onPress={onExportPdf}
             disabled={exporting}
+            accessibilityRole="button"
+            accessibilityLabel={tt('studentInsightReport.downloadPdf', 'ØªØ­Ù…ÙŠÙ„ PDF', '×”×•×¨×“ PDF')}
             style={({ pressed }) => [
               styles.exportBtn,
+              !isWide ? styles.fullWidthButton : null,
               pressed ? styles.btnPressed : null,
               exporting ? styles.btnDisabled : null,
             ]}
@@ -877,6 +998,28 @@ export default function StudentInsightReportScreen({
         )}
       </LinearGradient>
 
+      {/* This redesign is UI-only; scoring, recommendation logic, Supabase queries, and calculations stay unchanged. */}
+      <View style={[styles.overviewGrid, isWide ? styles.overviewGridWide : null]}>
+        <OverviewTile
+          icon="person-circle"
+          label={tt('studentInsightReport.personalityConfidence', 'Ø§ÙƒØªÙ…Ø§Ù„ Ø§Ù„Ø´Ø®ØµÙŠØ©', '×”×©×œ×ž×ª ××™×©×™×•×ª')}
+          value={`${summary.pConf}%`}
+          hint={tt('studentInsightReport.personalitySection', 'Ù…Ù† Ø£Ù†ØªØŸ (Ø§Ù„Ø´Ø®ØµÙŠØ©)', '×ž×™ ××ª×”? (××™×©×™×•×ª)')}
+        />
+        <OverviewTile
+          icon="analytics"
+          label={tt('studentInsightReport.abilityConfidence', 'Ø§ÙƒØªÙ…Ø§Ù„ Ø§Ù„Ù‚Ø¯Ø±Ø§Øª', '×”×©×œ×ž×ª ×™×›×•×œ×•×ª')}
+          value={`${summary.abilityConfAvg}%`}
+          hint={tt('studentInsightReport.abilityTop', 'Ø£Ù‚ÙˆÙ‰ Ø§Ù„Ù‚Ø¯Ø±Ø§Øª', '×™×›×•×œ×•×ª ×—×–×§×•×ª')}
+        />
+        <OverviewTile
+          icon="ribbon"
+          label={tt('studentInsightReport.topMatch', 'Ø¯Ø±Ø¬Ø© Ø§Ù„Ù…Ù„Ø§Ø¡Ù…Ø©', '×¦×™×•×Ÿ ×”×ª××ž×”')}
+          value={`${summary.topScore}%`}
+          hint={tt('studentInsightReport.pathsSection', 'Ø§Ù„Ù…Ø³Ø§Ø± Ø§Ù„Ø£Ù†Ø³Ø¨ Ù„Ùƒ', '×”×ž×¡×œ×•×œ ×”×ž×ª××™× ×œ×š')}
+        />
+      </View>
+
       {/* SECTION: Personality */}
       <View style={styles.card}>
         <SectionHeader
@@ -890,25 +1033,56 @@ export default function StudentInsightReportScreen({
         />
 
         {!personality ? (
-          <Text style={styles.muted}>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="person-circle" size={17} color="#1E4FBF" />
+            </View>
+            <Text style={styles.emptyStateText}>
             {tt(
               'studentInsightReport.noPersonalityYet',
               'لا توجد نتائج شخصية بعد. أكمل اختبار الشخصية أولاً.',
               'אין תוצאות אישיות עדיין. השלם/י מבחן אישיות.'
             )}
-          </Text>
+            </Text>
+          </View>
         ) : (
           <>
             <View style={styles.twoCol}>
+              {hasPersonalityData ? (
               <View style={styles.chartCard}>
                 <Text style={styles.subCardTitle}>
                   {tt('studentInsightReport.personalityRadar', 'خريطة السمات', 'מפת תכונות')}
                 </Text>
-                <View style={{ marginTop: 10 }}>
+                <View style={styles.chartWrap}>
                   {/* Using your RadarChart (it supports labels/values, but here we use data style used by PersonalityResultsScreen) */}
                   <RadarChart data={personalityRadarData} />
                 </View>
               </View>
+              ) : (
+              <View style={styles.chartEmptyCard}>
+                <View style={styles.emptyStateHeader}>
+                  <View style={styles.emptyIcon}>
+                    <Ionicons name="analytics" size={17} color="#1E4FBF" />
+                  </View>
+                  <View style={styles.emptyStateCopy}>
+                    <Text style={styles.emptyStateTitle}>
+                      {tt(
+                        'studentInsightReport.personalityMapUnavailableTitle',
+                        'خريطة الشخصية غير متاحة بعد',
+                        'מפת התכונות עדיין לא זמינה'
+                      )}
+                    </Text>
+                    <Text style={styles.emptyStateText}>
+                      {tt(
+                        'studentInsightReport.personalityMapUnavailableText',
+                        'لا توجد بيانات شخصية كافية لعرض الرسم الكامل.',
+                        'אין מספיק נתוני אישיות כדי להציג תרשים מלא.'
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              )}
 
               <View style={styles.chartCard}>
                 <Text style={styles.subCardTitle}>
@@ -918,11 +1092,19 @@ export default function StudentInsightReportScreen({
                 <View style={{ marginTop: 8 }}>
                   {personalityTraits.map((tr) => (
                     <View key={tr.key} style={styles.traitRow}>
-                      <View style={{ flex: 1 }}>
+                      <View style={styles.traitText}>
                         <Text style={styles.traitName}>
                           {tr.title} <Text style={styles.traitCode}>({tr.key})</Text>
                         </Text>
                         <Text style={styles.traitHint}>{tr.sub}</Text>
+                        <View style={styles.traitBarTrack}>
+                          <View
+                            style={[
+                              styles.traitBarFill,
+                              { width: `${clamp(safeNum(tr.value, 0), 0, 100)}%` },
+                            ]}
+                          />
+                        </View>
                       </View>
                       <Text style={styles.traitValue}>{pct(tr.value)}</Text>
                     </View>
@@ -1213,9 +1395,11 @@ export default function StudentInsightReportScreen({
               <View key={`${item.game_key || item.topic_key || 'game'}-${index}`} style={styles.noteRow}>
                 <Ionicons name="information-circle" size={16} color="#4F8BFF" />
                 <Text style={styles.noteText}>
-                  {isArabic
-                    ? item.reason_ar
-                    : item.reason_he || item.reason_en}
+                  {currentLang === 'ar'
+                    ? item.reason_ar || item.reason_en || item.reason_he
+                    : currentLang === 'he'
+                      ? item.reason_he || item.reason_en || item.reason_ar
+                      : item.reason_en || item.reason_ar || item.reason_he}
                 </Text>
               </View>
             ))}
@@ -1247,12 +1431,22 @@ export default function StudentInsightReportScreen({
           <View style={{ gap: 12 }}>
             {recommendations.slice(0, 5).map((rec, idx) => {
               const scorePct = Math.round(clamp(safeNum(rec?.score_percent, safeNum(rec?.score, 0) * 100), 0, 100));
-              const name =
-                (isArabic ? (rec?.name_ar || rec?.name_en || rec?.name_he) : (rec?.name_he || rec?.name_en || rec?.name_ar)) ||
-                '—';
+              const name = preserveDegreeCodeDirection(
+                currentLang === 'ar'
+                  ? rec?.name_ar || rec?.name_en || rec?.name_he || '—'
+                  : currentLang === 'he'
+                    ? rec?.name_he || rec?.name_en || rec?.name_ar || '—'
+                    : rec?.name_en || rec?.name_ar || rec?.name_he || '—'
+              );
 
               const topSubjects = (rec?.explanation?.top_subjects || []).slice(0, 4);
-              const topReasons = (rec?.top_reasons || rec?.reasons || []).slice(0, 4);
+              const topReasons = (rec?.top_reasons || rec?.reasons || [])
+                .slice(0, 4)
+                .map((reason) => getLocalizedReason(reason, currentLang, t))
+                .filter(Boolean);
+              const localizedExplanation = typeof rec?.explanation === 'string'
+                ? getLocalizedReason(rec.explanation, currentLang, t)
+                : '';
               const confidenceText = localizeCopy(rec?.confidence_reason, lang);
               const missingSteps = (rec?.missing_steps || []).slice(0, 3);
 
@@ -1264,7 +1458,7 @@ export default function StudentInsightReportScreen({
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.recTitle} numberOfLines={2}>
+                      <Text style={[styles.recTitle, !isRtl ? styles.ltrText : null]} numberOfLines={2}>
                         {name}
                       </Text>
 
@@ -1287,11 +1481,11 @@ export default function StudentInsightReportScreen({
                   </View>
 
                   <Text style={styles.recWhyTitle}>
-                    {tt('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ')}
+                    {tt('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ?', 'Why recommended?')}
                   </Text>
 
-                  {!!rec?.explanation && typeof rec.explanation === 'string' ? (
-                    <Text style={styles.bullet}>• {rec.explanation}</Text>
+                  {!!localizedExplanation ? (
+                    <Text style={[styles.recExplanation, !isRtl ? styles.ltrText : null]}>{localizedExplanation}</Text>
                   ) : null}
 
                   {topReasons.length === 0 && topSubjects.length === 0 ? (
@@ -1299,12 +1493,12 @@ export default function StudentInsightReportScreen({
                   ) : (
                     <View style={styles.bullets}>
                       {topReasons.map((reason, i) => (
-                        <Text key={`reason-${i}`} style={styles.bullet}>
+                        <Text key={`reason-${i}`} style={[styles.bullet, !isRtl ? styles.ltrText : null]}>
                           • {reason}
                         </Text>
                       ))}
                       {topSubjects.map((s, i) => (
-                        <Text key={`${s.subject_id}-${i}`} style={styles.bullet}>
+                        <Text key={`${s.subject_id}-${i}`} style={[styles.bullet, !isRtl ? styles.ltrText : null]}>
                           • {s.subject_name_he || s.subject_name_en || s.subject_name_ar || '—'}
                         </Text>
                       ))}
@@ -1312,7 +1506,7 @@ export default function StudentInsightReportScreen({
                   )}
                   {!!confidenceText && <Text style={styles.muted}>{confidenceText}</Text>}
                   {missingSteps.map((step) => (
-                    <Text key={step.key} style={styles.bullet}>
+                    <Text key={step.key} style={[styles.bullet, !isRtl ? styles.ltrText : null]}>
                       • {localizeCopy(step.label, lang)}
                     </Text>
                   ))}
@@ -1326,6 +1520,8 @@ export default function StudentInsightReportScreen({
         <View style={styles.actionsRow}>
           <Pressable
             onPress={() => navigateTo?.('home')}
+            accessibilityRole="button"
+            accessibilityLabel={tt('studentInsightReport.backHome', 'Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù„Ø±Ø¦ÙŠØ³ÙŠØ©', '×—×–×¨×” ×œ×“×£ ×”×‘×™×ª')}
             style={({ pressed }) => [styles.secondaryBtn, pressed ? styles.btnPressed : null]}
           >
             <Text style={styles.secondaryBtnText}>
@@ -1336,6 +1532,8 @@ export default function StudentInsightReportScreen({
           <Pressable
             onPress={onExportPdf}
             disabled={exporting}
+            accessibilityRole="button"
+            accessibilityLabel={tt('studentInsightReport.downloadPdf', 'ØªØ­Ù…ÙŠÙ„ PDF', '×”×•×¨×“ PDF')}
             style={({ pressed }) => [
               styles.primaryBtn,
               pressed ? styles.btnPressed : null,
@@ -1376,14 +1574,16 @@ const styles = StyleSheet.create({
 
   hero: {
     margin: 16,
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     elevation: 3,
   },
   heroTopRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
+  heroTopRowStacked: { flexDirection: 'column', alignItems: 'stretch' },
+  heroCopy: { flex: 1, minWidth: 0 },
   heroEyebrow: { color: '#DDE7FF', fontWeight: '900', fontSize: 12 },
   heroTitle: { color: '#fff', fontWeight: '900', fontSize: 24, marginTop: 6 },
   heroSubtitle: { color: '#EAF0FF', fontWeight: '800', marginTop: 8, lineHeight: 18 },
@@ -1397,8 +1597,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
     borderRadius: 999,
   },
   chipText: { color: '#EAF0FF', fontWeight: '900', fontSize: 12 },
@@ -1406,9 +1606,9 @@ const styles = StyleSheet.create({
   chipTextStrong: { color: '#0B2A66' },
 
   exportBtn: {
-    height: 42,
+    height: 44,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: '#F5B301',
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -1416,6 +1616,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 140,
   },
+  fullWidthButton: { width: '100%' },
   exportBtnText: { color: '#0B2A66', fontWeight: '900' },
   btnPressed: { transform: [{ scale: 0.99 }] },
   btnDisabled: { opacity: 0.6 },
@@ -1426,15 +1627,58 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     backgroundColor: '#fff',
-    borderRadius: 22,
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E6ECFF',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 1,
   },
+
+  overviewGrid: {
+    marginHorizontal: 16,
+    marginTop: 2,
+    gap: 10,
+  },
+  overviewGridWide: { flexDirection: 'row-reverse' },
+  overviewTile: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E6ECFF',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.035,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  overviewIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#EEF3FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overviewText: { flex: 1, minWidth: 0 },
+  overviewLabel: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 13 },
+  overviewHint: { marginTop: 3, color: '#64748B', fontWeight: '700', textAlign: 'right', fontSize: 11 },
+  percentBadge: {
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    backgroundColor: '#FFF7D6',
+    borderWidth: 1,
+    borderColor: '#F8DF83',
+  },
+  percentBadgeText: { color: '#0B2A66', fontWeight: '900', fontSize: 12 },
 
   sectionHeader: { marginBottom: 10 },
   sectionHeaderLeft: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
@@ -1456,17 +1700,66 @@ const styles = StyleSheet.create({
   },
 
   chartCard: {
-    borderRadius: 18,
+    borderRadius: 14,
     padding: 12,
     backgroundColor: '#F8FAFF',
     borderWidth: 1,
     borderColor: '#E6ECFF',
   },
+  compactPanel: {
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: '#F8FAFF',
+    borderWidth: 1,
+    borderColor: '#E6ECFF',
+  },
+  chartWrap: {
+    marginTop: 8,
+    alignSelf: 'center',
+    maxWidth: 340,
+    width: '100%',
+    maxHeight: 360,
+    overflow: 'hidden',
+  },
+  chartEmptyCard: {
+    minHeight: 92,
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: '#F8FAFF',
+    borderWidth: 1,
+    borderColor: '#E6ECFF',
+    justifyContent: 'center',
+  },
   subCardTitle: { color: '#142B63', fontWeight: '900', fontSize: 13, textAlign: 'right' },
 
   muted: { marginTop: 8, color: '#64748B', fontWeight: '800', textAlign: 'right' },
   desc: { marginTop: 8, color: '#334155', fontWeight: '700', lineHeight: 20, textAlign: 'right' },
-  chipsWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
+  chipsWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6 },
+  emptyState: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFF',
+    borderWidth: 1,
+    borderColor: '#E6ECFF',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 9,
+  },
+  emptyStateWarning: { backgroundColor: '#FFF8E1', borderColor: '#F8DF83' },
+  emptyIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 11,
+    backgroundColor: '#EEF3FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconWarning: { backgroundColor: '#FEF3C7' },
+  emptyStateText: { flex: 1, color: '#475569', fontWeight: '800', textAlign: 'right', lineHeight: 18 },
+  emptyStateHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  emptyStateCopy: { flex: 1, minWidth: 0 },
+  emptyStateTitle: { color: '#102A68', fontWeight: '900', textAlign: 'right', marginBottom: 3 },
   tableBox: {
     borderRadius: 16,
     borderWidth: 1,
@@ -1479,18 +1772,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 10,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E6ECFF',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
   },
+  traitList: { marginTop: 8 },
+  traitText: { flex: 1, minWidth: 0 },
   traitName: { color: '#0F172A', fontWeight: '900', textAlign: 'right' },
   traitCode: { color: '#64748B', fontWeight: '900' },
   traitHint: { marginTop: 3, color: '#64748B', fontWeight: '800', fontSize: 12, textAlign: 'right' },
-  traitValue: { color: '#1E4FBF', fontWeight: '900', fontSize: 16 },
+  traitValue: { color: '#1E4FBF', fontWeight: '900', fontSize: 14, minWidth: 44, textAlign: 'left' },
+  traitBarTrack: {
+    height: 6,
+    backgroundColor: '#EEF3FF',
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  traitBarFill: { height: '100%', borderRadius: 999, backgroundColor: '#4F8BFF' },
 
   subtleCard: {
     borderRadius: 18,
@@ -1501,11 +1804,12 @@ const styles = StyleSheet.create({
   },
 
   barRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  barContent: { flex: 1, minWidth: 0 },
   barLabel: { color: '#0F172A', fontWeight: '900', textAlign: 'right' },
-  barRight: { width: 110, textAlign: 'left', color: '#102A68', fontWeight: '900' },
+  barRight: { minWidth: 64, maxWidth: 112, textAlign: 'left', color: '#102A68', fontWeight: '900', fontSize: 12 },
 
   barTrack: {
-    height: 10,
+    height: 8,
     backgroundColor: '#EEF3FF',
     borderRadius: 999,
     overflow: 'hidden',
@@ -1538,44 +1842,51 @@ const styles = StyleSheet.create({
   noteText: { flex: 1, color: '#334155', fontWeight: '700', lineHeight: 18, textAlign: 'right' },
 
   recCard: {
-    backgroundColor: '#0F172A',
-    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.15)',
+    borderColor: '#E6ECFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.035,
+    shadowRadius: 8,
+    elevation: 1,
   },
   recTopRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   recRank: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    backgroundColor: 'rgba(39,174,96,0.12)',
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: '#EEF3FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recRankText: { color: '#27ae60', fontWeight: '900' },
-  recTitle: { color: '#E2E8F0', fontWeight: '900', fontSize: 15, textAlign: 'right' },
-  recSub: { marginTop: 4, color: '#94A3B8', fontWeight: '800', textAlign: 'right' },
+  recRankText: { color: '#1E4FBF', fontWeight: '900' },
+  recTitle: { color: '#0F172A', fontWeight: '900', fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
+  ltrText: { textAlign: 'left', writingDirection: 'ltr' },
+  recSub: { marginTop: 4, color: '#64748B', fontWeight: '800', textAlign: 'right', fontSize: 12 },
   recBadge: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#F5B301',
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  recBadgeText: { color: '#0B2A66', fontWeight: '900' },
+  recBadgeText: { color: '#0B2A66', fontWeight: '900', fontSize: 12 },
 
-  recWhyTitle: { marginTop: 10, color: '#E2E8F0', fontWeight: '900', textAlign: 'right' },
-  bullets: { marginTop: 8, gap: 6 },
-  bullet: { color: '#94A3B8', fontWeight: '800', textAlign: 'right' },
+  recWhyTitle: { marginTop: 10, color: '#102A68', fontWeight: '900', textAlign: 'right' },
+  recExplanation: { marginTop: 6, color: '#334155', fontWeight: '600', lineHeight: 20, textAlign: 'right', writingDirection: 'rtl' },
+  bullets: { marginTop: 10, gap: 6 },
+  bullet: { color: '#475569', fontWeight: '700', textAlign: 'right', lineHeight: 19 },
 
-  actionsRow: { marginTop: 14, flexDirection: 'row-reverse', gap: 10 },
+  actionsRow: { marginTop: 14, flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   primaryBtn: {
     flex: 1,
+    minWidth: 190,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: '#1E4FBF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1583,8 +1894,9 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: '#fff', fontWeight: '900' },
   secondaryBtn: {
     flex: 1,
+    minWidth: 190,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E2E8F0',
