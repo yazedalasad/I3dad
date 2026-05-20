@@ -34,6 +34,10 @@ function safeNum(x, fallback = 0) {
   const n = Number(x);
   return Number.isFinite(n) ? n : fallback;
 }
+function validTraitScore(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n <= 100;
+}
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
@@ -145,6 +149,34 @@ function getLocalizedReason(reason, language, translate) {
 
 function preserveDegreeCodeDirection(name) {
   return String(name || '').replace(/\b(B\.Arch|B\.Sc|B\.A|LL\.B|M\.A|M\.Sc|Ph\.D)\b/g, '\u200E$1\u200E');
+}
+
+function normalizeBigFive(profile) {
+  const source =
+    profile?.bigFive ||
+    profile?.traits ||
+    profile?.scores ||
+    profile?.personalityProfile?.bigFive ||
+    profile?.personalityProfile?.traits ||
+    profile?.personalityProfile?.scores ||
+    profile?.personalityProfile ||
+    profile?.metadata?.bigFive ||
+    profile?.metadata?.traits ||
+    profile?.metadata?.scores ||
+    profile?.metadata?.personalityProfile?.bigFive ||
+    profile?.metadata?.personalityProfile?.traits ||
+    profile?.metadata?.personalityProfile?.scores ||
+    profile?.metadata?.personalityProfile ||
+    profile ||
+    {};
+
+  return {
+    openness: Number(source.openness ?? source.openess ?? source.O ?? source.o),
+    conscientiousness: Number(source.conscientiousness ?? source.C ?? source.c),
+    extraversion: Number(source.extraversion ?? source.E ?? source.e),
+    agreeableness: Number(source.agreeableness ?? source.A ?? source.a),
+    neuroticism: Number(source.neuroticism ?? source.N ?? source.n),
+  };
 }
 
 /* ----------------------- tiny UI components ---------------------- */
@@ -297,12 +329,13 @@ function buildReportHtml({
     new Date().toLocaleString()
   )}`;
 
+  const bigFive = normalizeBigFive(personality);
   const traitRows = [
-    { k: 'O', label: t('studentInsightReport.traitO', 'الانفتاح', 'פתיחות'), v: safeNum(personality?.openness, 0) },
-    { k: 'C', label: t('studentInsightReport.traitC', 'الانضباط', 'מצפוניות'), v: safeNum(personality?.conscientiousness, 0) },
-    { k: 'E', label: t('studentInsightReport.traitE', 'الانبساط', 'מוחצנות'), v: safeNum(personality?.extraversion, 0) },
-    { k: 'A', label: t('studentInsightReport.traitA', 'التوافق', 'נעימות'), v: safeNum(personality?.agreeableness, 0) },
-    { k: 'N', label: t('studentInsightReport.traitN', 'القلق', 'נוירוטיות'), v: safeNum(personality?.neuroticism, 0) },
+    { k: 'O', label: t('studentInsightReport.traitO', 'الانفتاح', 'פתיחות'), v: safeNum(bigFive.openness, 0) },
+    { k: 'C', label: t('studentInsightReport.traitC', 'الانضباط', 'מצפוניות'), v: safeNum(bigFive.conscientiousness, 0) },
+    { k: 'E', label: t('studentInsightReport.traitE', 'الانبساط', 'מוחצנות'), v: safeNum(bigFive.extraversion, 0) },
+    { k: 'A', label: t('studentInsightReport.traitA', 'التوافق', 'נעימות'), v: safeNum(bigFive.agreeableness, 0) },
+    { k: 'N', label: t('studentInsightReport.traitN', 'القلق', 'נוירוטיות'), v: safeNum(bigFive.neuroticism, 0) },
   ];
 
   const topAbilities = [...abilities]
@@ -702,44 +735,47 @@ export default function StudentInsightReportScreen({
     );
   }, [student, isArabic]);
 
+  const bigFive = useMemo(() => normalizeBigFive(personality), [personality]);
+
   const personalityTraits = useMemo(() => {
-    const p = personality || {};
     return [
       {
         key: 'O',
         title: tt('studentInsightReport.traitO', 'الانفتاح', 'פתיחות'),
         sub: tt('studentInsightReport.traitOHint', 'فضول وأفكار جديدة', 'סקרנות וחידוש'),
-        value: safeNum(p.openness, 0),
+        value: safeNum(bigFive.openness, 0),
       },
       {
         key: 'C',
         title: tt('studentInsightReport.traitC', 'الانضباط', 'מצפוניות'),
         sub: tt('studentInsightReport.traitCHint', 'تنظيم والتزام', 'ארגון והתמדה'),
-        value: safeNum(p.conscientiousness, 0),
+        value: safeNum(bigFive.conscientiousness, 0),
       },
       {
         key: 'E',
         title: tt('studentInsightReport.traitE', 'الانبساط', 'מוחצנות'),
         sub: tt('studentInsightReport.traitEHint', 'طاقة اجتماعية', 'אנרגיה חברתית'),
-        value: safeNum(p.extraversion, 0),
+        value: safeNum(bigFive.extraversion, 0),
       },
       {
         key: 'A',
         title: tt('studentInsightReport.traitA', 'التوافق', 'נעימות'),
         sub: tt('studentInsightReport.traitAHint', 'تعاون وتعاطف', 'שיתופיות ואמפתיה'),
-        value: safeNum(p.agreeableness, 0),
+        value: safeNum(bigFive.agreeableness, 0),
       },
       {
         key: 'N',
         title: tt('studentInsightReport.traitN', 'القلق', 'נוירוטיות'),
         sub: tt('studentInsightReport.traitNHint', 'حساسية للضغط', 'רגישות ללחץ'),
-        value: safeNum(p.neuroticism, 0),
+        value: safeNum(bigFive.neuroticism, 0),
       },
     ];
-  }, [personality, lang]);
+  }, [bigFive, lang]);
 
   const personalityRadarData = useMemo(() => {
-    return personalityTraits.map((tr) => ({ label: tr.key, value: clamp(tr.value, 0, 100) }));
+    return personalityTraits
+      .filter((tr) => validTraitScore(tr.value))
+      .map((tr) => ({ label: tr.key, value: clamp(tr.value, 0, 100) }));
   }, [personalityTraits]);
 
   const topAbilities = useMemo(() => {
@@ -786,7 +822,7 @@ export default function StudentInsightReportScreen({
     return { pConf, abilityConfAvg, topScore };
   }, [personality, abilities, recommendations]);
 
-  const hasPersonalityData = personalityTraits.some((tr) => clamp(tr.value, 0, 100) > 0);
+  const hasPersonalityData = personalityRadarData.length >= 3;
 
   /* ---------------------------- export ---------------------------- */
 
@@ -1054,8 +1090,10 @@ export default function StudentInsightReportScreen({
                   {tt('studentInsightReport.personalityRadar', 'خريطة السمات', 'מפת תכונות')}
                 </Text>
                 <View style={styles.chartWrap}>
-                  {/* Using your RadarChart (it supports labels/values, but here we use data style used by PersonalityResultsScreen) */}
-                  <RadarChart data={personalityRadarData} />
+                  <RadarChart
+                    labels={personalityRadarData.map((tr) => tr.label)}
+                    values={personalityRadarData.map((tr) => tr.value)}
+                  />
                 </View>
               </View>
               ) : (
