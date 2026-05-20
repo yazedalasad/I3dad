@@ -360,6 +360,29 @@ const subjectLabels = {
   },
 };
 
+const institutionTypeLabels = {
+  ar: {
+    university: 'جامعة',
+    open_university: 'جامعة مفتوحة',
+    college: 'كلية',
+    academic_college: 'كلية أكاديمية',
+    education_college: 'كلية تربية',
+    engineering_college: 'كلية هندسة',
+    practical_engineering: 'هندسة عملية',
+    other: 'أخرى',
+  },
+  he: {
+    university: 'אוניברסיטה',
+    open_university: 'האוניברסיטה הפתוחה',
+    college: 'מכללה',
+    academic_college: 'מכללה אקדמית',
+    education_college: 'מכללה לחינוך',
+    engineering_college: 'מכללה להנדסה',
+    practical_engineering: 'הנדסאים',
+    other: 'אחר',
+  },
+};
+
 const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 const adminGameCopy = {
@@ -473,6 +496,11 @@ function getGenericFilterLabel(label, isHebrew = false) {
 function getSubjectLabel(value, isHebrew = false) {
   if (!isHebrew) return value || '-';
   return subjectLabels.he[String(value || '').trim()] || value || '-';
+}
+
+function getInstitutionTypeLabel(value, isHebrew = false) {
+  const key = normalizeSearch(value);
+  return (isHebrew ? institutionTypeLabels.he : institutionTypeLabels.ar)[key] || value || '-';
 }
 
 function getStudentStatusKey(row) {
@@ -617,7 +645,7 @@ function getGenericFilterOption(row, label, isHebrew) {
     display = getSubjectLabel(display, isHebrew);
   } else if (normalizedLabel === 'النوع') {
     value = firstValue(row, ['session_type', 'type', 'asset_type', 'entity_type']);
-    display = value;
+    display = getInstitutionTypeLabel(value, isHebrew);
   } else if (normalizedLabel === 'التاريخ') {
     return dateFilterValue(row);
   } else if (normalizedLabel === 'الصفحة') {
@@ -948,6 +976,13 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
       };
     }
 
+    if (entity === 'institutions' && column.key === 'type') {
+      return {
+        ...column,
+        render: (row) => <InstitutionTypeCell value={row.type} />,
+      };
+    }
+
     return {
       ...column,
       render: column.render ? (row) => column.render(row, navigateTo) : undefined,
@@ -1104,8 +1139,10 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
                   ? 'افتح نموذج إضافة مادة جديدة'
                   : entity === 'questions'
                     ? 'افتح نموذج إضافة سؤال جديد'
-                    : entity === 'managers'
-                      ? 'افتح صفحة دعوة مدير جديد'
+                  : entity === 'managers'
+                    ? 'افتح صفحة دعوة مدير جديد'
+                    : entity === 'institutions'
+                      ? 'افتح نموذج إضافة مؤسسة جديدة'
                       : 'افتح نموذج الإضافة')}
               </Text>
             </View>
@@ -1183,7 +1220,8 @@ export default function AdminEntityScreen({ entity, navigateTo }) {
 }
 
 function Cell({ text, strong }) {
-  return <Text style={[styles.cellText, strong && styles.cellStrong]} numberOfLines={2}>{text || '-'}</Text>;
+  const tr = useAdminTranslator();
+  return <Text style={[styles.cellText, strong && styles.cellStrong]} numberOfLines={2}>{tr(text || '-')}</Text>;
 }
 
 function StudentSchoolCell({ row }) {
@@ -1241,6 +1279,11 @@ function QuestionSubjectCell({ row }) {
 function AdminDateCell({ value }) {
   const { isHebrew } = useAdminLocale();
   return <Cell text={formatAdminDate(value, isHebrew)} />;
+}
+
+function InstitutionTypeCell({ value }) {
+  const { isHebrew } = useAdminLocale();
+  return <Cell text={getInstitutionTypeLabel(value, isHebrew)} />;
 }
 
 function Actions({ labels = ['عرض', 'تعديل', 'تعطيل'], onDetails }) {

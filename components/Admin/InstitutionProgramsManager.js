@@ -9,9 +9,9 @@ import {
   adminUpdateProgramLink,
   getAllProgramLinks,
 } from '../../services/programService';
-import { AdminCard, EmptyState, LoadingState } from './AdminLayout';
+import { AdminCard, EmptyState, LoadingState, useAdminLocale } from './AdminLayout';
 import { adminColors } from './adminTheme';
-import { useAdminTranslator } from './adminTranslations';
+import { translateAdminText, useAdminTranslator } from './adminTranslations';
 
 const initialForm = {
   id: null,
@@ -41,8 +41,45 @@ const initialMajorForm = {
   is_active: true,
 };
 
+const degreeTypeLabels = {
+  ar: {
+    bachelor: 'بكالوريوس',
+    practical_engineer: 'هندسي عملي',
+    certificate: 'شهادة',
+    other: 'أخرى',
+  },
+  he: {
+    bachelor: 'תואר ראשון',
+    practical_engineer: 'הנדסאי',
+    certificate: 'תעודה',
+    other: 'אחר',
+  },
+};
+
+const languageLabels = {
+  ar: { arabic: 'العربية', hebrew: 'العبرية', english: 'الإنجليزية' },
+  he: { arabic: 'ערבית', hebrew: 'עברית', english: 'אנגלית' },
+};
+
+function pickLocalized(row = {}, base, preferHebrew) {
+  return preferHebrew
+    ? row[`${base}_he`] || row[`${base}_ar`] || row[`${base}_en`] || row[base] || ''
+    : row[`${base}_ar`] || row[`${base}_he`] || row[`${base}_en`] || row[base] || '';
+}
+
+function degreeLabel(value, isHebrew) {
+  return (isHebrew ? degreeTypeLabels.he : degreeTypeLabels.ar)[value] || value || '';
+}
+
+function languageLabel(value, isHebrew) {
+  return (isHebrew ? languageLabels.he : languageLabels.ar)[value] || value || '';
+}
+
 export default function InstitutionProgramsManager() {
   const tr = useAdminTranslator();
+  const { isHebrew } = useAdminLocale();
+  const preferHebrew = tr('اللغة') === 'שפה' || isHebrew;
+  const tx = (value) => translateAdminText(tr(value), preferHebrew);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [institutions, setInstitutions] = useState([]);
@@ -169,7 +206,7 @@ export default function InstitutionProgramsManager() {
 
   if (loading) {
     return (
-      <AdminCard title="ربط المؤسسات بالتخصصات">
+      <AdminCard title={tx('ربط المؤسسات بالتخصصات')}>
         <LoadingState />
       </AdminCard>
     );
@@ -177,29 +214,29 @@ export default function InstitutionProgramsManager() {
 
   return (
     <AdminCard
-      title="ربط المؤسسات بالتخصصات"
-      subtitle="اختيار مؤسسة + تخصص ثم حفظ تفاصيل البرنامج الذي يظهر في توصيات الطالب"
+      title={tx('ربط المؤسسات بالتخصصات')}
+      subtitle={tx('اختيار مؤسسة + تخصص ثم حفظ تفاصيل البرنامج الذي يظهر في توصيات الطالب')}
     >
       <View style={styles.managerGrid}>
         <View style={styles.editor}>
-          <Text style={styles.label}>{tr('المؤسسة')}</Text>
+          <Text style={styles.label}>{tx('المؤسسة')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {institutions.map((institution) => (
               <ChoiceChip
                 key={institution.id}
-                label={institution.name_ar || institution.name_he || institution.name_en}
+                label={tx(pickLocalized(institution, 'name', preferHebrew))}
                 active={form.institution_id === institution.id}
                 onPress={() => setForm((current) => ({ ...current, institution_id: institution.id }))}
               />
             ))}
           </ScrollView>
 
-          <Text style={styles.label}>{tr('التخصص')}</Text>
+          <Text style={styles.label}>{tx('التخصص')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {majors.map((major) => (
               <ChoiceChip
                 key={major.id}
-                label={major.name_ar || major.name_he || major.name_en || major.key}
+                label={tx(pickLocalized(major, 'name', preferHebrew) || major.key)}
                 active={form.major_id === major.id || form.major_key === major.key}
                 onPress={() => selectMajor(major)}
               />
@@ -224,20 +261,20 @@ export default function InstitutionProgramsManager() {
                 }
               }}
             >
-              <Text style={styles.inlineEditText}>{tr('تعديل التخصص المختار')}</Text>
+              <Text style={styles.inlineEditText}>{tx('تعديل التخصص المختار')}</Text>
             </TouchableOpacity>
           )}
 
           <View style={styles.majorEditor}>
-            <Text style={styles.sectionTitle}>{tr('إضافة / تعديل تخصص')}</Text>
+            <Text style={styles.sectionTitle}>{tx('إضافة / تعديل تخصص')}</Text>
             <View style={styles.formRow}>
-              <Field label="اسم التخصص بالعربية" value={majorForm.name_ar} onChangeText={(value) => setMajorForm((current) => ({ ...current, name_ar: value }))} />
-              <Field label="שם התחום בעברית" value={majorForm.name_he} onChangeText={(value) => setMajorForm((current) => ({ ...current, name_he: value }))} />
+              <Field label={tx('اسم التخصص بالعربية')} value={majorForm.name_ar} onChangeText={(value) => setMajorForm((current) => ({ ...current, name_ar: value }))} />
+            <Field label={tx('שם התחום בעברית')} value={majorForm.name_he} onChangeText={(value) => setMajorForm((current) => ({ ...current, name_he: value }))} />
             </View>
-            <Field label="Major name in English" value={majorForm.name_en} onChangeText={(value) => setMajorForm((current) => ({ ...current, name_en: value }))} />
+            <Field label={tx('Major name in English')} value={majorForm.name_en} onChangeText={(value) => setMajorForm((current) => ({ ...current, name_en: value }))} />
             <View style={styles.actions}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setMajorForm(initialMajorForm)}>
-                <Text style={styles.secondaryText}>{tr('مسح')}</Text>
+                <Text style={styles.secondaryText}>{tx('مسح')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveBtn, (!majorForm.name_ar || !majorForm.name_en) && styles.disabled]}
@@ -245,23 +282,23 @@ export default function InstitutionProgramsManager() {
                 disabled={!majorForm.name_ar || !majorForm.name_en}
               >
                 <FontAwesome name="graduation-cap" size={14} color="#fff" />
-                <Text style={styles.saveText}>{tr(majorForm.id ? 'حفظ التخصص' : 'إضافة تخصص')}</Text>
+                <Text style={styles.saveText}>{tx(majorForm.id ? 'حفظ التخصص' : 'إضافة تخصص')}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.formRow}>
-            <Field label="اسم البرنامج بالعربية" value={form.program_name_ar} onChangeText={(value) => setForm((current) => ({ ...current, program_name_ar: value }))} />
-            <Field label="שם המסלול בעברית" value={form.program_name_he} onChangeText={(value) => setForm((current) => ({ ...current, program_name_he: value }))} />
+            <Field label={tx('اسم البرنامج بالعربية')} value={form.program_name_ar} onChangeText={(value) => setForm((current) => ({ ...current, program_name_ar: value }))} />
+            <Field label={tx('שם המסלול בעברית')} value={form.program_name_he} onChangeText={(value) => setForm((current) => ({ ...current, program_name_he: value }))} />
           </View>
-          <Field label="Program name in English" value={form.program_name_en} onChangeText={(value) => setForm((current) => ({ ...current, program_name_en: value }))} />
+          <Field label={tx('Program name in English')} value={form.program_name_en} onChangeText={(value) => setForm((current) => ({ ...current, program_name_en: value }))} />
 
-          <Text style={styles.label}>{tr('نوع الشهادة')}</Text>
+          <Text style={styles.label}>{tx('نوع الشهادة')}</Text>
           <View style={styles.chipRow}>
             {['bachelor', 'practical_engineer', 'certificate', 'other'].map((degreeType) => (
               <ChoiceChip
                 key={degreeType}
-                label={degreeType}
+                label={tx(degreeLabel(degreeType, preferHebrew))}
                 active={form.degree_type === degreeType}
                 onPress={() => setForm((current) => ({ ...current, degree_type: degreeType }))}
               />
@@ -269,19 +306,19 @@ export default function InstitutionProgramsManager() {
           </View>
 
           <View style={styles.formRow}>
-            <Field label="مدة الدراسة" value={form.study_duration} onChangeText={(value) => setForm((current) => ({ ...current, study_duration: value }))} />
-            <Field label="لغة الدراسة" value={form.language_of_study} onChangeText={(value) => setForm((current) => ({ ...current, language_of_study: value }))} />
+            <Field label={tx('مدة الدراسة')} value={form.study_duration} onChangeText={(value) => setForm((current) => ({ ...current, study_duration: value }))} />
+            <Field label={tx('لغة الدراسة')} value={form.language_of_study} onChangeText={(value) => setForm((current) => ({ ...current, language_of_study: value }))} />
           </View>
-          <Field label="شروط القبول بالعربية" value={form.admission_requirements_ar} onChangeText={(value) => setForm((current) => ({ ...current, admission_requirements_ar: value }))} multiline />
-          <Field label="رابط البرنامج" value={form.program_url} onChangeText={(value) => setForm((current) => ({ ...current, program_url: value }))} placeholder="https://example.ac.il/program" />
+          <Field label={tx('شروط القبول بالعربية')} value={form.admission_requirements_ar} onChangeText={(value) => setForm((current) => ({ ...current, admission_requirements_ar: value }))} multiline />
+          <Field label={tx('رابط البرنامج')} value={form.program_url} onChangeText={(value) => setForm((current) => ({ ...current, program_url: value }))} placeholder="https://example.ac.il/program" />
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => setForm(initialForm)}>
-              <Text style={styles.secondaryText}>{tr('إلغاء')}</Text>
+              <Text style={styles.secondaryText}>{tx('إلغاء')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, (!canSave || saving) && styles.disabled]} onPress={save} disabled={!canSave || saving}>
               <FontAwesome name="link" size={14} color="#fff" />
-              <Text style={styles.saveText}>{tr(saving ? 'جاري الحفظ...' : form.id ? 'حفظ التعديل' : 'إنشاء الربط')}</Text>
+              <Text style={styles.saveText}>{tx(saving ? 'جاري الحفظ...' : form.id ? 'حفظ التعديل' : 'إنشاء الربط')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -290,30 +327,30 @@ export default function InstitutionProgramsManager() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder={tr('بحث في البرامج')}
+            placeholder={tx('بحث في البرامج')}
             placeholderTextColor={adminColors.muted}
             style={styles.search}
             textAlign="right"
           />
           <View style={styles.filterPanel}>
-            <Text style={styles.sectionTitle}>{tr('فلاتر البرامج')}</Text>
+            <Text style={styles.sectionTitle}>{tx('فلاتر البرامج')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              <ChoiceChip label={tr('كل المؤسسات')} active={!filters.institutionId} onPress={() => setFilters((current) => ({ ...current, institutionId: '' }))} />
+              <ChoiceChip label={tx('كل المؤسسات')} active={!filters.institutionId} onPress={() => setFilters((current) => ({ ...current, institutionId: '' }))} />
               {institutions.map((institution) => (
                 <ChoiceChip
                   key={`filter-inst-${institution.id}`}
-                  label={institution.name_ar || institution.name_he || institution.name_en}
+                  label={tx(pickLocalized(institution, 'name', preferHebrew))}
                   active={filters.institutionId === institution.id}
                   onPress={() => setFilters((current) => ({ ...current, institutionId: institution.id }))}
                 />
               ))}
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              <ChoiceChip label={tr('كل التخصصات')} active={!filters.majorKey} onPress={() => setFilters((current) => ({ ...current, majorKey: '' }))} />
+              <ChoiceChip label={tx('كل التخصصات')} active={!filters.majorKey} onPress={() => setFilters((current) => ({ ...current, majorKey: '' }))} />
               {majors.map((major) => (
                 <ChoiceChip
                   key={`filter-major-${major.id}`}
-                  label={major.name_ar || major.name_he || major.name_en || major.key}
+                  label={tx(pickLocalized(major, 'name', preferHebrew) || major.key)}
                   active={filters.majorKey === (major.key || major.code || major.id)}
                   onPress={() => setFilters((current) => ({ ...current, majorKey: major.key || major.code || major.id }))}
                 />
@@ -323,7 +360,7 @@ export default function InstitutionProgramsManager() {
               {['', 'bachelor', 'practical_engineer', 'certificate', 'other'].map((degreeType) => (
                 <ChoiceChip
                   key={`filter-degree-${degreeType || 'all'}`}
-                  label={degreeType || tr('كل الشهادات')}
+                  label={degreeType ? tx(degreeLabel(degreeType, preferHebrew)) : tx('كل الشهادات')}
                   active={filters.degreeType === degreeType}
                   onPress={() => setFilters((current) => ({ ...current, degreeType }))}
                 />
@@ -333,7 +370,7 @@ export default function InstitutionProgramsManager() {
               {['', 'arabic', 'hebrew', 'english'].map((language) => (
                 <ChoiceChip
                   key={`filter-language-${language || 'all'}`}
-                  label={language || tr('كل اللغات')}
+                  label={language ? tx(languageLabel(language, preferHebrew)) : tx('كل اللغات')}
                   active={filters.language === language}
                   onPress={() => setFilters((current) => ({ ...current, language }))}
                 />
@@ -343,7 +380,7 @@ export default function InstitutionProgramsManager() {
               {['all', 'active', 'inactive'].map((status) => (
                 <ChoiceChip
                   key={`filter-status-${status}`}
-                  label={tr(status === 'all' ? 'الكل' : status === 'active' ? 'نشط' : 'معطل')}
+                  label={tx(status === 'all' ? 'الكل' : status === 'active' ? 'نشط' : 'معطل')}
                   active={filters.status === status}
                   onPress={() => setFilters((current) => ({ ...current, status }))}
                 />
@@ -351,18 +388,19 @@ export default function InstitutionProgramsManager() {
             </View>
           </View>
           {!filteredPrograms.length ? (
-            <EmptyState title="لا توجد برامج مرتبطة بعد" icon="link" />
+            <EmptyState title={tx('لا توجد برامج مرتبطة بعد')} icon="link" />
           ) : (
             filteredPrograms.map((program) => (
               <TouchableOpacity key={program.id} style={styles.programRow} onPress={() => editProgram(program)}>
-                <Text style={styles.programTitle}>{program.program_name_ar || program.program_name_en}</Text>
+                <Text style={styles.programTitle}>{tx(pickLocalized(program, 'program_name', preferHebrew) || program.program_name_en)}</Text>
                 <Text style={styles.programSub}>
-                  {[program.institution?.name_ar || program.institution?.name_he, program.major?.name_ar || program.major_key, program.degree_type]
+                  {[pickLocalized(program.institution || {}, 'name', preferHebrew), pickLocalized(program.major || {}, 'name', preferHebrew) || program.major_key, degreeLabel(program.degree_type, preferHebrew)]
                     .filter(Boolean)
+                    .map((value) => tx(value))
                     .join(' • ')}
                 </Text>
                 <Text style={[styles.status, program.is_active === false && styles.statusOff]}>
-                  {program.is_active === false ? tr('معطل') : tr('نشط')}
+                  {program.is_active === false ? tx('معطل') : tx('نشط')}
                 </Text>
               </TouchableOpacity>
             ))
@@ -374,9 +412,10 @@ export default function InstitutionProgramsManager() {
 }
 
 function ChoiceChip({ label, active, onPress }) {
+  const tr = useAdminTranslator();
   return (
     <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>{tr(label)}</Text>
     </TouchableOpacity>
   );
 }

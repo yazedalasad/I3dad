@@ -40,7 +40,7 @@ export const adminNavItems = [
 export function useAdminLocale() {
   const { i18n } = useTranslation();
   const language = String(i18n.language || 'ar').toLowerCase();
-  const isHebrew = language.startsWith('he');
+  const isHebrew = language.startsWith('he') || language.startsWith('iw');
   return { i18n, language, isHebrew, isRTL: language.startsWith('ar') || isHebrew };
 }
 
@@ -340,7 +340,7 @@ export function AdminTable({ columns, rows, keyField = 'id', emptyText = 'لا �
                       column.render(row)
                     ) : (
                       <Text style={styles.mobileRecordText} numberOfLines={2}>
-                        {formatCell(row[column.key])}
+                        {tr(formatCell(row[column.key]))}
                       </Text>
                     )}
                   </View>
@@ -381,7 +381,7 @@ export function AdminTable({ columns, rows, keyField = 'id', emptyText = 'لا �
                   column.render(row)
                 ) : (
                   <Text style={styles.tdText} numberOfLines={2}>
-                    {formatCell(row[column.key])}
+                    {tr(formatCell(row[column.key]))}
                   </Text>
                 )}
               </View>
