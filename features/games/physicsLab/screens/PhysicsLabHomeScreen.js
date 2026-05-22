@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   progressSubtitle: {
     marginTop: 3,
     color: '#334155',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   progressTrack: {
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   exitButtonText: {
     color: '#0F172A',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
   },
   pressed: {

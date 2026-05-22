@@ -1,8 +1,9 @@
 {
   "heroEyebrow": "דו\"ח תלמיד מקיף",
   "heroSubtitle": "אישיות • יכולות • תחומי עניין • מסלולים מומלצים",
-  "downloadPdf": "הורדת PDF",
+  "downloadPdf": "הורדת דוח PDF",
   "exporting": "מייצא…",
+  "generatingPdf": "יוצר PDF...",
   "exportFailed": "ייצוא ה-PDF נכשל.",
   "generatedAt": "נוצר בתאריך",
   "pdfTitle": "דו\"ח תלמיד",

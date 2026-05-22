@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   chipText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
 });

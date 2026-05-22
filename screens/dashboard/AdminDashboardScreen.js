@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   activity: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, padding: 10, borderRadius: 14, backgroundColor: adminColors.bg },
   activityIcon: { width: 28, height: 28, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: adminColors.softBlue },
   activityTitle: { color: adminColors.text, fontWeight: '900', textAlign: 'right' },
-  activitySub: { marginTop: 2, color: adminColors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' },
+  activitySub: { marginTop: 2, color: adminColors.muted, fontSize: 17, fontWeight: '700', textAlign: 'right' },
   alertRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, padding: 11, borderRadius: 14, backgroundColor: adminColors.softOrange },
   alertText: { flex: 1, color: adminColors.text, fontWeight: '800', textAlign: 'right' },
 });

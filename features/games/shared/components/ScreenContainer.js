@@ -42,10 +42,10 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 16,
+    padding: 20,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
     flexGrow: 1,
   },
 });

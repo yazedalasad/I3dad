@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
   },
 });

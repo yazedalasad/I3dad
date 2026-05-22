@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#e74c3c',
     textAlign: 'right',
   },
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     textAlign: 'center',
     color: '#64748B',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
   },
 });

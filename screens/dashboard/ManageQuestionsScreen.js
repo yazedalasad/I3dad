@@ -180,6 +180,6 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   questionText: { color: '#0f172a', fontWeight: '700', lineHeight: 20 },
-  questionMeta: { marginTop: 6, color: '#64748b', fontWeight: '700', fontSize: 12 },
+  questionMeta: { marginTop: 6, color: '#64748b', fontWeight: '700', fontSize: 17 },
   emptyText: { marginTop: 10, color: '#64748b', fontWeight: '700' },
 });

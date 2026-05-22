@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   degree: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#fff',
     fontWeight: '600',
   },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   story: {
     color: '#5d6d7e',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 22,
     textAlign: 'right',
   },

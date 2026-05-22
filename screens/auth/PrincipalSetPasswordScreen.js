@@ -418,8 +418,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#fff', opacity: 0.92, textAlign: 'center' },
-  email: { marginTop: 10, fontSize: 14, color: '#fff', fontWeight: '800', textAlign: 'center' },
+  subtitle: { fontSize: 16, color: '#fff', opacity: 0.92, textAlign: 'center' },
+  email: { marginTop: 10, fontSize: 16, color: '#fff', fontWeight: '800', textAlign: 'center' },
 
   formContainer: {
     flex: 1,
@@ -450,11 +450,11 @@ const styles = StyleSheet.create({
   codeInputFilled: { borderColor: '#27ae60', backgroundColor: '#f0fdf4' },
 
   resendContainer: { alignItems: 'center', marginTop: 14, marginBottom: 8 },
-  timerText: { color: '#64748b', fontSize: 14, fontWeight: '700' },
+  timerText: { color: '#64748b', fontSize: 16, fontWeight: '700' },
   resendText: { color: '#27ae60', fontSize: 16, fontWeight: '900' },
 
   smallLink: { alignItems: 'center', marginTop: 14 },
-  smallLinkText: { color: '#64748b', fontSize: 13, fontWeight: '800' },
+  smallLinkText: { color: '#64748b', fontSize: 16, fontWeight: '800' },
 
   rowLinks: { marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
 });

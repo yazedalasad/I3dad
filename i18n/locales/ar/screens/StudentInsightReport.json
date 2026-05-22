@@ -1,8 +1,9 @@
 {
   "heroEyebrow": "تقرير شامل للطالب",
   "heroSubtitle": "الشخصية • القدرات • الاهتمامات • المسارات المقترحة",
-  "downloadPdf": "تحميل PDF",
+  "downloadPdf": "تحميل التقرير PDF",
   "exporting": "جاري التصدير…",
+  "generatingPdf": "جاري إنشاء PDF...",
   "exportFailed": "فشل تصدير الملف PDF.",
   "generatedAt": "تاريخ الإنشاء",
   "pdfTitle": "تقرير الطالب",

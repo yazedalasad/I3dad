@@ -107,6 +107,10 @@ const profileCopy = {
     personalityTest: 'اختبار الشخصية',
     games: 'الألعاب',
     miniTasks: 'المهام القصيرة',
+    insightReportEyebrow: 'الأحدث في التطبيق',
+    insightReportTitle: 'تقرير الرؤية التعليمية',
+    insightReportSubtitle: 'أحدث ملخص شامل: الاختبار الشامل، الشخصية، الاهتمامات، الألعاب، وتصدير PDF.',
+    insightReportLinkedExam: 'مرتبط بآخر اختبار شامل مكتمل.',
   },
   he: {
     studentFallback: 'התלמיד',
@@ -181,6 +185,10 @@ const profileCopy = {
     personalityTest: 'מבחן אישיות',
     games: 'משחקים',
     miniTasks: 'משימות קצרות',
+    insightReportEyebrow: 'העדכני ביותר באפליקציה',
+    insightReportTitle: 'דו"ח תובנות לימודיות',
+    insightReportSubtitle: 'סיכום עדכני: מבחן מלא, אישיות, תחומי עניין, משחקים וייצוא PDF.',
+    insightReportLinkedExam: 'מקושר למבחן המלא האחרון שהושלם.',
   },
   en: {
     studentFallback: 'Student',
@@ -255,6 +263,10 @@ const profileCopy = {
     personalityTest: 'Personality test',
     games: 'Games',
     miniTasks: 'Mini tasks',
+    insightReportEyebrow: 'Latest in-app report',
+    insightReportTitle: 'Student insight report',
+    insightReportSubtitle: 'Latest overview: full assessment, personality, interests, games, and PDF export.',
+    insightReportLinkedExam: 'Linked to your latest completed full assessment.',
   },
 };
 
@@ -388,6 +400,20 @@ export default function StudentProfileScreen({ navigateTo }) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <InsightReportBanner
+        copy={copy}
+        linked={!!summary?.insightReport?.abilitySessionId}
+        onPress={() =>
+          go('studentInsightReport', {
+            studentId,
+            language,
+            ...(summary?.insightReport?.abilitySessionId
+              ? { abilitySessionId: summary.insightReport.abilitySessionId }
+              : {}),
+          })
+        }
+      />
+
       <HeaderCard
         name={displayName}
         school={student.school_name}
@@ -420,7 +446,15 @@ export default function StudentProfileScreen({ navigateTo }) {
       <GameSignalsCard signals={summary?.gameHighlights || {}} copy={copy} language={language} />
       <TopFieldsCard fields={summary?.topFields || []} onNavigate={go} copy={copy} language={language} />
       <LearningPotentialCard data={summary?.learningPotential} copy={copy} language={language} />
-      <NextStepsCard steps={summary?.nextSteps || []} onNavigate={go} studentId={studentId} best={best} language={language} copy={copy} />
+      <NextStepsCard
+        steps={summary?.nextSteps || []}
+        onNavigate={go}
+        studentId={studentId}
+        best={best}
+        language={language}
+        copy={copy}
+        insightReport={summary?.insightReport}
+      />
       <DataQualityCard quality={summary?.dataQuality} copy={copy} language={language} />
 
       <View style={styles.accountActions}>
@@ -515,17 +549,20 @@ function localizedImprovement(item, language) {
 }
 
 function nextStepTitle(step, language) {
-  if (language !== 'he') return step.title;
-  const titles = {
-    report: 'פתח את הדוח המלא',
-    recommendations: 'ראה את כל ההמלצות',
-    miniTasks: 'נסה משימה קצרה',
-    games: 'שחק משחק חדש',
-    universities: 'ראה אוניברסיטאות קרובות',
-    personality: 'השלם מבחן אישיות',
-    moreGames: 'שחק עוד שני משחקים',
-  };
-  return titles[step.key] || step.title_he || step.title;
+  if (language === 'he') {
+    const titles = {
+      report: 'דו"ח התובנות הלימודיות (העדכני ביותר)',
+      recommendations: 'ראה את כל ההמלצות',
+      miniTasks: 'נסה משימה קצרה',
+      games: 'שחק משחק חדש',
+      universities: 'ראה אוניברסיטאות קרובות',
+      personality: 'השלם מבחן אישיות',
+      moreGames: 'שחק עוד שני משחקים',
+    };
+    return titles[step.key] || step.title_he || step.title;
+  }
+  if (language === 'en') return step.title_en || step.title;
+  return step.title;
 }
 
 function localizedMissingItems(items, language) {
@@ -537,6 +574,23 @@ function localizedMissingItems(items, language) {
     if (text.includes('لعبة') || text.includes('الألعاب')) return 'שחק משחק אחד או שניים כדי לשפר את דיוק הפרופיל';
     return item;
   });
+}
+
+function InsightReportBanner({ copy, linked, onPress }) {
+  return (
+    <TouchableOpacity style={styles.insightBanner} onPress={onPress} activeOpacity={0.9}>
+      <View style={styles.insightBannerIconWrap}>
+        <Ionicons name="document-text" size={24} color="#1E4FBF" />
+      </View>
+      <View style={styles.insightBannerText}>
+        <Text style={styles.insightBannerEyebrow}>{copy.insightReportEyebrow}</Text>
+        <Text style={styles.insightBannerTitle}>{copy.insightReportTitle}</Text>
+        <Text style={styles.insightBannerSubtitle}>{copy.insightReportSubtitle}</Text>
+        {linked ? <Text style={styles.insightBannerLinked}>{copy.insightReportLinkedExam}</Text> : null}
+      </View>
+      <Ionicons name="chevron-back" size={22} color="#1E4FBF" style={styles.insightBannerChevron} />
+    </TouchableOpacity>
+  );
 }
 
 function HeaderCard({ name, school, classLabel, completion, bestName, copy }) {
@@ -813,7 +867,7 @@ function LearningPotentialCard({ data, copy, language }) {
   );
 }
 
-function NextStepsCard({ steps, onNavigate, studentId, best, language, copy }) {
+function NextStepsCard({ steps, onNavigate, studentId, best, language, copy, insightReport }) {
   return (
     <Card icon="map-outline" title={copy.nextSteps}>
       <View style={styles.nextGrid}>
@@ -821,13 +875,17 @@ function NextStepsCard({ steps, onNavigate, studentId, best, language, copy }) {
           <TouchableOpacity
             key={step.key}
             style={styles.nextButton}
-            onPress={() =>
-              onNavigate(step.route, {
+            onPress={() => {
+              const params = {
                 studentId,
                 majorName: best?.name,
                 language,
-              })
-            }
+              };
+              if (step.route === 'studentInsightReport' && insightReport?.abilitySessionId) {
+                params.abilitySessionId = insightReport.abilitySessionId;
+              }
+              onNavigate(step.route, params);
+            }}
           >
             <Ionicons name={step.icon} size={19} color={colors.greenDark} />
             <Text style={styles.nextButtonText}>{nextStepTitle(step, language)}</Text>
@@ -930,6 +988,36 @@ function SmallButton({ text, onPress }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 34 },
+  insightBanner: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: colors.blue,
+    gap: 12,
+    shadowColor: '#1E4FBF',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  insightBannerIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: colors.softBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insightBannerText: { flex: 1, gap: 4 },
+  insightBannerEyebrow: { color: colors.blue, fontWeight: '900', fontSize: 17, textAlign: 'right' },
+  insightBannerTitle: { color: colors.text, fontWeight: '900', fontSize: 18, textAlign: 'right' },
+  insightBannerSubtitle: { color: colors.muted, fontWeight: '700', fontSize: 16, lineHeight: 20, textAlign: 'right' },
+  insightBannerLinked: { color: colors.greenDark, fontWeight: '800', fontSize: 17, textAlign: 'right', marginTop: 2 },
+  insightBannerChevron: { opacity: 0.85 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.bg },
   loadingText: { marginTop: 10, color: colors.text, fontWeight: '800' },
   emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' },
@@ -959,11 +1047,11 @@ const styles = StyleSheet.create({
   headerSubtitle: { color: '#E7FFF1', lineHeight: 22, fontWeight: '700', textAlign: 'right', marginTop: 8 },
   metaWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   metaChip: { flexDirection: 'row-reverse', gap: 7, alignItems: 'center', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.18)' },
-  metaText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  metaText: { color: '#fff', fontWeight: '800', fontSize: 17 },
   completionBox: { marginTop: 16, gap: 10 },
   completionTop: { gap: 3 },
   completionText: { color: '#fff', fontWeight: '900', textAlign: 'right' },
-  completionHint: { color: '#E7FFF1', fontSize: 12, fontWeight: '700', textAlign: 'right' },
+  completionHint: { color: '#E7FFF1', fontSize: 17, fontWeight: '700', textAlign: 'right' },
 
   card: {
     backgroundColor: colors.card,
@@ -989,16 +1077,16 @@ const styles = StyleSheet.create({
   matchNumber: { color: colors.blue, fontSize: 28, fontWeight: '900' },
   matchLabel: { color: colors.muted, fontWeight: '800' },
   matchTextBlock: { gap: 8 },
-  reasonTitle: { color: colors.text, fontWeight: '900', fontSize: 15, textAlign: 'right' },
+  reasonTitle: { color: colors.text, fontWeight: '900', fontSize: 17, textAlign: 'right' },
   reasonText: { color: colors.muted, fontWeight: '700', lineHeight: 22, textAlign: 'right' },
   confidencePill: { alignSelf: 'flex-end', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.softGreen, paddingHorizontal: 10, paddingVertical: 7 },
   confidenceText: { color: colors.greenDark, fontWeight: '900' },
-  confidenceHint: { color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' },
+  confidenceHint: { color: colors.muted, fontSize: 17, fontWeight: '700', textAlign: 'right' },
 
   threeGrid: { flexDirection: 'row-reverse', gap: 10, marginBottom: 14 },
   miniStat: { flex: 1, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 12, alignItems: 'center', minHeight: 106 },
   miniValue: { color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 8 },
-  miniTitle: { color: colors.muted, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 4 },
+  miniTitle: { color: colors.muted, fontSize: 17, fontWeight: '800', textAlign: 'center', marginTop: 4 },
 
   signalRow: { marginBottom: 12 },
   signalLabelRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
@@ -1013,39 +1101,39 @@ const styles = StyleSheet.create({
   strengthChip: { borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 10 },
   gameSkillChip: { borderRadius: 16, backgroundColor: colors.softBlue, borderWidth: 1, borderColor: '#BFDBFE', paddingHorizontal: 12, paddingVertical: 10 },
   strengthText: { color: colors.text, fontWeight: '900', textAlign: 'right' },
-  sourceText: { color: colors.muted, fontSize: 11, fontWeight: '800', marginTop: 4, textAlign: 'right' },
+  sourceText: { color: colors.muted, fontSize: 16, fontWeight: '800', marginTop: 4, textAlign: 'right' },
   improvementRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#EEF4F0' },
   smallIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.softGreen, alignItems: 'center', justifyContent: 'center' },
   improvementTitle: { color: colors.text, fontWeight: '900', textAlign: 'right' },
-  improvementHint: { color: colors.muted, lineHeight: 19, fontSize: 12, fontWeight: '700', textAlign: 'right', marginTop: 3 },
+  improvementHint: { color: colors.muted, lineHeight: 19, fontSize: 17, fontWeight: '700', textAlign: 'right', marginTop: 3 },
   gameReason: { marginTop: 10, color: colors.text, lineHeight: 22, fontWeight: '700', textAlign: 'right' },
 
   fieldCard: { borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#FBFEFC', padding: 12, marginBottom: 10 },
   fieldTop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10 },
   rank: { color: colors.greenDark, fontWeight: '900', backgroundColor: colors.softGreen, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 },
   fieldName: { color: colors.text, fontWeight: '900', fontSize: 16, textAlign: 'right' },
-  fieldReason: { color: colors.muted, lineHeight: 19, fontWeight: '700', fontSize: 12, textAlign: 'right', marginTop: 4 },
+  fieldReason: { color: colors.muted, lineHeight: 19, fontWeight: '700', fontSize: 17, textAlign: 'right', marginTop: 4 },
   fieldScore: { color: colors.blue, fontSize: 18, fontWeight: '900' },
   fieldActions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   smallButton: { borderRadius: 999, backgroundColor: colors.softBlue, paddingHorizontal: 10, paddingVertical: 8 },
-  smallButtonText: { color: colors.blue, fontSize: 12, fontWeight: '900' },
+  smallButtonText: { color: colors.blue, fontSize: 17, fontWeight: '900' },
 
   institutionCard: { borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#FBFEFC', padding: 12, marginBottom: 10 },
   institutionTop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10 },
   institutionName: { color: colors.text, fontWeight: '900', fontSize: 16, textAlign: 'right' },
-  institutionMeta: { color: colors.muted, fontWeight: '700', fontSize: 12, textAlign: 'right', marginTop: 4, lineHeight: 18 },
+  institutionMeta: { color: colors.muted, fontWeight: '700', fontSize: 17, textAlign: 'right', marginTop: 4, lineHeight: 18 },
   institutionScore: { minWidth: 54, minHeight: 42, borderRadius: 14, backgroundColor: colors.softGreen, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   institutionScoreText: { color: colors.greenDark, fontWeight: '900' },
   weakScore: { backgroundColor: '#FEF3C7' },
   weakScoreText: { color: '#92400E' },
   matchChip: { borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 6 },
-  matchChipText: { color: colors.text, fontWeight: '900', fontSize: 11, textAlign: 'center' },
+  matchChipText: { color: colors.text, fontWeight: '900', fontSize: 16, textAlign: 'center' },
   highChip: { backgroundColor: colors.softGreen, borderColor: '#A7F3D0' },
   highChipText: { color: colors.greenDark },
   weakChip: { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
   weakChipText: { color: '#92400E' },
   relatedMajors: { color: colors.text, fontWeight: '800', lineHeight: 20, textAlign: 'right', marginTop: 10 },
-  weakHint: { color: '#92400E', fontWeight: '800', fontSize: 12, lineHeight: 18, textAlign: 'right', marginTop: 6 },
+  weakHint: { color: '#92400E', fontWeight: '800', fontSize: 17, lineHeight: 18, textAlign: 'right', marginTop: 6 },
 
   nextGrid: { gap: 9 },
   nextButton: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.border, padding: 12 },

@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   startLabelTextCompact: {
-    fontSize: 12,
+    fontSize: 17,
   },
   objectWrap: {
     position: 'absolute',
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   distanceText: {
     marginTop: 10,
     color: '#E7EEF5',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
   },
   surface: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   meterText: {
     marginTop: 4,
     color: '#E2E8F0',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '800',
   },
   meterTextCompact: {

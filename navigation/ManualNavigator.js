@@ -807,13 +807,14 @@ export default function ManualNavigator() {
         />
       )}
 
-      {renderScreen()}
+      <View style={styles.screenHost}>{renderScreen()}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, width: '100%', backgroundColor: '#F6F8FF', minHeight: 0 },
+  screenHost: { flex: 1, width: '100%', minHeight: 0 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

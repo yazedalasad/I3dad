@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   panelEyebrow: {
     color: '#9FB3C8',
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   panelTitleCompact: {
-    fontSize: 13,
+    fontSize: 16,
   },
   conceptBadge: {
     backgroundColor: '#101A27',
@@ -218,11 +218,11 @@ const styles = StyleSheet.create({
   },
   panelValue: {
     color: '#FFD36C',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
   },
   panelValueCompact: {
-    fontSize: 10,
+    fontSize: 16,
   },
   controlsGrid: {
     flexDirection: 'row',
@@ -255,20 +255,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   controlLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: '#17212B',
   },
   controlLabelCompact: {
-    fontSize: 12,
+    fontSize: 17,
   },
   controlValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     color: '#17212B',
   },
   controlValueCompact: {
-    fontSize: 12,
+    fontSize: 17,
   },
   actionRow: {
     flexDirection: 'row',
@@ -332,17 +332,17 @@ const styles = StyleSheet.create({
   },
   unitLabel: {
     color: '#334155',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     marginLeft: 8,
   },
   unitLabelCompact: {
-    fontSize: 11,
+    fontSize: 16,
     marginLeft: 5,
   },
   rangeHint: {
     color: '#64748B',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '800',
     marginLeft: 10,
   },
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   runLabelCompact: {
-    fontSize: 15,
+    fontSize: 17,
   },
   disabled: {
     opacity: 0.55,

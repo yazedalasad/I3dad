@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   examTitle: {
     color: '#fff',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: 16,
   },
 
   badge: {
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#94A3B8',
     fontWeight: '900',
-    fontSize: 11,
+    fontSize: 16,
   },
 
   openBtn: {
@@ -258,6 +258,6 @@ const styles = StyleSheet.create({
   openBtnText: {
     color: '#0b1223',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
   },
 });

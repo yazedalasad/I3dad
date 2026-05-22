@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
   avatarImg: { width: '100%', height: '100%' },
   avatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   avatarTitle: { color: '#fff', fontWeight: '900' },
-  avatarHint: { color: '#94A3B8', fontWeight: '700', marginTop: 2, fontSize: 12 },
+  avatarHint: { color: '#94A3B8', fontWeight: '700', marginTop: 2, fontSize: 17 },
   avatarBtn: {
     backgroundColor: '#27ae60',
     borderRadius: 14,
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  cardTitle: { color: '#fff', fontSize: 14, fontWeight: '900', marginBottom: 12 },
+  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '900', marginBottom: 12 },
   readOnlyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   readOnlyLabel: { color: '#94A3B8', fontWeight: '700' },
   readOnlyValue: { color: '#fff', fontWeight: '800' },
   field: { marginBottom: 12 },
-  label: { color: '#94A3B8', fontSize: 12, fontWeight: '800', marginBottom: 8 },
+  label: { color: '#94A3B8', fontSize: 17, fontWeight: '800', marginBottom: 8 },
   input: {
     backgroundColor: '#0b1223',
     borderRadius: 14,
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 6,
     color: '#fca5a5',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'right',
   },
@@ -739,6 +739,6 @@ const styles = StyleSheet.create({
   saveText: {
     color: '#0F172A',
     fontWeight: '900',
-    fontSize: 15,
+    fontSize: 17,
   },
 });

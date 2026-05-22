@@ -14,20 +14,25 @@ describe('supabase client configuration', () => {
     process.env = { ...originalEnv };
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.NODE_ENV;
   });
 
   afterAll(() => {
     process.env = originalEnv;
   });
 
-  test('prefers Expo public environment variables when provided', () => {
+  test('hasSupabaseConfig true when EXPO_PUBLIC_* are set', () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://env-project.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-anon-key';
 
+    let mod;
     jest.isolateModules(() => {
-      require('./supabase');
+      mod = require('./supabase');
     });
 
+    expect(mod.hasSupabaseConfig).toBe(true);
+    expect(mod.supabaseConfigError).toBeNull();
+    expect(mod.supabase).toBeTruthy();
     expect(mockCreateClient).toHaveBeenCalledWith(
       'https://env-project.supabase.co',
       'env-anon-key',
@@ -41,14 +46,31 @@ describe('supabase client configuration', () => {
     );
   });
 
-  test('keeps a fallback client config for existing local setups', () => {
+  test('dev fallback client without EXPO_PUBLIC_* in development', () => {
+    let mod;
     jest.isolateModules(() => {
-      require('./supabase');
+      mod = require('./supabase');
     });
 
-    const [url, anonKey] = mockCreateClient.mock.calls[0];
-    expect(url).toMatch(/^https:\/\/.+\.supabase\.co$/);
-    expect(anonKey).toEqual(expect.any(String));
-    expect(anonKey.length).toBeGreaterThan(20);
+    expect(mod.hasSupabaseConfig).toBe(false);
+    expect(mod.supabaseConfigError).not.toBeNull();
+    expect(mod.supabase).toBeTruthy();
+    expect(mockCreateClient).toHaveBeenCalled();
+  });
+
+  test('production without env: no client and setup error', () => {
+    process.env.NODE_ENV = 'production';
+
+    let mod;
+    jest.isolateModules(() => {
+      mod = require('./supabase');
+    });
+
+    expect(mod.hasSupabaseConfig).toBe(false);
+    expect(mod.supabase).toBeNull();
+    expect(mod.supabaseConfigError?.missing).toEqual(
+      expect.arrayContaining(['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'])
+    );
+    expect(mockCreateClient).not.toHaveBeenCalled();
   });
 });

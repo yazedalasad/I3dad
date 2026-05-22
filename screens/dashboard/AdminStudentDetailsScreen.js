@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 12 },
   twoCols: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 14 },
   infoRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: adminColors.border, alignItems: 'flex-end' },
-  infoLabel: { color: adminColors.muted, fontSize: 12, fontWeight: '800', textAlign: 'right' },
-  infoValue: { color: adminColors.text, fontSize: 14, fontWeight: '900', textAlign: 'right' },
+  infoLabel: { color: adminColors.muted, fontSize: 17, fontWeight: '800', textAlign: 'right' },
+  infoValue: { color: adminColors.text, fontSize: 16, fontWeight: '900', textAlign: 'right' },
   emptyText: { color: adminColors.muted, fontWeight: '800', textAlign: 'right' },
 });

@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 120,
-    fontSize: 14,
+    fontSize: 16,
     color: '#0F172A',
     lineHeight: 20,
   },

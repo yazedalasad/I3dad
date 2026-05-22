@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   title: { marginTop: 12, color: colors.dark, fontSize: 24, fontWeight: '900', textAlign: 'center' },
   subtitle: { marginTop: 4, color: colors.secondary, fontWeight: '800', textAlign: 'center' },
   statusChip: { marginTop: 12, borderRadius: 999, backgroundColor: '#EEF4FF', paddingHorizontal: 12, paddingVertical: 7 },
-  statusText: { color: colors.primary, fontWeight: '900', fontSize: 12 },
+  statusText: { color: colors.primary, fontWeight: '900', fontSize: 17 },
   card: { marginTop: 14, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 15 },
   sectionTitle: { color: colors.dark, fontSize: 17, fontWeight: '900', textAlign: 'right', marginBottom: 10 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F4FF' },

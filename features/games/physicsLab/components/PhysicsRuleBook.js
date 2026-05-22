@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: '#8A5A14',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
     letterSpacing: 1,
   },
@@ -122,19 +122,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: '#7C3F00',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   body: {
     marginTop: 6,
     color: '#334155',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 21,
     fontWeight: '600',
   },
   bodyCollapsed: {
-    fontSize: 12,
+    fontSize: 17,
     lineHeight: 17,
   },
   formula: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D8B56B',
     color: '#0F172A',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
   },
   formulaMuted: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D8B56B',
     color: '#3A2B14',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
   },
 });

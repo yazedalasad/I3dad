@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -379,13 +379,13 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#9A7C5D',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     textAlign: 'center',
   },
   validationText: {
     marginTop: 8,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -406,14 +406,14 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: '#FFF3DC',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   attemptsText: {
     color: '#F7D9A8',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   },
   toolLabel: {
     color: '#FFF3DC',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     writingDirection: 'rtl',
   },
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   },
   submitLabel: {
     color: '#FFF8EB',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     writingDirection: 'rtl',
   },
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   },
   letterHelp: {
     color: '#F6EAD4',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
   },

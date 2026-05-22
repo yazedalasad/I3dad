@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   description: {
-    fontSize: 13,
+    fontSize: 16,
     lineHeight: 18,
     color: '#475569',
   },

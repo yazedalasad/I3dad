@@ -16,6 +16,12 @@ jest.mock('react-i18next', () => ({
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: ({ children }) => children }));
 
+const mockHtml2PdfSave = jest.fn();
+const mockHtml2PdfFrom = jest.fn(() => ({ save: mockHtml2PdfSave }));
+const mockHtml2PdfSet = jest.fn(() => ({ from: mockHtml2PdfFrom }));
+const mockHtml2Pdf = jest.fn(() => ({ set: mockHtml2PdfSet }));
+jest.mock('html2pdf.js', () => mockHtml2Pdf);
+
 jest.mock('../../components/AdaptiveTest/RadarChart', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -285,9 +291,10 @@ describe('StudentInsightReportScreen', () => {
     expect(navigateTo).toHaveBeenCalledWith('home');
   });
 
-  test('onExportPdf WEB negative: popup blocked => shows popup hint', async () => {
+  test('onExportPdf WEB negative: html2pdf failure => shows error alert', async () => {
     Platform.OS = 'web';
     global.Platform = Platform;
+    mockHtml2PdfSave.mockRejectedValueOnce(new Error('pdf failed'));
 
     mockFrom.mockImplementation((table) => {
       if (table === 'students') return makeSupabaseChain({ data: { id: 'stu1', full_name: 'Maha' }, error: null });
@@ -295,11 +302,26 @@ describe('StudentInsightReportScreen', () => {
       return makeSupabaseListChain({ data: [], error: null });
     });
 
-    mockGetStudentAbilities.mockResolvedValue({ success: true, abilities: [] });
+    mockGetStudentAbilities.mockResolvedValue({
+      success: true,
+      abilities: [{ ability_score: 82, confidence_level: 80, subjects: { name_ar: 'رياضيات', name_he: 'מתמטיקה', name_en: 'Math' } }],
+    });
     mockGetStudentPersonalityProfile.mockResolvedValue({ success: false });
     mockRecommendTopDegrees.mockResolvedValue({ success: true, data: [] });
 
-    global.window = { open: jest.fn(() => null) };
+    const body = { appendChild: jest.fn() };
+    const container = { setAttribute: jest.fn(), style: {}, remove: jest.fn(), querySelector: jest.fn(() => null), innerHTML: '' };
+    global.window = {
+      DOMParser: class {
+        parseFromString(html) {
+          return {
+            body: { innerHTML: html },
+            querySelectorAll: () => [],
+          };
+        }
+      },
+      document: { body, createElement: jest.fn(() => container) },
+    };
 
     const { getAllByText } = render(
       <StudentInsightReportScreen navigateTo={jest.fn()} studentId="stu1" language="ar" />
@@ -307,16 +329,16 @@ describe('StudentInsightReportScreen', () => {
 
     await flushMore();
 
-    fireEvent.press(getAllByText('تحميل PDF')[0]);
+    fireEvent.press(getAllByText('تحميل التقرير PDF')[0]);
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalled();
-      const [, msg] = Alert.alert.mock.calls.at(-1);
-      expect(String(msg)).toMatch(/popup|popups|فعّل/i);
+      const [title] = Alert.alert.mock.calls.at(-1);
+      expect(title).toBe('خطأ');
     });
   });
 
-  test('onExportPdf WEB positive: opens window and triggers print', async () => {
+  test('onExportPdf WEB positive: downloads generated PDF without print or redirect', async () => {
     Platform.OS = 'web';
     global.Platform = Platform;
 
@@ -326,13 +348,27 @@ describe('StudentInsightReportScreen', () => {
       return makeSupabaseListChain({ data: [], error: null });
     });
 
-    mockGetStudentAbilities.mockResolvedValue({ success: true, abilities: [] });
+    mockGetStudentAbilities.mockResolvedValue({
+      success: true,
+      abilities: [{ ability_score: 82, confidence_level: 80, subjects: { name_ar: 'رياضيات', name_he: 'מתמטיקה', name_en: 'Math' } }],
+    });
     mockGetStudentPersonalityProfile.mockResolvedValue({ success: false });
     mockRecommendTopDegrees.mockResolvedValue({ success: true, data: [] });
 
-    const doc = { open: jest.fn(), write: jest.fn(), close: jest.fn() };
-    const w = { document: doc, focus: jest.fn(), print: jest.fn() };
-    global.window = { open: jest.fn(() => w) };
+    const body = { appendChild: jest.fn() };
+    const container = { setAttribute: jest.fn(), style: {}, remove: jest.fn(), querySelector: jest.fn(() => null), innerHTML: '' };
+    global.window = {
+      DOMParser: class {
+        parseFromString(html) {
+          return {
+            body: { innerHTML: html },
+            querySelectorAll: () => [],
+          };
+        }
+      },
+      open: jest.fn(),
+      document: { body, createElement: jest.fn(() => container) },
+    };
 
     const { getAllByText } = render(
       <StudentInsightReportScreen navigateTo={jest.fn()} studentId="stu1" language="ar" />
@@ -340,12 +376,18 @@ describe('StudentInsightReportScreen', () => {
 
     await flushMore();
 
-    fireEvent.press(getAllByText('تحميل PDF')[0]);
-    act(() => jest.advanceTimersByTime(800));
+    fireEvent.press(getAllByText('تحميل التقرير PDF')[0]);
 
-    expect(global.window.open).toHaveBeenCalled();
-    expect(doc.write).toHaveBeenCalled();
-    expect(w.print).toHaveBeenCalled();
+    expect(global.window.open).not.toHaveBeenCalled();
+    expect(global.window.document.createElement).toHaveBeenCalledWith('div');
+    expect(body.appendChild).toHaveBeenCalledWith(container);
+    await waitFor(() => {
+      expect(mockHtml2PdfSet).toHaveBeenCalledWith(expect.objectContaining({
+        filename: expect.stringMatching(/^student-report-Maha-\d{4}-\d{2}-\d{2}\.pdf$/),
+      }));
+      expect(mockHtml2PdfSave).toHaveBeenCalled();
+    });
+    expect(container.remove).toHaveBeenCalled();
   });
 
   test('onExportPdf NATIVE negative: printToFileAsync fails => shows error alert', async () => {
@@ -360,7 +402,10 @@ describe('StudentInsightReportScreen', () => {
       return makeSupabaseListChain({ data: [], error: null });
     });
 
-    mockGetStudentAbilities.mockResolvedValue({ success: true, abilities: [] });
+    mockGetStudentAbilities.mockResolvedValue({
+      success: true,
+      abilities: [{ ability_score: 82, confidence_level: 80, subjects: { name_ar: 'رياضيات', name_he: 'מתמטיקה', name_en: 'Math' } }],
+    });
     mockGetStudentPersonalityProfile.mockResolvedValue({ success: false });
     mockRecommendTopDegrees.mockResolvedValue({ success: true, data: [] });
 
@@ -370,7 +415,7 @@ describe('StudentInsightReportScreen', () => {
 
     await flushMore();
 
-    fireEvent.press(getAllByText('تحميل PDF')[0]);
+    fireEvent.press(getAllByText('تحميل التقرير PDF')[0]);
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalled();

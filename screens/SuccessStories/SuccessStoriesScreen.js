@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   heroDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.88)',
     lineHeight: 22,
     textAlign: 'center',
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   heroButtonText: {
     color: '#0F172A',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 16,
   },
 
   statsSection: {
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
   },
   statItem: { alignItems: 'center' },
   statNumber: { fontSize: 22, fontWeight: '900', color: '#16A34A' },
-  statLabel: { fontSize: 12, color: '#64748B', marginTop: 4 },
+  statLabel: { fontSize: 17, color: '#64748B', marginTop: 4 },
 
   infoBar: {
     flexDirection: 'row',
@@ -785,8 +785,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoTextWrap: { flex: 1 },
-  infoTitle: { fontSize: 14, fontWeight: '900', color: '#0F172A', marginBottom: 4 },
-  infoBody: { fontSize: 13, color: '#475569', lineHeight: 20 },
+  infoTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A', marginBottom: 4 },
+  infoBody: { fontSize: 16, color: '#475569', lineHeight: 20 },
 
   featuredSection: {
     marginTop: 16,
@@ -831,8 +831,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   featuredName: { color: '#fff', fontWeight: '900', fontSize: 18, marginBottom: 4 },
-  featuredJob: { color: 'rgba(255,255,255,0.92)', fontWeight: '700', fontSize: 13, marginBottom: 4 },
-  featuredUni: { color: 'rgba(255,255,255,0.82)', fontWeight: '600', fontSize: 12 },
+  featuredJob: { color: 'rgba(255,255,255,0.92)', fontWeight: '700', fontSize: 16, marginBottom: 4 },
+  featuredUni: { color: 'rgba(255,255,255,0.82)', fontWeight: '600', fontSize: 17 },
 
   featuredBadge: {
     position: 'absolute',
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  featuredBadgeText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+  featuredBadgeText: { color: '#fff', fontWeight: '900', fontSize: 17 },
 
   filtersSection: {
     backgroundColor: '#fff',
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     color: '#0F172A',
   },
 
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filtersTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     color: '#0F172A',
   },
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   clearFiltersText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     color: '#EF4444',
   },
@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
     borderColor: '#1D4ED8',
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F172A',
   },
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   resultsText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     color: '#0F172A',
   },
@@ -965,8 +965,8 @@ const styles = StyleSheet.create({
 
   storyTopText: { flex: 1 },
   studentName: { fontSize: 16, fontWeight: '900', color: '#0F172A', marginBottom: 2 },
-  studentJob: { fontSize: 13, fontWeight: '800', color: '#2563EB', marginBottom: 2 },
-  studentDegree: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  studentJob: { fontSize: 16, fontWeight: '800', color: '#2563EB', marginBottom: 2 },
+  studentDegree: { fontSize: 17, fontWeight: '700', color: '#64748B' },
 
   featuredMini: {
     width: 28,
@@ -995,14 +995,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   metaPillText: {
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F172A',
   },
 
   storyPreview: {
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 16,
     color: '#334155',
     lineHeight: 20,
   },
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
   readMoreText: {
     color: '#2563EB',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
   },
 
   emptyState: {
@@ -1038,7 +1038,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   emptyTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A', marginBottom: 6 },
-  emptyText: { fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 20 },
+  emptyText: { fontSize: 16, color: '#64748B', textAlign: 'center', lineHeight: 20 },
   emptyButton: {
     marginTop: 12,
     flexDirection: 'row',
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
   },
-  emptyButtonText: { color: '#fff', fontWeight: '900', fontSize: 13 },
+  emptyButtonText: { color: '#fff', fontWeight: '900', fontSize: 16 },
 
   ctaSection: {
     marginHorizontal: 16,
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   ctaTitle: { fontSize: 18, fontWeight: '900', color: '#fff', marginBottom: 8 },
-  ctaText: { fontSize: 13, color: 'rgba(255,255,255,0.92)', textAlign: 'center', lineHeight: 20 },
+  ctaText: { fontSize: 16, color: 'rgba(255,255,255,0.92)', textAlign: 'center', lineHeight: 20 },
   ctaButton: {
     marginTop: 12,
     backgroundColor: '#fff',
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  ctaButtonText: { color: '#16A34A', fontWeight: '900', fontSize: 13 },
+  ctaButtonText: { color: '#16A34A', fontWeight: '900', fontSize: 16 },
 
   modalOverlay: {
     flex: 1,
@@ -1129,10 +1129,10 @@ const styles = StyleSheet.create({
   },
   modalAvatarText: { color: '#fff', fontWeight: '900', fontSize: 18 },
   modalName: { color: '#fff', fontWeight: '900', fontSize: 20, marginBottom: 4 },
-  modalJob: { color: 'rgba(255,255,255,0.92)', fontWeight: '800', fontSize: 13 },
+  modalJob: { color: 'rgba(255,255,255,0.92)', fontWeight: '800', fontSize: 16 },
 
   modalBody: { padding: 16 },
-  modalDegree: { fontSize: 13, fontWeight: '800', color: '#334155', marginBottom: 12 },
+  modalDegree: { fontSize: 16, fontWeight: '800', color: '#334155', marginBottom: 12 },
 
   modalMetaRow: {
     flexDirection: 'row',
@@ -1151,11 +1151,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 14,
   },
-  modalMetaText: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
+  modalMetaText: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
 
   modalSection: { marginTop: 8 },
-  modalSectionTitle: { fontSize: 14, fontWeight: '900', color: '#0F172A', marginBottom: 8 },
-  modalStory: { fontSize: 13, color: '#334155', lineHeight: 20 },
+  modalSectionTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A', marginBottom: 8 },
+  modalStory: { fontSize: 16, color: '#334155', lineHeight: 20 },
 
   videoButton: {
     marginTop: 14,
@@ -1169,7 +1169,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 16,
   },
-  videoButtonText: { color: '#EF4444', fontWeight: '900', fontSize: 13 },
+  videoButtonText: { color: '#EF4444', fontWeight: '900', fontSize: 16 },
 
   modalFooter: {
     position: 'absolute',
@@ -1192,5 +1192,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  modalButtonText: { fontSize: 13, fontWeight: '900', color: '#2563EB' },
+  modalButtonText: { fontSize: 16, fontWeight: '900', color: '#2563EB' },
 });

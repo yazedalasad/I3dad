@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 8,
     color: '#475569',
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     fontWeight: '700',
   },
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     marginTop: 4,
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     color: '#64748b',
   },
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 10,
     color: '#0f172a',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
   },
   filterSection: {
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   filterTitle: {
     marginBottom: 10,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     color: '#0f172a',
   },
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     color: '#334155',
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 16,
   },
   filterChipTextActive: {
     color: '#ffffff',
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: '#64748b',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 17,
   },
   matchBadge: {
     alignSelf: 'flex-start',

@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     top: -18,
     right: -6,
     color: '#1E3A8A',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
     backgroundColor: 'rgba(255,255,255,0.9)',
     paddingHorizontal: 6,
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
   },
   winBubbleText: {
     color: '#052E16',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
   },
   roadCap: {
@@ -587,6 +587,6 @@ const styles = StyleSheet.create({
   nodeText: {
     fontWeight: '900',
     color: '#4C1D95',
-    fontSize: 12,
+    fontSize: 17,
   },
 });

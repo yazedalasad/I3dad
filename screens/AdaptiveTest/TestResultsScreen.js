@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   },
   heroIconText: { color: '#FFFFFF', fontSize: 25, fontWeight: '900' },
   heroTitle: { color: '#FFFFFF', fontSize: 23, fontWeight: '900', lineHeight: 30 },
-  heroSubtitle: { color: '#DDE8FF', fontSize: 14, fontWeight: '700', lineHeight: 21, marginTop: 4 },
+  heroSubtitle: { color: '#DDE8FF', fontSize: 16, fontWeight: '700', lineHeight: 21, marginTop: 4 },
   heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
   metric: {
     minWidth: 94,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
   metricValue: { color: '#FFFFFF', fontWeight: '900', fontSize: 18, textAlign: 'center' },
-  metricLabel: { color: '#DDE8FF', fontWeight: '800', fontSize: 11, textAlign: 'center', marginTop: 3 },
+  metricLabel: { color: '#DDE8FF', fontWeight: '800', fontSize: 16, textAlign: 'center', marginTop: 3 },
 
   section: {
     marginHorizontal: 14,
@@ -619,10 +619,10 @@ const styles = StyleSheet.create({
     marginBottom: 9,
   },
   subjectHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  subjectName: { color: '#102A68', fontSize: 15, fontWeight: '900', lineHeight: 22 },
-  subjectNote: { color: '#5D6E94', fontSize: 13, fontWeight: '700', lineHeight: 20, marginTop: 3 },
+  subjectName: { color: '#102A68', fontSize: 17, fontWeight: '900', lineHeight: 22 },
+  subjectNote: { color: '#5D6E94', fontSize: 16, fontWeight: '700', lineHeight: 20, marginTop: 3 },
   subjectPercent: { color: '#1E4FBF', fontSize: 25, fontWeight: '900', textAlign: 'center' },
-  subjectMeta: { color: '#6A7899', fontSize: 12, fontWeight: '800', marginTop: 7 },
+  subjectMeta: { color: '#6A7899', fontSize: 17, fontWeight: '800', marginTop: 7 },
   scoreBlock: { alignItems: 'center', minWidth: 74 },
   levelPill: {
     marginTop: 4,
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#E8F8F0',
     color: '#0E9F6E',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
   },
   progressTrack: { height: 7, borderRadius: 999, backgroundColor: '#DFE8FB', overflow: 'hidden', marginTop: 10 },
@@ -655,8 +655,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EEF3FF',
   },
-  miniName: { color: '#253C75', fontSize: 14, fontWeight: '800' },
-  miniScore: { color: '#1E4FBF', fontSize: 14, fontWeight: '900' },
+  miniName: { color: '#253C75', fontSize: 16, fontWeight: '800' },
+  miniScore: { color: '#1E4FBF', fontSize: 16, fontWeight: '900' },
 
   recommendationCard: {
     padding: 12,
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#EEF4FF',
     color: '#1E4FBF',
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '900',
   },
 
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14, textAlign: 'center' },
+  primaryButtonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16, textAlign: 'center' },
   secondaryButton: {
     minHeight: 46,
     borderRadius: 15,
@@ -729,9 +729,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
-  secondaryButtonText: { color: '#1E4FBF', fontWeight: '900', fontSize: 14, textAlign: 'center' },
+  secondaryButtonText: { color: '#1E4FBF', fontWeight: '900', fontSize: 16, textAlign: 'center' },
   ghostButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
-  ghostButtonText: { color: '#596B91', fontWeight: '900', fontSize: 13, textAlign: 'center' },
+  ghostButtonText: { color: '#596B91', fontWeight: '900', fontSize: 16, textAlign: 'center' },
   inlineButton: {
     marginTop: 2,
     minHeight: 42,
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   inlineButtonText: { color: '#FFFFFF', fontWeight: '900' },
-  emptyText: { color: '#6A7899', fontSize: 13, fontWeight: '800', lineHeight: 20 },
+  emptyText: { color: '#6A7899', fontSize: 16, fontWeight: '800', lineHeight: 20 },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#F3F7FF', padding: 20 },
   centerText: { color: '#41547F', fontWeight: '900', textAlign: 'center' },

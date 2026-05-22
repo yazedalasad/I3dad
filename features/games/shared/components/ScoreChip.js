@@ -23,12 +23,12 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#1E3A8A',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '700',
   },
   value: {
     color: '#2563EB',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
   },
 });

@@ -1,8 +1,10 @@
 import { registerRootComponent } from 'expo';
 import { Platform } from 'react-native';
 import App from './App';
+import { installSafeWebFontLoading } from './utils/safeWebFonts';
 
 if (Platform.OS === 'web') {
+  installSafeWebFontLoading();
   require('./app.web.css');
 }
 

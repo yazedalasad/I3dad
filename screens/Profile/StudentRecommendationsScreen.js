@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#f8fafc',
     fontWeight: '900',
-    fontSize: 15,
+    fontSize: 17,
   },
   warningActions: {
     marginTop: 14,
@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
   signalTitle: {
     color: '#e2e8f0',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
   },
   signalFallback: {
     marginTop: 8,
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: '#94a3b8',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 17,
   },
   gameScore: {
     color: '#38bdf8',
@@ -881,13 +881,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: '#94a3b8',
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 16,
   },
   fitLabel: {
     marginTop: 4,
     color: '#86efac',
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: 17,
   },
   confidenceRow: {
     marginTop: 8,
@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
     color: '#0b1223',
     backgroundColor: '#fde68a',
     fontWeight: '900',
-    fontSize: 11,
+    fontSize: 16,
   },
   confidence_low: { backgroundColor: '#fecaca' },
   confidence_medium: { backgroundColor: '#fde68a' },
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     color: '#e2e8f0',
     backgroundColor: '#334155',
     fontWeight: '900',
-    fontSize: 11,
+    fontSize: 16,
   },
   progressTrack: {
     marginTop: 12,
@@ -938,7 +938,7 @@ const styles = StyleSheet.create({
   infoTitle: {
     color: '#f8fafc',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
   },
   infoItem: {
     marginTop: 8,
@@ -968,13 +968,13 @@ const styles = StyleSheet.create({
   programInstitution: {
     color: '#f8fafc',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: 16,
   },
   programMeta: {
     marginTop: 5,
     color: '#94a3b8',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 17,
     lineHeight: 18,
   },
   distanceBadge: {
@@ -984,7 +984,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(134,239,172,0.12)',
     color: '#86efac',
     fontWeight: '900',
-    fontSize: 11,
+    fontSize: 16,
     overflow: 'hidden',
   },
   programFacts: {
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
   programFact: {
     color: '#cbd5e1',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 17,
     lineHeight: 18,
   },
   programLinkBtn: {
@@ -1008,7 +1008,7 @@ const styles = StyleSheet.create({
   programLinkText: {
     color: '#7dd3fc',
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: 17,
   },
   cardActions: {
     marginTop: 16,

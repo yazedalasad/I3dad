@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#e74c3c',
     textAlign: 'right',
   },
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     borderColor: '#0ea5e9',
   },
   ageRangeText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#0369a1',
     textAlign: 'center',
     fontWeight: '600',
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   columnLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#64748b',
     marginBottom: 8,
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
   },
   modalErrorText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#e74c3c',
     fontWeight: '600',
   },

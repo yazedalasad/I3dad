@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,6 +27,14 @@ import { getStudentAbilities, updateAbilitiesFromSession } from '../../services/
 import { getStudentPersonalityProfile } from '../../services/personalityTestService';
 import { recommendTopDegrees } from '../../services/recommendationService';
 import { getStudentGameCareerSignalSummary } from '../../services/gameCareerSignalService';
+import {
+  deriveReportImprovements,
+  deriveReportStrengths,
+  flattenReportInstitutions,
+  generateStudentReportPdf,
+} from '../../services/studentReportPdfService';
+import { getLocalizedReason } from '../../utils/reportReasons';
+import { normalizeBigFive } from '../../utils/studentReportPdfBuilder';
 
 /* ---------------------------- helpers ---------------------------- */
 
@@ -81,103 +88,8 @@ function localizeCopy(copy, language) {
   return copy?.[lang] || copy?.en || copy?.ar || copy?.he || '';
 }
 
-const REASON_FALLBACKS = {
-  fitCombinesAll: {
-    ar: 'تعتمد هذه المطابقة على دمج نتائج الاختبار، ملف الشخصية، وإشارات الألعاب.',
-    he: 'ההתאמה מבוססת על שילוב של תוצאות המבחן, פרופיל האישיות ואותות מהמשחקים.',
-    en: 'This fit combines assessment results, personality, and game signals.',
-  },
-  personalityPlanning: {
-    ar: 'ملف الشخصية يدعم مهارة التخطيط.',
-    he: 'פרופיל האישיות תומך ביכולת תכנון.',
-    en: 'Personality profile supports planning',
-  },
-  gameCreativity: {
-    ar: 'إشارات الألعاب عززت الإبداع بدرجة خفيفة.',
-    he: 'אותות המשחקים חיזקו במידה מסוימת יצירתיות.',
-    en: 'Game signals lightly reinforced creativity',
-  },
-  gameProblemSolving: {
-    ar: 'إشارات الألعاب عززت حل المشكلات بدرجة خفيفة.',
-    he: 'אותות המשחקים חיזקו במידה מסוימת פתרון בעיות.',
-    en: 'Game signals lightly reinforced problem solving',
-  },
-  assessmentMath: {
-    ar: 'نتائج الاختبار تدعم القدرة الرياضية.',
-    he: 'תוצאות המבחן תומכות ביכולת מתמטית.',
-    en: 'Assessment supports math',
-  },
-  assessmentDataInterpretation: {
-    ar: 'نتائج الاختبار تدعم تفسير البيانات.',
-    he: 'תוצאות המבחן תומכות בפירוש נתונים.',
-    en: 'Assessment supports data interpretation',
-  },
-  multipleSources: {
-    ar: 'تعتمد التوصية على عدة مصادر بيانات.',
-    he: 'ההמלצה מבוססת על כמה מקורות מידע.',
-    en: 'The recommendation is based on multiple data sources.',
-  },
-};
-
-function reasonKeyFromText(reason) {
-  const value = String(reason || '').trim().toLowerCase();
-  if (!value) return null;
-  if (value.includes('personality profile supports planning') || value.includes('personality supported planning')) return 'personalityPlanning';
-  if (value.includes('game signals lightly reinforced creativity') || value.includes('games added partial support in creativity')) return 'gameCreativity';
-  if (value.includes('game signals lightly reinforced problem solving') || value.includes('games added partial support in problem solving')) return 'gameProblemSolving';
-  if (value.includes('assessment supports data interpretation') || value.includes('assessment showed strength in data interpretation')) return 'assessmentDataInterpretation';
-  if (value.includes('assessment supports math') || value.includes('assessment showed strength in math')) return 'assessmentMath';
-  if (value.includes('recommendation is based on multiple data sources')) return 'multipleSources';
-  if (value.includes('fit combines assessment results') || value.includes('is recommended because')) return 'fitCombinesAll';
-  return null;
-}
-
-function getLocalizedReason(reason, language, translate) {
-  const lang = normalizeReportLanguage(language);
-  const key = reasonKeyFromText(reason);
-  if (key) {
-    const fallback = REASON_FALLBACKS[key][lang] || REASON_FALLBACKS[key].en;
-    if (typeof translate === 'function') {
-      const i18nKey = `studentInsightReport.reasons.${key}`;
-      const translated = translate(i18nKey);
-      if (typeof translated === 'string' && translated !== i18nKey) return translated;
-    }
-    return fallback;
-  }
-  if (lang === 'en') return String(reason || '');
-  return String(reason || '').trim() ? REASON_FALLBACKS.multipleSources[lang] : '';
-}
-
 function preserveDegreeCodeDirection(name) {
   return String(name || '').replace(/\b(B\.Arch|B\.Sc|B\.A|LL\.B|M\.A|M\.Sc|Ph\.D)\b/g, '\u200E$1\u200E');
-}
-
-function normalizeBigFive(profile) {
-  const source =
-    profile?.bigFive ||
-    profile?.traits ||
-    profile?.scores ||
-    profile?.personalityProfile?.bigFive ||
-    profile?.personalityProfile?.traits ||
-    profile?.personalityProfile?.scores ||
-    profile?.personalityProfile ||
-    profile?.metadata?.bigFive ||
-    profile?.metadata?.traits ||
-    profile?.metadata?.scores ||
-    profile?.metadata?.personalityProfile?.bigFive ||
-    profile?.metadata?.personalityProfile?.traits ||
-    profile?.metadata?.personalityProfile?.scores ||
-    profile?.metadata?.personalityProfile ||
-    profile ||
-    {};
-
-  return {
-    openness: Number(source.openness ?? source.openess ?? source.O ?? source.o),
-    conscientiousness: Number(source.conscientiousness ?? source.C ?? source.c),
-    extraversion: Number(source.extraversion ?? source.E ?? source.e),
-    agreeableness: Number(source.agreeableness ?? source.A ?? source.a),
-    neuroticism: Number(source.neuroticism ?? source.N ?? source.n),
-  };
 }
 
 /* ----------------------- tiny UI components ---------------------- */
@@ -290,277 +202,6 @@ function TableRow({ cols = [] }) {
       ))}
     </View>
   );
-}
-
-/* ----------------------- PDF HTML Builder ------------------------ */
-
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-function buildReportHtml({
-  lang,
-  t,
-  student,
-  personality,
-  abilities = [],
-  interests = [],
-  recommendations = [],
-  meta = {},
-}) {
-  const rtl = dir(lang);
-  const title = t('studentInsightReport.pdfTitle', 'تقرير الطالب', 'דו"ח תלמיד');
-  const subtitle = t(
-    'studentInsightReport.pdfSubtitle',
-    'ملخص الشخصية والقدرات والتوصيات',
-    'סיכום אישיות, יכולות והמלצות'
-  );
-
-  const studentName =
-    student?.full_name ||
-    student?.name ||
-    t('studentInsightReport.unknownStudent', 'طالب', 'תלמיד');
-
-  const dateLine = `${t('studentInsightReport.generatedAt', 'تاريخ الإنشاء', 'נוצר בתאריך')}: ${escapeHtml(
-    new Date().toLocaleString()
-  )}`;
-
-  const bigFive = normalizeBigFive(personality);
-  const traitRows = [
-    { k: 'O', label: t('studentInsightReport.traitO', 'الانفتاح', 'פתיחות'), v: safeNum(bigFive.openness, 0) },
-    { k: 'C', label: t('studentInsightReport.traitC', 'الانضباط', 'מצפוניות'), v: safeNum(bigFive.conscientiousness, 0) },
-    { k: 'E', label: t('studentInsightReport.traitE', 'الانبساط', 'מוחצנות'), v: safeNum(bigFive.extraversion, 0) },
-    { k: 'A', label: t('studentInsightReport.traitA', 'التوافق', 'נעימות'), v: safeNum(bigFive.agreeableness, 0) },
-    { k: 'N', label: t('studentInsightReport.traitN', 'القلق', 'נוירוטיות'), v: safeNum(bigFive.neuroticism, 0) },
-  ];
-
-  const topAbilities = [...abilities]
-    .sort((a, b) => safeNum(b.ability_score) - safeNum(a.ability_score))
-    .slice(0, 8);
-
-  const topInterests = [...interests]
-    .sort((a, b) => safeNum(b.interest_score) - safeNum(a.interest_score))
-    .slice(0, 8);
-
-  const recTop = [...recommendations].slice(0, 5);
-
-  const abilityRowsHtml = topAbilities
-    .map((a) => {
-      const name = escapeHtml(getByLang({
-        ar: a?.subjects?.name_ar,
-        he: a?.subjects?.name_he,
-        en: a?.subjects?.name_en
-      }, lang) || '—');
-
-      const score = clamp(safeNum(a.ability_score, 0), 0, 100);
-      return `
-        <div class="row">
-          <div class="label">${name}</div>
-          <div class="bar"><div class="fill" style="width:${score}%"></div></div>
-          <div class="val">${Math.round(score)}%</div>
-        </div>
-      `;
-    })
-    .join('');
-
-  const interestRowsHtml = topInterests
-    .map((i) => {
-      const name = escapeHtml(getByLang({
-        ar: i?.subjects?.name_ar,
-        he: i?.subjects?.name_he,
-        en: i?.subjects?.name_en
-      }, lang) || '—');
-
-      const score = clamp(safeNum(i.interest_score, 0), 0, 100);
-      return `
-        <div class="row">
-          <div class="label">${name}</div>
-          <div class="bar"><div class="fill fill2" style="width:${score}%"></div></div>
-          <div class="val">${Math.round(score)}%</div>
-        </div>
-      `;
-    })
-    .join('');
-
-  const traitHtml = traitRows
-    .map((tr) => {
-      const v = clamp(safeNum(tr.v, 0), 0, 100);
-      return `
-        <div class="trait">
-          <div class="traitTop">
-            <div class="traitLabel">${escapeHtml(tr.label)} <span class="code">(${tr.k})</span></div>
-            <div class="traitVal">${Math.round(v)}%</div>
-          </div>
-          <div class="bar"><div class="fill" style="width:${v}%"></div></div>
-        </div>
-      `;
-    })
-    .join('');
-
-  const recHtml = recTop
-    .map((r, idx) => {
-      const name = escapeHtml(preserveDegreeCodeDirection(r?.name_he || r?.name_en || r?.name_ar || '—'));
-      const score = clamp(safeNum(r?.score_percent, safeNum(r?.score, 0) * 100), 0, 100);
-      const topSubjects = (r?.explanation?.top_subjects || [])
-        .slice(0, 4)
-        .map((s) => escapeHtml(s?.subject_name_he || s?.subject_name_en || s?.subject_name_ar || ''))
-        .filter(Boolean)
-        .join(' • ');
-      const topReasons = (r?.top_reasons || [])
-        .slice(0, 3)
-        .map((reason) => escapeHtml(getLocalizedReason(reason, lang, t)))
-        .join(' • ');
-      const confidence = escapeHtml(localizeCopy(r?.confidence_reason, lang));
-      const explanation = typeof r?.explanation === 'string'
-        ? escapeHtml(getLocalizedReason(r.explanation, lang, t))
-        : '';
-
-      return `
-        <div class="rec">
-          <div class="recTop">
-            <div class="recRank">#${idx + 1}</div>
-            <div class="recName">${name}</div>
-            <div class="recScore">${Math.round(score)}%</div>
-          </div>
-          <div class="bar"><div class="fill fill3" style="width:${score}%"></div></div>
-          <div class="recWhy">${escapeHtml(
-            t('studentInsightReport.whyRecommended', 'سبب التوصية', 'למה מומלץ?', 'Why recommended?')
-          )}: <span>${topReasons || topSubjects || explanation || '—'}</span></div>
-          <div class="muted">${confidence}</div>
-        </div>
-      `;
-    })
-    .join('');
-
-  return `
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      direction: ${rtl};
-      padding: 22px;
-      color: #0F172A;
-      background: #F6F8FF;
-    }
-    .hero {
-      background: linear-gradient(135deg, #1B3A8A, #1E4FBF);
-      color: white;
-      border-radius: 18px;
-      padding: 18px;
-      margin-bottom: 14px;
-    }
-    .hero h1 { margin: 0; font-size: 22px; font-weight: 900; }
-    .hero .sub { margin-top: 6px; color: #EAF0FF; font-weight: 800; }
-    .hero .meta { margin-top: 10px; color: #DDE7FF; font-weight: 800; font-size: 12px; }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .card {
-      background: #fff;
-      border-radius: 18px;
-      padding: 14px;
-      border: 1px solid #E6ECFF;
-      margin-bottom: 12px;
-    }
-    .title {
-      font-weight: 900;
-      color: #102A68;
-      margin: 0 0 10px 0;
-    }
-    .row {
-      display: grid;
-      grid-template-columns: 1.4fr 2.6fr 0.6fr;
-      gap: 10px;
-      align-items: center;
-      margin: 8px 0;
-    }
-    .label { font-weight: 800; color: #0F172A; font-size: 12px; }
-    .val { font-weight: 900; color: #102A68; text-align: left; }
-    .bar {
-      height: 10px;
-      background: #EEF3FF;
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid #E6ECFF;
-    }
-    .fill { height: 100%; background: #F5B301; border-radius: 999px; }
-    .fill2 { background: #27ae60; }
-    .fill3 { background: #4F8BFF; }
-    .trait { margin-bottom: 10px; }
-    .traitTop { display:flex; justify-content: space-between; align-items:center; }
-    .traitLabel { font-weight: 900; color:#0F172A; }
-    .traitVal { font-weight: 900; color:#1E4FBF; }
-    .code { color:#64748B; font-weight: 900; }
-    .rec { margin-bottom: 12px; }
-    .recTop {
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .recRank { font-weight: 900; color:#27ae60; }
-    .recName { font-weight: 900; flex: 1; }
-    .recScore { font-weight: 900; color:#102A68; }
-    .recWhy { margin-top: 8px; color:#334155; font-weight: 800; font-size: 12px; }
-    .muted { color:#64748B; font-weight: 800; font-size: 12px; }
-    .footer { margin-top: 12px; color:#64748B; font-weight: 800; font-size: 11px; }
-    @media print {
-      body { background: #fff; }
-      .card { break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <div class="hero">
-    <h1>${escapeHtml(title)} — ${escapeHtml(studentName)}</h1>
-    <div class="sub">${escapeHtml(subtitle)}</div>
-    <div class="meta">${escapeHtml(dateLine)}</div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3 class="title">${escapeHtml(t('studentInsightReport.personality', 'الشخصية', 'אישיות'))}</h3>
-      ${traitHtml || `<div class="muted">—</div>`}
-      <div class="footer">${escapeHtml(t('studentInsightReport.personalityNote', 'ملاحظة: النتائج تقديرية.', 'הערה: התוצאות משוערות.'))}</div>
-    </div>
-
-    <div class="card">
-      <h3 class="title">${escapeHtml(t('studentInsightReport.abilityTop', 'أقوى القدرات', 'יכולות חזקות'))}</h3>
-      ${abilityRowsHtml || `<div class="muted">—</div>`}
-      <div class="footer">${escapeHtml(t('studentInsightReport.abilityNote', 'تم حسابها من إجابات الاختبار.', 'חושב על בסיס תשובות המבחן.'))}</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3 class="title">${escapeHtml(t('studentInsightReport.interestsTop', 'أعلى الاهتمامات', 'תחומי עניין מובילים'))}</h3>
-    ${interestRowsHtml || `<div class="muted">—</div>`}
-  </div>
-
-  <div class="card">
-    <h3 class="title">${escapeHtml(t('studentInsightReport.recommendations', 'المسارات المقترحة', 'מסלולים מומלצים'))}</h3>
-    ${recHtml || `<div class="muted">${escapeHtml(
-      t('studentInsightReport.noRecommendations', 'لا توجد توصيات بعد.', 'אין המלצות עדיין.')
-    )}</div>`}
-  </div>
-
-  <div class="footer">
-    ${escapeHtml(t('studentInsightReport.pdfFooter', 'تم إنشاء هذا التقرير تلقائيًا من بيانات النظام.', 'דוח זה נוצר אוטומטית מנתוני המערכת.'))}
-  </div>
-</body>
-</html>
-`;
 }
 
 /* -------------------------- MAIN SCREEN --------------------------- */
@@ -825,116 +466,112 @@ export default function StudentInsightReportScreen({
 
   const hasPersonalityData = personalityRadarData.length >= 3;
 
+  const reportStudent = useMemo(
+    () =>
+      student ||
+      (studentId
+        ? { id: studentId, full_name: studentName, name: studentName }
+        : null),
+    [student, studentId, studentName]
+  );
+
+  const subjectResults = abilities;
+
+  const reportStrengths = useMemo(() => deriveReportStrengths(abilities), [abilities, currentLang]);
+  const reportImprovements = useMemo(
+    () => deriveReportImprovements(abilities, currentLang),
+    [abilities, currentLang]
+  );
+  const reportInstitutions = useMemo(
+    () => flattenReportInstitutions(recommendations),
+    [recommendations]
+  );
+
+  const reportDataReady = useMemo(
+    () => !loading && Boolean(subjectResults.length || recommendations.length),
+    [loading, subjectResults, recommendations]
+  );
+
   /* ---------------------------- export ---------------------------- */
 
-  const onExportPdf = async () => {
-  try {
-    setExporting(true);
+  const handleDownloadPdf = async () => {
+    console.log('PDF button clicked');
+    console.log('Report data ready:', reportDataReady);
+    console.log('Subjects count:', subjectResults?.length || 0);
 
-    const html = buildReportHtml({
-      lang,
-      t: (key, arFallback, heFallback, enFallback) => tt(key, arFallback, heFallback, enFallback),
-      student,
-      personality,
-      abilities,
-      interests,
-      recommendations,
-      meta,
-    });
+    if (loading || !reportDataReady) {
+      Alert.alert(
+        tt('errors.title', 'خطأ', 'שגיאה', 'Error'),
+        isArabic
+          ? 'لا يمكن تحميل التقرير قبل اكتمال البيانات'
+          : 'לא ניתן להוריד את הדוח לפני טעינת הנתונים'
+      );
+      return;
+    }
 
-    /* =======================
-       🌐 WEB
-       ======================= */
-    if (Platform.OS === 'web') {
-      const w = window.open('', '_blank');
-      if (!w) {
+    if (!reportStudent) {
+      Alert.alert(
+        tt('errors.title', 'خطأ', 'שגיאה', 'Error'),
+        isArabic
+          ? 'لا يمكن تحميل التقرير قبل اكتمال البيانات'
+          : 'לא ניתן להוריד את הדוח לפני טעינת הנתונים'
+      );
+      return;
+    }
+
+    try {
+      setExporting(true);
+
+      const result = await generateStudentReportPdf({
+        student: reportStudent,
+        subjectResults,
+        overallScore: summary.topScore,
+        strengths: reportStrengths,
+        improvements: reportImprovements,
+        recommendations,
+        institutions: reportInstitutions,
+        language: currentLang,
+        personality,
+        interests,
+        meta,
+        t: (key, arFallback, heFallback, enFallback) =>
+          tt(key, arFallback, heFallback, enFallback),
+      });
+
+      if (result?.shared === false && result?.uri) {
         Alert.alert(
-          tt('errors.title', 'خطأ', 'שגיאה'),
-          tt(
-            'studentInsightReport.popupBlocked',
-            'يبدو أن المتصفح منع النافذة الجديدة. فعّل Popups ثم حاول مرة أخرى.',
-            'נראה שהדפדפן חסם חלון חדש. אפשר/י Popups ונסה/י שוב.'
-          )
+          tt('studentInsightReport.pdfReady', 'تم إنشاء ملف PDF', 'נוצר קובץ PDF'),
+          result.uri
         );
-        return;
       }
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      const message =
+        error?.message === 'expo-print is not installed.'
+          ? tt(
+              'studentInsightReport.printNotInstalled',
+              'ميزة PDF غير متوفرة. ثبّت expo-print أولاً.',
+              'אפשרות PDF לא זמינה. יש להתקין קודם expo-print.'
+            )
+          : error?.message === 'Report content is empty.'
+            ? tt(
+                'studentInsightReport.emptyPdfContent',
+                'فشل إنشاء التقرير: محتوى التقرير فارغ',
+                'יצירת הדוח נכשלה: תוכן הדוח ריק',
+                'Failed to create report: report content is empty.'
+              )
+            : tt(
+                'studentInsightReport.exportFailed',
+                'فشل تصدير الملف PDF.',
+                'ייצוא ה-PDF נכשל.',
+                String(error?.message || 'Failed to export PDF.')
+              );
 
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-
-      setTimeout(() => {
-        w.focus();
-        w.print();
-      }, 300);
-
-      return;
+      Alert.alert(tt('errors.title', 'خطأ', 'שגיאה', 'Error'), message);
+    } finally {
+      setExporting(false);
     }
-
-    /* =======================
-       📱 NATIVE (expo-print)
-       ======================= */
-    let Print;
-    try {
-      // IMPORTANT: require INSIDE runtime branch
-      Print = require('expo-print');
-    } catch {
-      Alert.alert(
-        tt('errors.title', 'خطأ', 'שגיאה'),
-        tt(
-          'studentInsightReport.printNotInstalled',
-          'ميزة PDF غير متوفرة. ثبّت expo-print أولاً.',
-          'אפשרות PDF לא זמינה. יש להתקין קודם expo-print.'
-        )
-      );
-      return;
-    }
-
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
-    });
-
-    /* =======================
-       📱 NATIVE (expo-sharing)
-       ======================= */
-    let Sharing = null;
-    try {
-      // IMPORTANT: require INSIDE runtime branch
-      Sharing = require('expo-sharing');
-    } catch {
-      Sharing = null;
-    }
-
-    const shareAsyncFn =
-      Sharing?.shareAsync || Sharing?.default?.shareAsync;
-
-    // If sharing is unavailable, still succeed
-    if (!shareAsyncFn) {
-      Alert.alert(
-        tt('studentInsightReport.pdfReady', 'تم إنشاء ملف PDF', 'נוצר קובץ PDF'),
-        uri
-      );
-      return;
-    }
-
-    await shareAsyncFn(uri, {
-      UTI: 'com.adobe.pdf',
-      mimeType: 'application/pdf',
-    });
-  } catch (e) {
-    Alert.alert(
-      tt('errors.title', 'خطأ', 'שגיאה'),
-      tt(
-        'studentInsightReport.exportFailed',
-        'فشل تصدير الملف PDF.',
-        'ייצוא ה-PDF נכשל.'
-      )
-    );
-  } finally {
-    setExporting(false);
-  }
-};
+  };
 
 
   /* ------------------------------ UI ------------------------------ */
@@ -954,8 +591,11 @@ export default function StudentInsightReportScreen({
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       {/* HERO */}
       <LinearGradient colors={['#0B2A66', '#1E4FBF']} style={styles.hero}>
-        <View style={[styles.heroTopRow, !isWide ? styles.heroTopRowStacked : null]}>
-          <View style={styles.heroCopy}>
+        <View
+          style={[styles.heroTopRow, !isWide ? styles.heroTopRowStacked : null]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.heroCopy} pointerEvents="auto">
             <Text style={styles.heroEyebrow}>
               {tt(
                 'studentInsightReport.heroEyebrow',
@@ -1004,10 +644,10 @@ export default function StudentInsightReportScreen({
           </View>
 
           <Pressable
-            onPress={onExportPdf}
+            onPress={handleDownloadPdf}
             disabled={exporting}
             accessibilityRole="button"
-            accessibilityLabel={tt('studentInsightReport.downloadPdf', 'ØªØ­Ù…ÙŠÙ„ PDF', '×”×•×¨×“ PDF')}
+            accessibilityLabel={tt('studentInsightReport.downloadPdf', 'تحميل التقرير PDF', 'הורדת דוח PDF', 'Download PDF Report')}
             style={({ pressed }) => [
               styles.exportBtn,
               !isWide ? styles.fullWidthButton : null,
@@ -1018,8 +658,8 @@ export default function StudentInsightReportScreen({
             <Ionicons name="download" size={18} color="#0B2A66" />
             <Text style={styles.exportBtnText}>
               {exporting
-                ? tt('studentInsightReport.exporting', 'جاري التصدير…', 'מייצא…')
-                : tt('studentInsightReport.downloadPdf', 'تحميل PDF', 'הורד PDF')}
+                ? tt('studentInsightReport.generatingPdf', 'جاري إنشاء PDF...', 'יוצר PDF...')
+                : tt('studentInsightReport.downloadPdf', 'تحميل التقرير PDF', 'הורדת דוח PDF', 'Download PDF Report')}
             </Text>
           </Pressable>
         </View>
@@ -1566,10 +1206,10 @@ export default function StudentInsightReportScreen({
           </Pressable>
 
           <Pressable
-            onPress={onExportPdf}
+            onPress={handleDownloadPdf}
             disabled={exporting}
             accessibilityRole="button"
-            accessibilityLabel={tt('studentInsightReport.downloadPdf', 'ØªØ­Ù…ÙŠÙ„ PDF', '×”×•×¨×“ PDF')}
+            accessibilityLabel={tt('studentInsightReport.downloadPdf', 'تحميل التقرير PDF', 'הורדת דוח PDF', 'Download PDF Report')}
             style={({ pressed }) => [
               styles.primaryBtn,
               pressed ? styles.btnPressed : null,
@@ -1578,8 +1218,8 @@ export default function StudentInsightReportScreen({
           >
             <Text style={styles.primaryBtnText}>
               {exporting
-                ? tt('studentInsightReport.exporting', 'جاري التصدير…', 'מייצא…')
-                : tt('studentInsightReport.downloadPdf', 'تحميل PDF', 'הורד PDF')}
+                ? tt('studentInsightReport.generatingPdf', 'جاري إنشاء PDF...', 'יוצר PDF...')
+                : tt('studentInsightReport.downloadPdf', 'تحميل التقرير PDF', 'הורדת דוח PDF', 'Download PDF Report')}
             </Text>
           </Pressable>
         </View>
@@ -1620,7 +1260,7 @@ const styles = StyleSheet.create({
   heroTopRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
   heroTopRowStacked: { flexDirection: 'column', alignItems: 'stretch' },
   heroCopy: { flex: 1, minWidth: 0 },
-  heroEyebrow: { color: '#DDE7FF', fontWeight: '900', fontSize: 12 },
+  heroEyebrow: { color: '#DDE7FF', fontWeight: '900', fontSize: 17 },
   heroTitle: { color: '#fff', fontWeight: '900', fontSize: 24, marginTop: 6 },
   heroSubtitle: { color: '#EAF0FF', fontWeight: '800', marginTop: 8, lineHeight: 18 },
 
@@ -1637,7 +1277,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     borderRadius: 999,
   },
-  chipText: { color: '#EAF0FF', fontWeight: '900', fontSize: 12 },
+  chipText: { color: '#EAF0FF', fontWeight: '900', fontSize: 17 },
   chipStrong: { backgroundColor: '#F5B301', borderColor: 'rgba(0,0,0,0.06)' },
   chipTextStrong: { color: '#0B2A66' },
 
@@ -1651,6 +1291,8 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: 'center',
     minWidth: 140,
+    zIndex: 2,
+    elevation: 2,
   },
   fullWidthButton: { width: '100%' },
   exportBtnText: { color: '#0B2A66', fontWeight: '900' },
@@ -1704,8 +1346,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   overviewText: { flex: 1, minWidth: 0 },
-  overviewLabel: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 13 },
-  overviewHint: { marginTop: 3, color: '#64748B', fontWeight: '700', textAlign: 'right', fontSize: 11 },
+  overviewLabel: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 16 },
+  overviewHint: { marginTop: 3, color: '#64748B', fontWeight: '700', textAlign: 'right', fontSize: 16 },
   percentBadge: {
     borderRadius: 999,
     paddingVertical: 5,
@@ -1714,7 +1356,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F8DF83',
   },
-  percentBadgeText: { color: '#0B2A66', fontWeight: '900', fontSize: 12 },
+  percentBadgeText: { color: '#0B2A66', fontWeight: '900', fontSize: 17 },
 
   sectionHeader: { marginBottom: 10 },
   sectionHeaderLeft: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
@@ -1726,8 +1368,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: { color: '#102A68', fontWeight: '900', fontSize: 15, textAlign: 'right' },
-  sectionSubtitle: { marginTop: 4, color: '#64748B', fontWeight: '800', fontSize: 12, textAlign: 'right' },
+  sectionTitle: { color: '#102A68', fontWeight: '900', fontSize: 17, textAlign: 'right' },
+  sectionSubtitle: { marginTop: 4, color: '#64748B', fontWeight: '800', fontSize: 17, textAlign: 'right' },
 
   twoCol: {
     marginTop: 6,
@@ -1766,7 +1408,7 @@ const styles = StyleSheet.create({
     borderColor: '#E6ECFF',
     justifyContent: 'center',
   },
-  subCardTitle: { color: '#142B63', fontWeight: '900', fontSize: 13, textAlign: 'right' },
+  subCardTitle: { color: '#142B63', fontWeight: '900', fontSize: 16, textAlign: 'right' },
 
   muted: { marginTop: 8, color: '#64748B', fontWeight: '800', textAlign: 'right' },
   desc: { marginTop: 8, color: '#334155', fontWeight: '700', lineHeight: 20, textAlign: 'right' },
@@ -1820,8 +1462,8 @@ const styles = StyleSheet.create({
   traitText: { flex: 1, minWidth: 0 },
   traitName: { color: '#0F172A', fontWeight: '900', textAlign: 'right' },
   traitCode: { color: '#64748B', fontWeight: '900' },
-  traitHint: { marginTop: 3, color: '#64748B', fontWeight: '800', fontSize: 12, textAlign: 'right' },
-  traitValue: { color: '#1E4FBF', fontWeight: '900', fontSize: 14, minWidth: 44, textAlign: 'left' },
+  traitHint: { marginTop: 3, color: '#64748B', fontWeight: '800', fontSize: 17, textAlign: 'right' },
+  traitValue: { color: '#1E4FBF', fontWeight: '900', fontSize: 16, minWidth: 44, textAlign: 'left' },
   traitBarTrack: {
     height: 6,
     backgroundColor: '#EEF3FF',
@@ -1842,7 +1484,7 @@ const styles = StyleSheet.create({
   barRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   barContent: { flex: 1, minWidth: 0 },
   barLabel: { color: '#0F172A', fontWeight: '900', textAlign: 'right' },
-  barRight: { minWidth: 64, maxWidth: 112, textAlign: 'left', color: '#102A68', fontWeight: '900', fontSize: 12 },
+  barRight: { minWidth: 64, maxWidth: 112, textAlign: 'left', color: '#102A68', fontWeight: '900', fontSize: 17 },
 
   barTrack: {
     height: 8,
@@ -1863,7 +1505,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 10,
   },
-  tableHeaderCell: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 12 },
+  tableHeaderCell: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 17 },
 
   tableRow: {
     flexDirection: 'row-reverse',
@@ -1872,7 +1514,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EEF3FF',
   },
-  tableCell: { color: '#334155', fontWeight: '800', textAlign: 'right', fontSize: 12 },
+  tableCell: { color: '#334155', fontWeight: '800', textAlign: 'right', fontSize: 17 },
 
   noteRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   noteText: { flex: 1, color: '#334155', fontWeight: '700', lineHeight: 18, textAlign: 'right' },
@@ -1898,9 +1540,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   recRankText: { color: '#1E4FBF', fontWeight: '900' },
-  recTitle: { color: '#0F172A', fontWeight: '900', fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
+  recTitle: { color: '#0F172A', fontWeight: '900', fontSize: 17, textAlign: 'right', writingDirection: 'rtl' },
   ltrText: { textAlign: 'left', writingDirection: 'ltr' },
-  recSub: { marginTop: 4, color: '#64748B', fontWeight: '800', textAlign: 'right', fontSize: 12 },
+  recSub: { marginTop: 4, color: '#64748B', fontWeight: '800', textAlign: 'right', fontSize: 17 },
   recBadge: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -1910,7 +1552,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
-  recBadgeText: { color: '#0B2A66', fontWeight: '900', fontSize: 12 },
+  recBadgeText: { color: '#0B2A66', fontWeight: '900', fontSize: 17 },
 
   recWhyTitle: { marginTop: 10, color: '#102A68', fontWeight: '900', textAlign: 'right' },
   recExplanation: { marginTop: 6, color: '#334155', fontWeight: '600', lineHeight: 20, textAlign: 'right', writingDirection: 'rtl' },
@@ -1941,5 +1583,5 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { color: '#334155', fontWeight: '900' },
 
-  smallFootnote: { marginTop: 12, color: '#64748B', fontWeight: '800', textAlign: 'right', fontSize: 12 },
+  smallFootnote: { marginTop: 12, color: '#64748B', fontWeight: '800', textAlign: 'right', fontSize: 17 },
 });

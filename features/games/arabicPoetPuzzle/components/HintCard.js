@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaLine: {
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',

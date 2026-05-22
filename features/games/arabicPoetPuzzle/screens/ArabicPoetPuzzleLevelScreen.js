@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
   },
   levelsBackText: {
     color: '#6E4727',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     writingDirection: 'rtl',
   },
@@ -424,13 +424,13 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 4,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     textAlign: 'center',
   },
   instruction: {
     marginTop: 8,
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 22,
     textAlign: 'center',
     fontWeight: '700',
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     color: '#8A623B',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',

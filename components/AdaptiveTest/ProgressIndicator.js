@@ -1,15 +1,13 @@
 /**
- * PROGRESS INDICATOR (Ultra-Compact, No Timer)
- *
- * - Minimal height
- * - No time/timer (handled in QuestionCard)
- * - Shows: Subject + count, Ability, Accuracy, Skipped
+ * PROGRESS INDICATOR (exam header stats)
  */
 
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
+
+import { font, lh, textColors, webContent } from '../../src/theme/typography';
 import { thetaToPercentage } from '../../utils/irt/irtCalculations';
 
 function clamp(n, min, max) {
@@ -25,22 +23,16 @@ function abilityColorFromPercent(p) {
 export default function ProgressIndicator({
   current = 0,
   total = 0,
-
-  // Ability (IRT theta)
   currentAbility = 0,
   standardError = null,
-
-  // Stats
   correctCount = 0,
   incorrectCount = 0,
   skippedCount = 0,
-
   subjectName,
 }) {
   const { t: rawT, i18n } = useTranslation();
   const isArabic = String(i18n.language).toLowerCase() !== 'he';
 
-  // key-safe t with fallback
   const t = (key, fallback) => {
     const v = rawT(key);
     return typeof v === 'string' && v !== key ? v : fallback;
@@ -85,19 +77,16 @@ export default function ProgressIndicator({
 
   return (
     <View style={styles.wrap}>
-      {/* Row 1: Subject + count + ability chip */}
       <View style={styles.row1}>
         <View style={styles.left}>
-          <Text style={styles.title} numberOfLines={1}>
-            {titleText}
-          </Text>
+          <Text style={styles.title}>{titleText}</Text>
           <Text style={styles.sub}>
             {current}/{total}
           </Text>
         </View>
 
         <View style={[styles.chip, { borderColor: abilityColor }]}>
-          <FontAwesome name="line-chart" size={12} color={abilityColor} />
+          <FontAwesome name="line-chart" size={16} color={abilityColor} />
           <Text style={[styles.chipText, { color: abilityColor }]}>
             {Math.round(abilityPercentage)}%
           </Text>
@@ -110,15 +99,23 @@ export default function ProgressIndicator({
         </View>
       </View>
 
-      {/* Row 2: Thin progress bar */}
       <View style={styles.track}>
         <Animated.View style={[styles.fill, { width: progressWidth }]} />
       </View>
 
-      {/* Row 3: Inline stats */}
       <View style={styles.row3}>
         <View style={styles.miniStat}>
-          <FontAwesome name="bullseye" size={12} color="#38bdf8" />
+          <FontAwesome name="check-circle" size={16} color="#4ade80" />
+          <Text style={styles.miniText}>
+            {correctCount}{' '}
+            <Text style={styles.miniMuted}>{t('results.correctShort', isArabic ? 'صحيح' : 'נכון')}</Text>
+          </Text>
+        </View>
+
+        <View style={styles.dot} />
+
+        <View style={styles.miniStat}>
+          <FontAwesome name="bullseye" size={16} color="#38bdf8" />
           <Text style={styles.miniText}>
             {accuracy}% <Text style={styles.miniMuted}>{t('results.accuracyShort', isArabic ? 'دقّة' : 'דיוק')}</Text>
           </Text>
@@ -127,7 +124,7 @@ export default function ProgressIndicator({
         <View style={styles.dot} />
 
         <View style={styles.miniStat}>
-          <FontAwesome name="forward" size={12} color="#a78bfa" />
+          <FontAwesome name="forward" size={16} color="#a78bfa" />
           <Text style={styles.miniText}>
             {skippedCount}{' '}
             <Text style={styles.miniMuted}>{t('adaptiveTestScreen.skipShort', isArabic ? 'تخطي' : 'דילוג')}</Text>
@@ -137,7 +134,7 @@ export default function ProgressIndicator({
         <View style={styles.dot} />
 
         <View style={styles.miniStat}>
-          <FontAwesome name="times-circle" size={12} color="#fb7185" />
+          <FontAwesome name="times-circle" size={16} color="#fb7185" />
           <Text style={styles.miniText}>
             {incorrectCount}{' '}
             <Text style={styles.miniMuted}>{t('results.wrongShort', isArabic ? 'خطأ' : 'שגוי')}</Text>
@@ -153,42 +150,64 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 8,
     marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
     backgroundColor: '#0b1223',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? webContent.examMaxWidth : undefined,
   },
 
   row1: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
   },
-  left: { flex: 1, minWidth: 0 },
-  title: { color: '#fff', fontWeight: '900', fontSize: 13 },
-  sub: { color: '#94A3B8', fontWeight: '800', fontSize: 11, marginTop: 2 },
+  left: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
+  title: {
+    color: textColors.inverse,
+    fontWeight: '900',
+    fontSize: font('sectionTitle'),
+    lineHeight: lh('sectionTitle'),
+    textAlign: 'right',
+  },
+  sub: {
+    color: '#CBD5E1',
+    fontWeight: '800',
+    fontSize: font('stat'),
+    lineHeight: lh('stat'),
+    marginTop: 4,
+    textAlign: 'right',
+  },
 
   chip: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  chipText: { fontWeight: '900', fontSize: 12 },
-  chipSub: { color: '#94A3B8', fontWeight: '800', fontSize: 10, marginLeft: 2 },
+  chipText: { fontWeight: '900', fontSize: font('body'), lineHeight: lh('body') },
+  chipSub: {
+    color: '#CBD5E1',
+    fontWeight: '800',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+    marginRight: 4,
+  },
 
   track: {
-    marginTop: 8,
-    height: 6,
+    marginTop: 10,
+    height: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
   },
   fill: {
@@ -198,19 +217,30 @@ const styles = StyleSheet.create({
   },
 
   row3: {
-    marginTop: 8,
-    flexDirection: 'row',
+    marginTop: 12,
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  miniStat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  miniText: { color: '#E2E8F0', fontWeight: '900', fontSize: 12 },
-  miniMuted: { color: '#94A3B8', fontWeight: '900', fontSize: 11 },
+  miniStat: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
+  miniText: {
+    color: '#F1F5F9',
+    fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
+  miniMuted: {
+    color: '#CBD5E1',
+    fontWeight: '800',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+  },
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
 });

@@ -47,14 +47,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
     color: '#334155',
     writingDirection: 'rtl',
     textAlign: 'right',
   },
   steps: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1D4ED8',
     textAlign: 'left',

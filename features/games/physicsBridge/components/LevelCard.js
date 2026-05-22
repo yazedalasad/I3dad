@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   difficulty: {
-    fontSize: 13,
+    fontSize: 16,
     color: '#475569',
     fontWeight: '700',
   },
@@ -99,11 +99,11 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 17,
   },
   status: {
     color: '#1E3A8A',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   textRtl: {

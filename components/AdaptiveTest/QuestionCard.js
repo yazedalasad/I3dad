@@ -19,12 +19,15 @@ import {
   Animated,
   Easing,
   I18nManager,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+
+import { font, lh, textColors, touchTargets, webContent } from '../../src/theme/typography';
 
 /* -------------------------------------------------- */
 /* Stable deterministic shuffle (same seed => same order) */
@@ -254,7 +257,7 @@ export default function QuestionCard({
           {typeof timeRemaining === 'number' && (
             <View style={styles.timerInline}>
               <View style={styles.timerTop}>
-                <Ionicons name="time-outline" size={16} color={timerColor} />
+                <Ionicons name="time-outline" size={20} color={timerColor} />
                 <Text style={[styles.timerText, { color: timerColor }]}>
                   {formatTime(timeRemaining)}
                 </Text>
@@ -285,7 +288,7 @@ export default function QuestionCard({
         {/* Skip only during exam mode */}
         {!showFeedback && !disabled && onSkipQuestion && (
           <TouchableOpacity style={styles.skipButton} onPress={handleSkip} activeOpacity={0.88}>
-            <Ionicons name="play-forward-outline" size={18} color="#F5B301" />
+            <Ionicons name="play-forward-outline" size={20} color="#F5B301" />
             <Text style={styles.skipText}>{skipThisQuestion}</Text>
           </TouchableOpacity>
         )}
@@ -311,18 +314,18 @@ export default function QuestionCard({
           if (!showFeedback) {
             rightIcon =
               selectedAnswer === option.letter ? (
-                <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
+                <Ionicons name="checkmark-circle" size={28} color="#27AE60" />
               ) : (
-                <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
+                <Ionicons name="ellipse-outline" size={28} color="#64748B" />
               );
           } else {
             rightIcon =
               state === 'correct' ? (
-                <Ionicons name="checkmark-circle" size={22} color="#27AE60" />
+                <Ionicons name="checkmark-circle" size={28} color="#27AE60" />
               ) : state === 'incorrect' ? (
-                <Ionicons name="close-circle" size={22} color="#E74C3C" />
+                <Ionicons name="close-circle" size={28} color="#E74C3C" />
               ) : (
-                <Ionicons name="ellipse-outline" size={22} color="#94A3B8" />
+                <Ionicons name="ellipse-outline" size={28} color="#64748B" />
               );
           }
 
@@ -350,10 +353,7 @@ export default function QuestionCard({
                 ]}
               >
                 <View style={styles.optionRow}>
-                  <Text
-                    style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}
-                    numberOfLines={6}
-                  >
+                  <Text style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}>
                     {option.text}
                   </Text>
                   {rightIcon}
@@ -393,17 +393,19 @@ export default function QuestionCard({
 
 const styles = StyleSheet.create({
   page: {
-    flex: 1,
-    backgroundColor: '#F6F8FF',
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    width: '100%',
+    paddingHorizontal: 2,
+    paddingTop: 4,
+    paddingBottom: 8,
+    alignSelf: 'center',
+    maxWidth: Platform.OS === 'web' ? webContent.examMaxWidth : undefined,
   },
 
   questionCard: {
     marginTop: 6,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    padding: 14,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E6ECFF',
     shadowColor: '#000',
@@ -422,7 +424,7 @@ const styles = StyleSheet.create({
   questionNumber: {
     color: '#1B3A8A',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
     flex: 1,
   },
 
@@ -439,17 +441,17 @@ const styles = StyleSheet.create({
   timerProgress: { height: '100%', borderRadius: 999 },
 
   questionText: {
-    color: '#142B63',
-    fontSize: 18,
-    lineHeight: 28,
+    color: textColors.primary,
+    fontSize: font('question'),
+    lineHeight: lh('question'),
     fontWeight: '900',
   },
 
   skipButton: {
-    marginTop: 12,
+    marginTop: 14,
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     backgroundColor: 'rgba(245, 179, 1, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(245, 179, 1, 0.28)',
@@ -458,16 +460,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  skipText: { color: '#B37A00', fontWeight: '900' },
+  skipText: {
+    color: '#B37A00',
+    fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
 
-  options: { marginTop: 12, gap: 12 },
+  options: { marginTop: 14, gap: 14 },
 
   optionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E6ECFF',
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -476,8 +482,10 @@ const styles = StyleSheet.create({
   optionRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    minHeight: touchTargets.answerOptionMinHeight,
   },
 
   optionSelected: { borderColor: '#F5B301', borderWidth: 2 },
@@ -496,7 +504,7 @@ const styles = StyleSheet.create({
   optionText: {
     flex: 1,
     color: '#142B63',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 20,
     fontWeight: '800',
   },
@@ -512,6 +520,16 @@ const styles = StyleSheet.create({
   explainCorrect: { borderColor: 'rgba(39,174,96,0.35)' },
   explainIncorrect: { borderColor: 'rgba(231,76,60,0.35)' },
   explainHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, marginBottom: 8 },
-  explainTitle: { color: '#142B63', fontWeight: '900' },
-  explainText: { color: '#2B3E70', fontWeight: '700', lineHeight: 20 },
+  explainTitle: {
+    color: textColors.primary,
+    fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
+  explainText: {
+    color: textColors.secondary,
+    fontWeight: '700',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
 });

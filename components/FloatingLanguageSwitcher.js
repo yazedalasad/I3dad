@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   segmentText: {
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     color: '#51657a',
     letterSpacing: 0.6,

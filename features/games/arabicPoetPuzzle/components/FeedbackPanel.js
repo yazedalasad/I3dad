@@ -36,14 +36,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFF8EB',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '800',
     textAlign: 'right',
   },
   body: {
     marginTop: 4,
     color: '#FFF1DB',
-    fontSize: 13,
+    fontSize: 16,
     lineHeight: 20,
     textAlign: 'right',
   },

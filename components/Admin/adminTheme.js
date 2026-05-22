@@ -7,7 +7,7 @@ export const adminColors = {
   danger: '#DC2626',
   card: '#FFFFFF',
   text: '#102A68',
-  muted: '#546A99',
+  muted: '#475569',
   border: '#DDE6FF',
   softBlue: '#EAF0FF',
   softGreen: '#EAFBF1',

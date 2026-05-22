@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   heroContent: {
@@ -410,8 +410,8 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   heroGlassText: {
-    fontSize: 14.5,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 24,
     color: 'rgba(255,255,255,0.92)',
     textAlign: 'left',
   },
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   heroQuoteText: {
     flex: 1,
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'left',
   },
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
   },
   formBadgeText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   formTitle: {
@@ -485,9 +485,9 @@ const styles = StyleSheet.create({
   },
   formLead: {
     marginTop: 8,
-    fontSize: 14.5,
-    lineHeight: 22,
-    color: '#5f7268',
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#475569',
     textAlign: 'left',
   },
   formTextRtl: {
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   divider: {
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: 16,
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 16,
   },
   secondaryLinks: {
     alignItems: 'center',
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
   },
   principalFirstTimeText: {
     color: '#64748b',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

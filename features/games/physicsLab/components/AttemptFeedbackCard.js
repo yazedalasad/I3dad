@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   body: {
     marginTop: 6,
     color: '#E7EEF5',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 21,
   },
   metaRow: {
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     color: '#D3DFEA',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '700',
   },
   retryButton: {
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   retryLabel: {
     color: '#1F2937',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
   },
   pressed: {

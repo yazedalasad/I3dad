@@ -3,15 +3,18 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   AppState,
-  Platform, // ✅ ADD
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ProgressIndicator from '../../components/AdaptiveTest/ProgressIndicator';
 import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
+import { font, lh, textColors, webContent } from '../../src/theme/typography';
 
 import abilityService from '../../services/abilityService';
 import adaptiveTestService from '../../services/adaptiveTestService';
@@ -506,12 +509,14 @@ export default function AdaptiveTestScreen({
   /* -------------------- RENDER -------------------- */
   if (initializing || fetchingQuestion || !shownQuestion) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.centerText}>
-          {tt('adaptiveTestScreen.loadingQuestion', 'جاري تحميل السؤال…', 'טוען שאלה…')}
-        </Text>
-      </View>
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.centerText}>
+            {tt('adaptiveTestScreen.loadingQuestion', 'جاري تحميل السؤال…', 'טוען שאלה…')}
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -519,18 +524,24 @@ export default function AdaptiveTestScreen({
   const showPendingChip = isViewingHistory && isViewingPending;
 
   return (
-    <View style={styles.container}>
-      <ProgressIndicator
-        current={totals.answered}
-        total={totals.target}
-        timeLeft={timeLeft}
-        correctCount={totals.correct}
-        incorrectCount={totals.incorrect}
-        skippedCount={skippedCount}
-      />
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+        nestedScrollEnabled
+      >
+        <ProgressIndicator
+          current={totals.answered}
+          total={totals.target}
+          correctCount={totals.correct}
+          incorrectCount={totals.incorrect}
+          skippedCount={skippedCount}
+        />
 
-      {(history.length > 0 || question) && (
-        <View style={styles.navigatorWrap}>
+        {(history.length > 0 || question) && (
+          <View style={styles.navigatorWrap}>
           <View style={styles.navigatorHeader}>
             <Text style={styles.navigatorTitle}>
               {tt('navigator.title', 'الأسئلة', 'שאלות')}
@@ -588,81 +599,110 @@ export default function AdaptiveTestScreen({
               'לחץ/י על מספר כדי לחזור. בשאלות ממתינות אפשר לענות והזמן ממשיך מאיפה שעצרת.'
             )}
           </Text>
-        </View>
-      )}
+          </View>
+        )}
 
-      <QuestionCard
-        question={shownQuestion}
-        selectedAnswer={shownSelectedAnswer}
-        disabled={submitting || (isViewingHistory && isViewingAnswered)}
-        onAnswerSelect={handleAnswer}
-        onSkipQuestion={isViewingHistory ? null : handleSkipQuestion}
-        language={language}
-        timeRemaining={timeLeft}
-        maxTime={QUESTION_TIME_LIMIT}
-        showFeedback={false}
-        isCorrect={false}
-      />
-    </View>
+        <QuestionCard
+          question={shownQuestion}
+          selectedAnswer={shownSelectedAnswer}
+          disabled={submitting || (isViewingHistory && isViewingAnswered)}
+          onAnswerSelect={handleAnswer}
+          onSkipQuestion={isViewingHistory ? null : handleSkipQuestion}
+          language={language}
+          timeRemaining={timeLeft}
+          maxTime={QUESTION_TIME_LIMIT}
+          showFeedback={false}
+          isCorrect={false}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+const webScrollPage =
+  Platform.OS === 'web'
+    ? {
+        minHeight: '100vh',
+      }
+    : {};
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F6F8FF' },
+  safe: {
+    flex: 1,
+    backgroundColor: '#F6F8FF',
+    width: '100%',
+    ...webScrollPage,
+  },
+  scroll: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { overflow: 'scroll' } : {}),
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 100,
+    alignItems: 'stretch',
+    width: '100%',
+    maxWidth: webContent.examMaxWidth,
+    alignSelf: 'center',
+  },
   center: {
     flex: 1,
+    minHeight: 280,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
   },
   centerText: {
     fontWeight: '800',
-    color: '#41547F',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    color: textColors.muted,
   },
 
-  /* ---------- navigator ---------- */
   navigatorWrap: {
-    marginHorizontal: 16,
     marginTop: 8,
-    marginBottom: 6,
-    padding: 10,
-    borderRadius: 14,
+    marginBottom: 10,
+    padding: 14,
+    borderRadius: 16,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E5ECFF',
-
-    // ✅ sticky only on web
-    ...(Platform.OS === 'web' ? { position: 'sticky', top: 0, zIndex: 50 } : {}),
+    width: '100%',
   },
   navigatorHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
     flexWrap: 'wrap',
   },
   navigatorTitle: {
-    color: '#102A68',
+    color: textColors.primary,
     fontWeight: '900',
+    fontSize: font('cardTitle'),
+    lineHeight: lh('cardTitle'),
     textAlign: 'right',
   },
   viewOnlyChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: 'rgba(148, 163, 184, 0.18)',
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.35)',
   },
   viewOnlyText: {
-    color: '#546A99',
+    color: textColors.muted,
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
   },
   pendingChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: 'rgba(245, 179, 1, 0.12)',
     borderWidth: 1,
@@ -671,29 +711,29 @@ const styles = StyleSheet.create({
   pendingText: {
     color: '#B37A00',
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
   },
 
-  // ✅ NEW: grid wrap
   navigatorGrid: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
 
   navigatorHint: {
-    marginTop: 8,
-    color: '#546A99',
+    marginTop: 10,
+    color: textColors.muted,
     fontWeight: '800',
     textAlign: 'right',
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
   },
 
   navSquare: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFF',
@@ -721,8 +761,10 @@ const styles = StyleSheet.create({
     borderColor: '#1E4FBF',
   },
   navSquareText: {
-    color: '#0F172A',
+    color: textColors.primary,
     fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
   },
   navSquareTextActive: {
     color: '#1E4FBF',

@@ -625,9 +625,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
   },
   heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  heroSubtitle: { color: '#EAF0FF', marginTop: 6, fontSize: 13 },
+  heroSubtitle: { color: '#EAF0FF', marginTop: 6, fontSize: 16 },
   progressRow: { marginTop: 14 },
-  progressText: { color: '#EAF0FF', fontSize: 12, fontWeight: '600' },
+  progressText: { color: '#EAF0FF', fontSize: 17, fontWeight: '600' },
 
   card: {
     marginTop: 14,
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 10,
   },
-  badgeText: { color: '#1E40AF', fontWeight: '700', fontSize: 12 },
+  badgeText: { color: '#1E40AF', fontWeight: '700', fontSize: 17 },
 
   qText: { fontSize: 16, fontWeight: '800', color: '#0F172A', lineHeight: 24 },
   body: { marginTop: 14 },

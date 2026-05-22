@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   desc: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#334155',
     lineHeight: 20,
     marginBottom: 14,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#2563eb',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
     textAlign: 'right',
   },
   scheduleWrap: {
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   scheduleText: {
     color: '#166534',
     fontWeight: '900',
-    fontSize: 12,
+    fontSize: 17,
   },
   row: {
     flexDirection: 'row-reverse',
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   actionText: {
     color: '#fff',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: 16,
   },
   closeBtn: {
     marginTop: 10,

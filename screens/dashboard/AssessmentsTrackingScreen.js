@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   cardTitle: { flex: 1, color: colors.dark, fontSize: 16, fontWeight: '900', textAlign: 'right' },
   statusChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  statusText: { fontSize: 11, fontWeight: '900' },
+  statusText: { fontSize: 16, fontWeight: '900' },
   meta: { marginTop: 7, color: colors.secondary, fontWeight: '800', textAlign: 'right' },
   empty: { marginTop: 18, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24, alignItems: 'center' },
   emptyText: { marginTop: 10, color: colors.secondary, fontWeight: '800', textAlign: 'center' },

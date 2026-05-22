@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import { font, lh, textColors, touchTargets } from '../../src/theme/typography';
+
 export default function CustomTextInput({
   label,
   labelKey, // ✅ NEW: i18n key for label (optional)
@@ -124,10 +126,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 8,
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    fontWeight: '700',
+    color: textColors.primary,
+    marginBottom: 10,
     textAlign: 'right',
   },
   inputContainer: {
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e2e8f0',
     paddingHorizontal: 12,
-    minHeight: 50,
+    minHeight: touchTargets.inputMinHeight,
   },
   inputContainerFocused: {
     borderColor: '#27ae60',
@@ -160,9 +163,10 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: '#2c3e50',
-    paddingVertical: 12,
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    color: textColors.primary,
+    paddingVertical: 14,
     textAlign: 'right',
     borderWidth: 0,
     outlineStyle: 'none',
@@ -179,10 +183,11 @@ const styles = StyleSheet.create({
     marginRight: -8,
   },
   suffixText: {
-    color: '#64748b',
-    fontSize: 15,
+    color: textColors.muted,
+    fontSize: font('sm'),
+    lineHeight: lh('sm'),
     marginLeft: 8,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -191,7 +196,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: font('xs'),
+    lineHeight: lh('xs'),
     color: '#e74c3c',
     textAlign: 'right',
   },

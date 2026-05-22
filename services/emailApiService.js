@@ -1,13 +1,38 @@
-const DEFAULT_EMAIL_API_URL = 'http://localhost:8787';
+const DEV_EMAIL_API_URL = 'http://localhost:8787';
+
+function isDevRuntime() {
+  if (typeof __DEV__ !== 'undefined') return __DEV__;
+  return process.env.NODE_ENV !== 'production';
+}
+
+function resolveEmailApiBase() {
+  const configured =
+    process.env.EXPO_PUBLIC_EMAIL_API_URL || process.env.EMAIL_API_URL || '';
+
+  if (configured) {
+    return String(configured).replace(/\/$/, '');
+  }
+
+  if (isDevRuntime()) {
+    return DEV_EMAIL_API_URL;
+  }
+
+  return null;
+}
 
 export function emailApiUrl(path = '') {
-  const base = String(
-    process.env.EXPO_PUBLIC_EMAIL_API_URL ||
-    process.env.EMAIL_API_URL ||
-    DEFAULT_EMAIL_API_URL
-  ).replace(/\/$/, '');
+  const base = resolveEmailApiBase();
+  if (!base) {
+    throw new Error(
+      'Email API is not configured for production. Set EXPO_PUBLIC_EMAIL_API_URL to your deployed email server URL.'
+    );
+  }
   const cleanPath = String(path || '').startsWith('/') ? path : `/${path}`;
   return `${base}${cleanPath}`;
+}
+
+export function isEmailApiConfigured() {
+  return Boolean(resolveEmailApiBase());
 }
 
 export async function emailApiPost(path, body, token) {
@@ -35,4 +60,5 @@ export async function emailApiPost(path, body, token) {
 export default {
   emailApiUrl,
   emailApiPost,
+  isEmailApiConfigured,
 };

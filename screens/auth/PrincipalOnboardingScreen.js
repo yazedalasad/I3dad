@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: { marginTop: 14, color: '#fff', fontSize: 24, fontWeight: '900', textAlign: 'right' },
-  subtitle: { marginTop: 6, color: '#ecfeff', fontSize: 14, lineHeight: 21, fontWeight: '700', textAlign: 'right' },
-  email: { marginTop: 10, color: '#fff', fontSize: 13, fontWeight: '900', textAlign: 'right' },
+  subtitle: { marginTop: 6, color: '#ecfeff', fontSize: 16, lineHeight: 21, fontWeight: '700', textAlign: 'right' },
+  email: { marginTop: 10, color: '#fff', fontSize: 16, fontWeight: '900', textAlign: 'right' },
   form: {
     marginTop: 14,
     backgroundColor: '#fff',

@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     color: '#dfe6e9',
-    fontSize: 13,
+    fontSize: 16,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -88,17 +88,17 @@ const styles = StyleSheet.create({
   },
   link: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
   },
   separator: {
     color: '#95a5a6',
-    fontSize: 13,
+    fontSize: 16,
     marginHorizontal: 4,
   },
   copyright: {
     color: '#dfe6e9',
-    fontSize: 12,
+    fontSize: 17,
     textAlign: 'center',
     lineHeight: 18,
   },

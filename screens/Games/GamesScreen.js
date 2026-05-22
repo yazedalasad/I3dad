@@ -146,14 +146,14 @@ const styles = StyleSheet.create({
   },
   heroBrand: {
     marginTop: 4,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     color: '#0f766e',
     textAlign: 'left',
   },
   heroSubtitle: {
     marginTop: 6,
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 21,
     color: '#475569',
     textAlign: 'left',
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     color: '#475569',
     textAlign: 'left',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 16,
   },
   list: {
     flexDirection: 'row',
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#0f172a',
     fontWeight: '900',
-    fontSize: 11,
+    fontSize: 16,
   },
   cardBody: {
     flex: 1,
@@ -242,13 +242,13 @@ const styles = StyleSheet.create({
   },
   cardDesc: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     color: '#334155',
     textAlign: 'left',
   },
   cardLong: {
-    fontSize: 13,
+    fontSize: 16,
     lineHeight: 20,
     color: '#475569',
     textAlign: 'left',
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   launchBtnText: {
     color: '#fff',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
   },
   rtlText: {
     textAlign: 'right',

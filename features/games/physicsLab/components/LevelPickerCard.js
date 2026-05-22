@@ -1,6 +1,8 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { textShadowStyle } from '../../../../utils/webStyle';
+
 export default function LevelPickerCard({
   title,
   levelNumber,
@@ -84,7 +86,7 @@ const styles = StyleSheet.create({
   },
   levelBadgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
   },
   statusBadge: {
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: '#1E3A8A',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
   },
   statusLockedText: {
@@ -111,20 +113,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    ...textShadowStyle('rgba(0,0,0,0.35)', { width: 0, height: 1 }, 4),
   },
   lockedText: {
     color: '#FFD7A3',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
     marginBottom: 4,
   },
   actionText: {
     marginTop: 8,
     color: '#BAE6FD',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
   },
 });

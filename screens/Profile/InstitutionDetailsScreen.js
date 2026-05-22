@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   bodyText: { color: '#334155', lineHeight: 22, fontWeight: '700' },
   errorText: { color: '#dc2626', lineHeight: 22, fontWeight: '800', textAlign: 'right' },
   programTextWrap: { flex: 1 },
-  programMeta: { marginTop: 4, color: '#64748b', fontWeight: '700', fontSize: 12 },
+  programMeta: { marginTop: 4, color: '#64748b', fontWeight: '700', fontSize: 17 },
   majorRow: {
     borderRadius: 14,
     backgroundColor: '#f8fafc',

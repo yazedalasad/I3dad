@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: { fontSize: 30, fontWeight: '900', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: '#fff', opacity: 0.92, textAlign: 'center' },
-  email: { marginTop: 10, fontSize: 14, color: '#fff', fontWeight: '700', textAlign: 'center', opacity: 0.95 },
+  subtitle: { fontSize: 17, color: '#fff', opacity: 0.92, textAlign: 'center' },
+  email: { marginTop: 10, fontSize: 16, color: '#fff', fontWeight: '700', textAlign: 'center', opacity: 0.95 },
 
   formContainer: {
     flex: 1, padding: 24, backgroundColor: '#fff',
@@ -244,11 +244,11 @@ const styles = StyleSheet.create({
     padding: 16, borderRadius: 12, marginBottom: 18,
     gap: 12, borderWidth: 1, borderColor: '#86efac',
   },
-  infoText: { flex: 1, color: '#166534', fontSize: 14, lineHeight: 20, textAlign: 'right', fontWeight: '700' },
+  infoText: { flex: 1, color: '#166534', fontSize: 16, lineHeight: 20, textAlign: 'right', fontWeight: '700' },
 
   forgotBtn: { marginTop: 12, alignItems: 'center' },
-  forgotText: { color: '#27ae60', fontSize: 14, fontWeight: '900' },
+  forgotText: { color: '#27ae60', fontSize: 16, fontWeight: '900' },
 
   backButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, marginTop: 14 },
-  backButtonText: { color: '#64748b', fontSize: 14, fontWeight: '700' },
+  backButtonText: { color: '#64748b', fontSize: 16, fontWeight: '700' },
 });

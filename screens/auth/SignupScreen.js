@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
   },
   brandChipText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   brandChipRtl: {
@@ -1025,7 +1025,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   insightText: {
-    fontSize: 13.5,
+    fontSize: 16.5,
     lineHeight: 21,
     color: '#597265',
     textAlign: 'left',
@@ -1065,7 +1065,7 @@ const styles = StyleSheet.create({
   },
   insightFooterText: {
     color: '#1f8f50',
-    fontSize: 12.5,
+    fontSize: 17.5,
     fontWeight: '800',
     textAlign: 'left',
   },
@@ -1077,7 +1077,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   promoSubtitle: {
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     color: 'rgba(255,255,255,0.92)',
     textAlign: 'left',
@@ -1112,7 +1112,7 @@ const styles = StyleSheet.create({
   },
   promoItemText: {
     color: '#fff',
-    fontSize: 13.5,
+    fontSize: 16.5,
     fontWeight: '700',
     textAlign: 'left',
   },
@@ -1146,7 +1146,7 @@ const styles = StyleSheet.create({
   },
   formLead: {
     marginTop: 8,
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 22,
     color: '#5f7268',
     textAlign: 'right',
@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 12,
     color: '#64748b',
-    fontSize: 13,
+    fontSize: 16,
     textAlign: 'right',
   },
   inlineRow: {
@@ -1229,7 +1229,7 @@ const styles = StyleSheet.create({
   },
   retryInlineButtonText: {
     color: '#27ae60',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'right',
   },
@@ -1262,7 +1262,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
   },
   passwordRulesTitle: {
-    fontSize: 14.5,
+    fontSize: 16.5,
     fontWeight: '900',
     color: '#166534',
     textAlign: 'right',
@@ -1286,7 +1286,7 @@ const styles = StyleSheet.create({
     borderColor: '#86efac',
   },
   passwordRuleText: {
-    fontSize: 13.5,
+    fontSize: 16.5,
     color: '#64748b',
     textAlign: 'right',
   },
@@ -1304,7 +1304,7 @@ const styles = StyleSheet.create({
   },
   passwordRulesErrorText: {
     marginTop: 8,
-    fontSize: 13,
+    fontSize: 16,
     color: '#b91c1c',
     textAlign: 'right',
     fontWeight: '700',
@@ -1342,7 +1342,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

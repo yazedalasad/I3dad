@@ -413,11 +413,11 @@ const styles = StyleSheet.create({
   reportTypes: { marginTop: 14, gap: 10 },
   reportTypeCard: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 13, alignItems: 'flex-end' },
   reportTypeTitle: { color: colors.dark, fontWeight: '900', textAlign: 'right' },
-  reportTypeDescription: { marginTop: 5, color: colors.secondary, fontSize: 12, fontWeight: '800', textAlign: 'right', lineHeight: 18 },
+  reportTypeDescription: { marginTop: 5, color: colors.secondary, fontSize: 17, fontWeight: '800', textAlign: 'right', lineHeight: 18 },
   empty: { marginTop: 18, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24, alignItems: 'center' },
   emptyText: { marginTop: 10, color: colors.secondary, fontWeight: '800', textAlign: 'center' },
   card: { marginTop: 12, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 14, flexDirection: 'row-reverse', alignItems: 'center', gap: 11 },
   icon: { width: 40, height: 40, borderRadius: 15, backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center' },
   cardTitle: { color: colors.dark, fontWeight: '900', textAlign: 'right' },
-  meta: { marginTop: 4, color: colors.secondary, fontWeight: '800', fontSize: 12, textAlign: 'right' },
+  meta: { marginTop: 4, color: colors.secondary, fontWeight: '800', fontSize: 17, textAlign: 'right' },
 });

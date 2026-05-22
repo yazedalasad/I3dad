@@ -5,16 +5,34 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "scheme": "i3dad",
+    "plugins": [
+      "expo-router"
+    ],
     "splash": {
       "backgroundColor": "#0F172A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.i3dad.app"
     },
     "android": {
+      "package": "com.i3dad.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0F172A"
       }
-    }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ca6b5d94-2d9a-4f83-83d3-edf35e6632b7"
+      }
+    },
+    "owner": "yazedal"
   }
 }

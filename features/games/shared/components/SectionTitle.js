@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: 16,
     lineHeight: 18,
     color: '#64748B',
   },

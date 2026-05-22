@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#fff',
     textAlign: 'center',
     opacity: 0.95,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   valueDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#7f8c8d',
     textAlign: 'center',
     lineHeight: 20,
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   partnerName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
     textAlign: 'center',

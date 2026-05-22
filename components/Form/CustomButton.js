@@ -2,6 +2,8 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
+import { font, lh, touchTargets } from '../../src/theme/typography';
+
 export default function CustomButton({
   title,
   titleKey, // ✅ NEW: i18n key (optional)
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
-    minHeight: 50,
+    minHeight: touchTargets.buttonMinHeight,
     gap: 8,
   },
   fullWidth: {
@@ -117,8 +119,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: font('button'),
+    fontWeight: '800',
+    lineHeight: lh('button'),
     textAlign: 'center',
   },
   buttonTextOutline: {

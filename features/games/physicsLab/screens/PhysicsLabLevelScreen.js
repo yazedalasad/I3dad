@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   cornerExitText: {
     color: '#0F172A',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
   },
   metaRow: {
@@ -488,13 +488,13 @@ const styles = StyleSheet.create({
   },
   taskKicker: {
     color: '#8A5A14',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   taskKickerPhone: {
-    fontSize: 10,
+    fontSize: 16,
   },
   taskTitle: {
     marginTop: 6,
@@ -510,12 +510,12 @@ const styles = StyleSheet.create({
   taskHint: {
     marginTop: 8,
     color: '#7C3F00',
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 22,
     fontWeight: '700',
   },
   taskHintPhone: {
-    fontSize: 13,
+    fontSize: 16,
     lineHeight: 18,
   },
   modalOverlay: {
@@ -561,13 +561,13 @@ const styles = StyleSheet.create({
   },
   infoCloseText: {
     color: '#13293B',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
   },
   infoItem: {
     marginTop: 10,
     color: '#334155',
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 22,
     fontWeight: '600',
   },
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   },
   outcomePrimaryText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   },
   outcomeSecondaryText: {
     color: '#0F172A',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     textAlign: 'center',
   },

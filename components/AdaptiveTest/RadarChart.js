@@ -14,12 +14,7 @@
 
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
-
-const { width } = Dimensions.get('window');
-const CHART_SIZE = Math.min(width - 80, 320);
-const CENTER = CHART_SIZE / 2;
-const RADIUS = CHART_SIZE / 2 - 44;
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 const gridLevels = [20, 40, 60, 80, 100];
 
@@ -48,6 +43,10 @@ function getSubjectNameByLang(ability, index, lang) {
 export default function RadarChart({ abilities, labels, values }) {
   const { t: rawT, i18n } = useTranslation();
   const lang = i18n.language;
+  const { width: windowWidth } = useWindowDimensions();
+  const chartSize = Math.min(Math.max(safeNum(windowWidth, 360) - 80, 180), 320);
+  const center = chartSize / 2;
+  const radius = chartSize / 2 - 44;
 
   const t = (key, fallback) => {
     const v = rawT(key);
@@ -106,10 +105,10 @@ export default function RadarChart({ abilities, labels, values }) {
 
   const getPoint = (index, score) => {
     const angle = angleStep * index - Math.PI / 2; // start at top
-    const distance = (safeNum(score) / 100) * RADIUS;
+    const distance = (safeNum(score) / 100) * radius;
     return {
-      x: CENTER + distance * Math.cos(angle),
-      y: CENTER + distance * Math.sin(angle),
+      x: center + distance * Math.cos(angle),
+      y: center + distance * Math.sin(angle),
       angle,
     };
   };
@@ -145,10 +144,10 @@ export default function RadarChart({ abilities, labels, values }) {
         </View>
       </View>
 
-      <View style={[styles.chartContainer, { width: CHART_SIZE, height: CHART_SIZE }]}>
+      <View style={[styles.chartContainer, { width: chartSize, height: chartSize }]}>
         {/* Grid circles */}
         {gridLevels.map((level) => {
-          const r = (level / 100) * RADIUS;
+          const r = (level / 100) * radius;
           return (
             <View
               key={`grid-${level}`}
@@ -158,8 +157,8 @@ export default function RadarChart({ abilities, labels, values }) {
                   width: r * 2,
                   height: r * 2,
                   borderRadius: r,
-                  top: CENTER - r,
-                  left: CENTER - r,
+                  top: center - r,
+                  left: center - r,
                 },
               ]}
             />
@@ -168,15 +167,15 @@ export default function RadarChart({ abilities, labels, values }) {
 
         {/* Level labels (left side) */}
         {gridLevels.map((level) => {
-          const r = (level / 100) * RADIUS;
+          const r = (level / 100) * radius;
           return (
             <Text
               key={`lvl-${level}`}
               style={[
                 styles.levelText,
                 {
-                  left: CENTER - r - 18,
-                  top: CENTER - 10,
+                  left: center - r - 18,
+                  top: center - 10,
                 },
               ]}
             >
@@ -193,9 +192,9 @@ export default function RadarChart({ abilities, labels, values }) {
               styles.axisLine,
               {
                 position: 'absolute',
-                left: CENTER,
-                top: CENTER,
-                width: RADIUS,
+                left: center,
+                top: center,
+                width: radius,
                 transform: [{ rotate: `${(angleStep * index * 180) / Math.PI - 90}deg` }],
               },
             ]}
@@ -251,7 +250,7 @@ export default function RadarChart({ abilities, labels, values }) {
         })}
 
         {/* Center dot */}
-        <View style={[styles.centerPoint, { left: CENTER - 4, top: CENTER - 4 }]} />
+        <View style={[styles.centerPoint, { left: center - 4, top: center - 4 }]} />
       </View>
 
       {/* Legend */}
@@ -283,7 +282,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#142B63',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'right',
   },
   badge: {
@@ -292,7 +291,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  badgeText: { color: '#1B3A8A', fontWeight: '900', fontSize: 11 },
+  badgeText: { color: '#1B3A8A', fontWeight: '900', fontSize: 16 },
 
   emptyContainer: { height: 220, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#6B7FAE', fontWeight: '800' },
@@ -315,7 +314,7 @@ const styles = StyleSheet.create({
   levelText: {
     position: 'absolute',
     color: '#6B7FAE',
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '800',
   },
 
@@ -330,8 +329,8 @@ const styles = StyleSheet.create({
   },
 
   label: { position: 'absolute' },
-  labelText: { fontSize: 11, color: '#142B63', fontWeight: '900' },
-  labelScore: { marginTop: 2, fontSize: 10, color: '#1B3A8A', fontWeight: '900' },
+  labelText: { fontSize: 16, color: '#142B63', fontWeight: '900' },
+  labelScore: { marginTop: 2, fontSize: 16, color: '#1B3A8A', fontWeight: '900' },
 
   centerPoint: {
     position: 'absolute',
@@ -359,5 +358,5 @@ const styles = StyleSheet.create({
     borderColor: '#1B3A8A',
   },
   legendLine: { width: 18, height: 2, backgroundColor: '#D6E0FF', borderRadius: 2 },
-  legendText: { color: '#6B7FAE', fontWeight: '800', fontSize: 12 },
+  legendText: { color: '#6B7FAE', fontWeight: '800', fontSize: 17 },
 });

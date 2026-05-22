@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
+  subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  hint: { marginTop: 14, fontSize: 14, color: '#555', textAlign: 'center' },
+  hint: { marginTop: 14, fontSize: 16, color: '#555', textAlign: 'center' },
 });

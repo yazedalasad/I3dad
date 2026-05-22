@@ -1,6 +1,8 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { font, lh, textColors } from '../src/theme/typography';
+
 export default function FeatureCard({ feature }) {
   return (
     <View style={styles.card}>
@@ -13,8 +15,10 @@ export default function FeatureCard({ feature }) {
 
 const styles = StyleSheet.create({
   card: {
+    width: '100%',
+    minHeight: 190,
     backgroundColor: '#fff',
-    padding: 24,
+    padding: 26,
     borderRadius: 15,
     alignItems: 'center',
     shadowColor: '#000',
@@ -27,14 +31,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2c3e50',
-    marginBottom: 8,
+    fontSize: font('cardTitle'),
+    lineHeight: lh('cardTitle'),
+    fontWeight: '800',
+    color: textColors.primary,
+    marginBottom: 10,
+    textAlign: 'center',
   },
   description: {
-    color: '#34495e',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    color: textColors.secondary,
+    fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 20,
   },
 });

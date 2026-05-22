@@ -1628,7 +1628,7 @@ const styles = StyleSheet.create({
   },
   goalText: {
     color: '#DCE8FF',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '700',
     textAlign: 'right',
     marginTop: 3,
@@ -1653,12 +1653,12 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: COLORS.secondary,
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '800',
   },
   statValue: {
     color: COLORS.dark,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     marginTop: 2,
   },
@@ -1690,12 +1690,12 @@ const styles = StyleSheet.create({
   },
   materialLabel: {
     color: COLORS.secondary,
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '800',
   },
   materialValue: {
     color: COLORS.dark,
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
   },
   materialLabelActive: {
@@ -1711,12 +1711,12 @@ const styles = StyleSheet.create({
   },
   tutorialTitle: {
     color: COLORS.primary,
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
   },
   tutorialText: {
     color: COLORS.dark,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'right',
     marginTop: 3,
@@ -1804,7 +1804,7 @@ const styles = StyleSheet.create({
   },
   waterText: {
     color: '#2775A8',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
   },
   car: {
@@ -1922,7 +1922,7 @@ const styles = StyleSheet.create({
   },
   instructionText: {
     color: COLORS.dark,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     lineHeight: 20,
     textAlign: 'right',
@@ -1962,7 +1962,7 @@ const styles = StyleSheet.create({
   },
   toolButtonText: {
     color: COLORS.dark,
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
   },
   toolButtonTextActive: {
@@ -1999,7 +1999,7 @@ const styles = StyleSheet.create({
   },
   modalText: {
     color: COLORS.secondary,
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     fontWeight: '700',
     textAlign: 'right',
@@ -2011,7 +2011,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#FDE2B5',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 22,
     fontWeight: '800',
     textAlign: 'right',
@@ -2031,7 +2031,7 @@ const styles = StyleSheet.create({
   },
   modalPrimaryText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -2048,7 +2048,7 @@ const styles = StyleSheet.create({
   },
   modalSecondaryText: {
     color: COLORS.primary,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -2065,12 +2065,12 @@ const styles = StyleSheet.create({
   },
   resultLineLabel: {
     color: COLORS.secondary,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
   },
   resultLineValue: {
     color: COLORS.dark,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
   },
 });

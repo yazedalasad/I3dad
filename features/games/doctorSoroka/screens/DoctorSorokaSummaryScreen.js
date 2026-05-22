@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   noteBody: {
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     color: '#334155',
   },

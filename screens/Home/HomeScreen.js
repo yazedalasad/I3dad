@@ -2,14 +2,16 @@ import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { I18nManager, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { I18nManager, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import FeatureCard from '../../components/FeatureCard';
 import { useAuth } from '../../contexts/AuthContext';
+import { font, lh, textColors } from '../../src/theme/typography';
 import { getStudentJourneySnapshot } from '../../services/studentJourneyService';
 
 export default function HomeScreen({ navigateTo }) {
   const { t, i18n } = useTranslation(['home', 'about']);
+  const { width } = useWindowDimensions();
   const { user, profile, studentData, studentIdentity } = useAuth();
   const [journeySnapshot, setJourneySnapshot] = useState(null);
 
@@ -18,6 +20,18 @@ export default function HomeScreen({ navigateTo }) {
   const welcomeName = studentIdentity?.firstName || '';
   const role = String(user?.app_metadata?.role || profile?.role || '').toLowerCase();
   const isAdmin = role === 'admin';
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1024;
+  const horizontalPadding = isMobile ? 16 : isTablet ? 24 : 32;
+  const contentStyle = [
+    styles.contentBand,
+    {
+      paddingHorizontal: horizontalPadding,
+      maxWidth: Platform.OS === 'web' ? 1440 : undefined,
+    },
+  ];
+  const featureCardWidth = isMobile ? '100%' : isTablet ? '48%' : '31.8%';
+  const smartCardWidth = isMobile ? '100%' : isTablet ? '48%' : '23.5%';
 
   const smartCopy = isHebrew
     ? {
@@ -88,10 +102,14 @@ export default function HomeScreen({ navigateTo }) {
   }, [studentData?.id, i18n.language]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 28 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsHorizontalScrollIndicator={false}
+    >
       <LinearGradient
         colors={['#27ae60', '#2ecc71', '#d5f5e3']}
-        style={styles.hero}
+        style={[styles.hero, contentStyle, isMobile && styles.heroMobile]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
@@ -157,31 +175,35 @@ export default function HomeScreen({ navigateTo }) {
         </TouchableOpacity>
       </LinearGradient>
 
-      <View style={styles.section}>
+      <View style={[styles.section, contentStyle]}>
         <Text style={styles.sectionTitle}>{t('features.title')}</Text>
         <Text style={styles.sectionSubtitle}>{t('features.subtitle')}</Text>
 
         {user && studentData && (
           <View style={styles.smartGrid}>
             <SmartCard
+              style={{ width: smartCardWidth }}
               title={smartCopy.continueExam}
               subtitle={smartCopy.continueExamSubtitle}
               icon="check-square-o"
               onPress={() => navigateTo('adaptiveTest')}
             />
             <SmartCard
+              style={{ width: smartCardWidth }}
               title={smartCopy.skillsProfile}
               subtitle={smartCopy.skillsProfileSubtitle}
               icon="area-chart"
               onPress={() => navigateTo('skillsProfile')}
             />
             <SmartCard
+              style={{ width: smartCardWidth }}
               title={smartCopy.recommendedMajor}
               subtitle={journeySnapshot?.topRecommendation?.name || smartCopy.recommendedMajorSubtitle}
               icon="graduation-cap"
               onPress={() => navigateTo('recommendations')}
             />
             <SmartCard
+              style={{ width: smartCardWidth }}
               title={smartCopy.finalReport}
               subtitle={smartCopy.finalReportSubtitle}
               icon="file-text"
@@ -195,14 +217,16 @@ export default function HomeScreen({ navigateTo }) {
           </View>
         )}
 
-        <View style={{ gap: 12, marginTop: 14 }}>
+        <View style={styles.featureGrid}>
           {featuresMini.map((feature, index) => (
-            <FeatureCard key={index} feature={feature} />
+            <View key={index} style={[styles.featureCardWrap, { width: featureCardWidth }]}>
+              <FeatureCard feature={feature} />
+            </View>
           ))}
         </View>
       </View>
 
-      <View style={[styles.section, { paddingTop: 10 }]}>
+      <View style={[styles.section, contentStyle, { paddingTop: 10 }]}>
         <Text style={styles.sectionTitle}>{t('howItWorks.title')}</Text>
         <Text style={styles.sectionSubtitle}>{t('howItWorks.subtitle')}</Text>
 
@@ -213,7 +237,7 @@ export default function HomeScreen({ navigateTo }) {
         </View>
       </View>
 
-      <View style={styles.ctaBox}>
+      <View style={[styles.ctaBox, contentStyle, isMobile && styles.ctaBoxMobile]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaTitle}>{t('cta.title')}</Text>
           <Text style={styles.ctaText}>{t('cta.note')}</Text>
@@ -224,7 +248,7 @@ export default function HomeScreen({ navigateTo }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.footerWrap}>
+      <View style={[styles.footerWrap, contentStyle]}>
         <LinearGradient
           colors={['#f4fbf6', '#eef7f1']}
           style={styles.footer}
@@ -284,9 +308,9 @@ function StepItem({ n, icon, title }) {
   );
 }
 
-function SmartCard({ title, subtitle, icon, onPress }) {
+function SmartCard({ title, subtitle, icon, onPress, style }) {
   return (
-    <TouchableOpacity style={styles.smartCard} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity style={[styles.smartCard, style]} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.smartIcon}>
         <FontAwesome name={icon} size={16} color="#fff" />
       </View>
@@ -297,12 +321,22 @@ function SmartCard({ title, subtitle, icon, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, width: '100%', backgroundColor: '#F6F8FF' },
+  scrollContent: {
+    width: '100%',
+    paddingBottom: 28,
+    alignItems: 'center',
+  },
+  contentBand: {
+    width: '100%',
+    alignSelf: 'center',
+  },
   hero: {
-    paddingHorizontal: 24,
     paddingTop: 44,
     paddingBottom: 28,
+    width: '100%',
   },
+  heroMobile: { paddingTop: 32, paddingBottom: 24 },
   heroTitle: {
     fontSize: 40,
     fontWeight: '900',
@@ -311,9 +345,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroSubtitle: {
-    fontSize: 18,
+    fontSize: font('bodyLarge'),
+    lineHeight: lh('bodyLarge'),
     fontWeight: '700',
-    color: '#34495e',
+    color: textColors.secondary,
     textAlign: 'center',
     marginBottom: 14,
   },
@@ -342,7 +377,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     gap: 10,
   },
-  btnPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  btnPrimaryText: { color: '#fff', fontWeight: '800', fontSize: font('body'), lineHeight: lh('body') },
   btnSecondary: {
     backgroundColor: '#fff',
     flexDirection: 'row',
@@ -354,7 +389,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c3e50',
     gap: 8,
   },
-  btnSecondaryText: { color: '#2c3e50', fontWeight: '800', fontSize: 15 },
+  btnSecondaryText: { color: '#2c3e50', fontWeight: '800', fontSize: font('body'), lineHeight: lh('body') },
   welcomeBanner: {
     alignSelf: 'center',
     flexDirection: 'row',
@@ -366,7 +401,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
-  welcomeText: { fontSize: 14.5, fontWeight: '700', color: '#2c3e50' },
+  welcomeText: { fontSize: 16.5, fontWeight: '700', color: '#2c3e50' },
   smallLink: {
     marginTop: 14,
     alignSelf: 'center',
@@ -378,15 +413,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  smallLinkText: { fontSize: 14, fontWeight: '800', color: '#2c3e50' },
-  section: { paddingHorizontal: 24, paddingTop: 22 },
-  sectionTitle: { fontSize: 22, fontWeight: '900', color: '#2c3e50', textAlign: 'center' },
-  sectionSubtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#7f8c8d',
+  smallLinkText: { fontSize: 16, fontWeight: '800', color: '#2c3e50' },
+  section: { paddingTop: 22 },
+  sectionTitle: {
+    fontSize: font('sectionTitle'),
+    lineHeight: lh('sectionTitle'),
+    fontWeight: '900',
+    color: textColors.primary,
     textAlign: 'center',
-    lineHeight: 20,
+  },
+  sectionSubtitle: {
+    marginTop: 10,
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    color: textColors.muted,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   stepsRow: {
     marginTop: 14,
@@ -413,21 +455,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepBadgeText: { color: '#fff', fontWeight: '900' },
-  stepText: { textAlign: 'center', fontSize: 12.5, color: '#2c3e50', fontWeight: '800' },
+  stepText: { textAlign: 'center', fontSize: 17.5, color: '#2c3e50', fontWeight: '800' },
   smartGrid: {
     marginTop: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    width: '100%',
   },
   smartCard: {
-    flexBasis: 240,
-    flexGrow: 1,
     backgroundColor: '#f8f9fa',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#dfe6e9',
     padding: 14,
+  },
+  featureGrid: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    width: '100%',
+  },
+  featureCardWrap: {
+    minWidth: 0,
   },
   smartIcon: {
     width: 34,
@@ -439,19 +490,20 @@ const styles = StyleSheet.create({
   },
   smartTitle: {
     marginTop: 10,
+    fontSize: font('cardTitle'),
+    lineHeight: lh('cardTitle'),
     fontWeight: '900',
-    color: '#2c3e50',
+    color: textColors.primary,
   },
   smartSubtitle: {
-    marginTop: 6,
-    color: '#5f6f68',
-    lineHeight: 18,
-    fontSize: 12.5,
+    marginTop: 8,
+    color: textColors.secondary,
+    lineHeight: lh('body'),
+    fontSize: font('body'),
     fontWeight: '700',
   },
   ctaBox: {
     marginTop: 22,
-    marginHorizontal: 24,
     backgroundColor: '#27ae60',
     borderRadius: 18,
     padding: 16,
@@ -459,8 +511,12 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
   },
+  ctaBoxMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
   ctaTitle: { color: '#fff', fontWeight: '900', fontSize: 16 },
-  ctaText: { color: 'rgba(255,255,255,0.9)', marginTop: 4, fontSize: 12.5, lineHeight: 18 },
+  ctaText: { color: 'rgba(255,255,255,0.9)', marginTop: 4, fontSize: 17.5, lineHeight: 18 },
   ctaBtn: {
     backgroundColor: 'rgba(0,0,0,0.18)',
     borderRadius: 14,
@@ -472,7 +528,6 @@ const styles = StyleSheet.create({
   },
   ctaBtnText: { color: '#fff', fontWeight: '900' },
   footerWrap: {
-    paddingHorizontal: 24,
     paddingTop: 18,
     paddingBottom: 10,
   },
@@ -504,7 +559,7 @@ const styles = StyleSheet.create({
   },
   footerBrandText: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: 16,
     lineHeight: 18,
     color: '#5f6f68',
   },
@@ -522,7 +577,7 @@ const styles = StyleSheet.create({
     borderColor: '#dcefe2',
   },
   footerLinkText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
     color: '#2c3e50',
   },
@@ -540,7 +595,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   footerInfoText: {
-    fontSize: 13,
+    fontSize: 16,
     color: '#486056',
     fontWeight: '600',
   },

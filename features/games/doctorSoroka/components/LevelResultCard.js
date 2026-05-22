@@ -31,7 +31,7 @@ export default function LevelResultCard({ summary }) {
 
 const styles = StyleSheet.create({
   text: {
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     color: '#1E293B',
   },
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   subjectRow: {
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 22,
     color: '#334155',
   },

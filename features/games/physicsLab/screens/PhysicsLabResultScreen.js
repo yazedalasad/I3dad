@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   summaryBody: {
     marginTop: 8,
     color: '#334155',
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
   },
   chips: {
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   subjectText: {
     color: '#334155',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 22,
   },
   feedbackCard: {
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   feedbackText: {
     marginTop: 8,
     color: '#334155',
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
   },
 });

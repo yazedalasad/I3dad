@@ -15,11 +15,17 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import adaptiveTestService from '../../services/adaptiveTestService';
 import { getAllSubjects } from '../../services/questionService';
+import {
+  font,
+  lh,
+  textColors,
+  touchTargets,
+} from '../../src/theme/typography';
 
 function StatChip({ icon, label }) {
   return (
     <View style={styles.statChip}>
-      <Ionicons name={icon} size={16} color="#EAF0FF" />
+      <Ionicons name={icon} size={18} color={textColors.onHero} />
       <Text style={styles.statChipText}>{label}</Text>
     </View>
   );
@@ -43,14 +49,12 @@ function SubjectTile({ subject, t, isArabic }) {
           </Text>
         </View>
 
-        <Text style={styles.tileTitle} numberOfLines={1}>
-          {name}
-        </Text>
+        <Text style={styles.tileTitle}>{name}</Text>
       </View>
 
       <View style={styles.tileMetaRow}>
-        <Ionicons name="albums-outline" size={14} color="#546A99" />
-        <Text style={styles.tileMetaText} numberOfLines={1}>
+        <Ionicons name="albums-outline" size={18} color={textColors.muted} />
+        <Text style={styles.tileMetaText}>
           {t(
             'totalExam.inTotalExam',
             isArabic ? 'ضمن الاختبار الشامل' : 'כלול במבחן המלא'
@@ -448,7 +452,7 @@ export default function TotalExamScreen({
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="play" size={18} color="#fff" />
+                  <Ionicons name="play" size={22} color="#fff" />
                   <Text style={styles.startBtnText}>
                     {t(
                       'totalExam.start',
@@ -515,19 +519,43 @@ export default function TotalExamScreen({
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F6F8FF' },
+  page: {
+    flex: 1,
+    backgroundColor: '#F6F8FF',
+    width: '100%',
+  },
   listContent: { paddingBottom: 22 },
 
-  hero: { padding: 18, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  hero: { padding: 22, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   heroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   heroTextBlock: { flex: 1, paddingRight: 10 },
-  heroTitle: { color: '#fff', fontWeight: '900', fontSize: 22 },
-  heroSubtitle: { color: '#EAF0FF', marginTop: 6, fontWeight: '800' },
-  heroDesc: { color: '#DDE7FF', marginTop: 10, lineHeight: 20, fontWeight: '600' },
+  heroTitle: {
+    color: textColors.inverse,
+    fontWeight: '900',
+    fontSize: font('heroTitle'),
+    lineHeight: lh('heroTitle'),
+    textAlign: 'right',
+  },
+  heroSubtitle: {
+    color: textColors.onHero,
+    marginTop: 8,
+    fontWeight: '800',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    textAlign: 'right',
+  },
+  heroDesc: {
+    color: textColors.onHeroMuted,
+    marginTop: 10,
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    fontWeight: '700',
+    textAlign: 'right',
+  },
 
   abstractBox: {
     width: 82,
@@ -566,27 +594,56 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.16)',
   },
-  statChipText: { color: '#EAF0FF', fontWeight: '800' },
+  statChipText: {
+    color: textColors.onHero,
+    fontWeight: '800',
+    fontSize: font('badge'),
+    lineHeight: lh('badge'),
+  },
 
-  section: { paddingHorizontal: 16, paddingTop: 16 },
-  sectionTitle: { color: '#102A68', fontWeight: '900', fontSize: 16 },
-  sectionHint: { color: '#546A99', marginTop: 6, fontWeight: '700' },
+  section: { paddingHorizontal: 18, paddingTop: 18 },
+  sectionTitle: {
+    color: textColors.primary,
+    fontWeight: '900',
+    fontSize: font('sectionTitle'),
+    lineHeight: lh('sectionTitle'),
+    textAlign: 'right',
+  },
+  sectionHint: {
+    color: textColors.muted,
+    marginTop: 8,
+    fontWeight: '700',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+    textAlign: 'right',
+  },
 
   centerBox: { paddingVertical: 16, alignItems: 'center', gap: 8 },
-  loadingText: { color: '#546A99', fontWeight: '800' },
+  loadingText: {
+    color: textColors.muted,
+    fontWeight: '800',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+  },
 
   gridRow: { paddingHorizontal: 16, gap: 10 },
   tile: {
     flex: 1,
     backgroundColor: '#fff',
     borderRadius: 18,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5ECFF',
-    minHeight: 88,
+    minHeight: 100,
   },
-  tileTopRow: { flexDirection: 'column', gap: 8 },
-  tileTitle: { color: '#102A68', fontWeight: '900', textAlign: 'right', fontSize: 14 },
+  tileTopRow: { flexDirection: 'column', gap: 10 },
+  tileTitle: {
+    color: textColors.primary,
+    fontWeight: '900',
+    textAlign: 'right',
+    fontSize: font('cardTitle'),
+    lineHeight: lh('cardTitle'),
+  },
 
   tileBadge: {
     alignSelf: 'flex-end',
@@ -594,14 +651,26 @@ const styles = StyleSheet.create({
     gap: 6,
     alignItems: 'center',
     backgroundColor: '#1E4FBF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
   },
-  tileBadgeText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+  tileBadgeText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: font('badge'),
+    lineHeight: lh('badge'),
+  },
 
-  tileMetaRow: { marginTop: 8, flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
-  tileMetaText: { color: '#546A99', fontWeight: '700', textAlign: 'right', fontSize: 12 },
+  tileMetaRow: { marginTop: 10, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
+  tileMetaText: {
+    color: textColors.muted,
+    fontWeight: '800',
+    textAlign: 'right',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+    flex: 1,
+  },
 
   footer: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
   profileWarningBox: { gap: 10, alignItems: 'center' },
@@ -617,17 +686,29 @@ const styles = StyleSheet.create({
   },
   profileBtnText: { color: '#fff', fontWeight: '900' },
   startBtn: {
-    height: 52,
+    minHeight: touchTargets.examButtonMinHeight,
     borderRadius: 16,
     backgroundColor: '#1E4FBF',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 20,
   },
   startBtnDisabled: { opacity: 0.6 },
   startBtnPressed: { transform: [{ scale: 0.99 }] },
-  startBtnText: { color: '#fff', fontWeight: '900' },
+  startBtnText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: font('button'),
+    lineHeight: lh('button'),
+  },
 
-  warnText: { color: '#B42318', fontWeight: '800', textAlign: 'center' },
+  warnText: {
+    color: '#B42318',
+    fontWeight: '800',
+    textAlign: 'center',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+  },
 });

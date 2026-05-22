@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginTop: 12,
-    fontSize: 14,
+    fontSize: 16,
     color: '#475569',
     fontWeight: '600',
   },

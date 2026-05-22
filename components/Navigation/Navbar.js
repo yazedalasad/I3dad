@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { font, lh, textColors } from '../../src/theme/typography';
 import FloatingLanguageSwitcher from '../FloatingLanguageSwitcher';
 
 export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBackPress }) {
@@ -47,10 +48,12 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
         { id: 'login', icon: 'sign-in' },
       ];
   const isCompact = width < 720;
+  const isDesktop = width >= 1024;
   const navItemWidth = isCompact ? Math.max(76, Math.floor((width - 96) / 4)) : undefined;
 
   return (
     <View style={styles.container}>
+      <View style={[styles.inner, isDesktop && styles.innerDesktop]}>
       <View style={[styles.topRow, isRTL && styles.topRowRtl]}>
         <View style={styles.languageSlot}>
           <FloatingLanguageSwitcher inline />
@@ -63,8 +66,8 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
         >
           <FontAwesome
             name={isRTL ? 'arrow-right' : 'arrow-left'}
-            size={18}
-            color={canGoBack ? '#0f172a' : 'transparent'}
+            size={20}
+            color={canGoBack ? textColors.primary : 'transparent'}
           />
           <Text style={[styles.backLabel, !canGoBack && styles.backLabelHidden]}>
             {label('common.back', 'Back')}
@@ -92,14 +95,11 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
                 <View style={[styles.iconWrap, isActive && styles.activeIconWrap]}>
                   <FontAwesome
                     name={tab.icon}
-                    size={22}
-                    color={isActive ? '#16a34a' : '#94A3B8'}
+                    size={26}
+                    color={isActive ? '#16a34a' : textColors.muted}
                   />
                 </View>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.label, isActive && styles.activeLabel, isRTL && styles.rtlLabel]}
-                >
+                <Text style={[styles.label, isActive && styles.activeLabel, isRTL && styles.rtlLabel]}>
                   {label(`navigation:tabs.${tab.id}`, tab.id)}
                 </Text>
                 {isActive ? <View style={styles.activeGlow} /> : null}
@@ -155,18 +155,28 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
           ) : null}
         </View>
       </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     paddingHorizontal: 18,
     paddingTop: 14,
     paddingBottom: 18,
     backgroundColor: '#f8fbff',
     borderBottomWidth: 1,
     borderBottomColor: '#d9e6f5',
+  },
+  inner: {
+    width: '100%',
+    maxWidth: 1440,
+    alignSelf: 'center',
+  },
+  innerDesktop: {
+    paddingHorizontal: 6,
   },
   topRow: {
     flexDirection: 'row-reverse',
@@ -202,8 +212,9 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   backLabel: {
-    fontSize: 14,
-    color: '#0f172a',
+    fontSize: font('navLabel'),
+    lineHeight: lh('navLabel'),
+    color: textColors.primary,
     fontWeight: '900',
   },
   backLabelHidden: {
@@ -273,7 +284,7 @@ const styles = StyleSheet.create({
   },
   accountDropdownText: {
     color: '#0f766e',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
   },
   accountDropdownDangerText: {
@@ -347,8 +358,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   label: {
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: font('navLabel'),
+    lineHeight: lh('navLabel'),
+    color: textColors.muted,
     marginTop: 8,
     textAlign: 'center',
     fontWeight: '800',
@@ -356,6 +368,8 @@ const styles = StyleSheet.create({
   activeLabel: {
     color: '#15803d',
     fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
   },
   rtlLabel: {
     writingDirection: 'rtl',

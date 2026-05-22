@@ -585,8 +585,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroTitle: { fontWeight: '900', fontSize: 18, color: COLORS.text, textAlign: 'right' },
-  heroSub: { marginTop: 2, fontWeight: '800', color: COLORS.muted, textAlign: 'right', fontSize: 12 },
-  heroText: { marginTop: 10, color: COLORS.muted, lineHeight: 20, fontSize: 13, textAlign: 'right' },
+  heroSub: { marginTop: 2, fontWeight: '800', color: COLORS.muted, textAlign: 'right', fontSize: 17 },
+  heroText: { marginTop: 10, color: COLORS.muted, lineHeight: 20, fontSize: 16, textAlign: 'right' },
   infoGrid: { marginTop: 2, gap: 10 },
   infoGridWide: {
     flex: 1,
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoTitle: { fontWeight: '900', color: COLORS.text, textAlign: 'right' },
-  infoDesc: { marginTop: 2, fontWeight: '800', color: COLORS.muted, textAlign: 'right', fontSize: 12 },
+  infoDesc: { marginTop: 2, fontWeight: '800', color: COLORS.muted, textAlign: 'right', fontSize: 17 },
   chipsRow: { marginTop: 14, flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row-reverse',
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   chipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
-  chipText: { fontWeight: '900', color: COLORS.green, fontSize: 12 },
+  chipText: { fontWeight: '900', color: COLORS.green, fontSize: 17 },
   chipTextActive: { color: '#fff' },
   sectionRow: {
     marginTop: 16,
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionTitle: { fontWeight: '900', fontSize: 16, color: COLORS.text, textAlign: 'right' },
-  sectionHint: { color: COLORS.muted, fontWeight: '700', fontSize: 12, textAlign: 'right' },
+  sectionHint: { color: COLORS.muted, fontWeight: '700', fontSize: 17, textAlign: 'right' },
   heroExamplesBlock: {
     marginTop: 16,
     paddingTop: 14,
@@ -652,12 +652,12 @@ const styles = StyleSheet.create({
   },
   heroExamplesTitle: {
     fontWeight: '900',
-    fontSize: 15,
+    fontSize: 17,
     color: COLORS.text,
     textAlign: 'right',
   },
   heroExamplesHint: {
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.muted,
     textAlign: 'right',
@@ -692,8 +692,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   exampleIconText: { fontSize: 18 },
-  exampleTitle: { marginTop: 10, fontWeight: '900', color: COLORS.text, textAlign: 'right', fontSize: 14 },
-  exampleDesc: { marginTop: 6, color: COLORS.muted, lineHeight: 18, fontSize: 12, textAlign: 'right' },
+  exampleTitle: { marginTop: 10, fontWeight: '900', color: COLORS.text, textAlign: 'right', fontSize: 16 },
+  exampleDesc: { marginTop: 6, color: COLORS.muted, lineHeight: 18, fontSize: 17, textAlign: 'right' },
   faqWrap: {
     marginTop: 10,
     backgroundColor: COLORS.card,
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#dcfce7',
   },
-  cornerTagText: { fontWeight: '900', fontSize: 12, color: COLORS.green },
+  cornerTagText: { fontWeight: '900', fontSize: 17, color: COLORS.green },
   seatsPill: {
     position: 'absolute',
     bottom: 10,
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  seatsText: { fontWeight: '900', color: COLORS.text, fontSize: 12 },
+  seatsText: { fontWeight: '900', color: COLORS.text, fontSize: 17 },
   cardBody: { padding: 14, paddingTop: 13, flexGrow: 1 },
   metaStrip: {
     flexDirection: 'row-reverse',
@@ -779,11 +779,11 @@ const styles = StyleSheet.create({
   },
   metaChipText: {
     color: '#166534',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
   },
   title: { fontWeight: '900', fontSize: 17, marginBottom: 6, color: COLORS.text, textAlign: 'right' },
-  desc: { fontSize: 13, color: COLORS.muted, lineHeight: 20, textAlign: 'right' },
+  desc: { fontSize: 16, color: COLORS.muted, lineHeight: 20, textAlign: 'right' },
   schoolRow: {
     marginTop: 10,
     flexDirection: 'row-reverse',
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   schoolText: {
     flex: 1,
     color: '#2563eb',
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '900',
     textAlign: 'right',
   },
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: COLORS.green,
   },
-  ctaMiniText: { color: '#fff', fontWeight: '900', fontSize: 12 },
+  ctaMiniText: { color: '#fff', fontWeight: '900', fontSize: 17 },
   emptyWrap: {
     marginTop: 14,
     backgroundColor: COLORS.card,

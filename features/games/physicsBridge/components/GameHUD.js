@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: '#475569',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'center',
   },

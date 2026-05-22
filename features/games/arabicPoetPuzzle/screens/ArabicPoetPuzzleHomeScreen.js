@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   exitButtonText: {
     color: '#F7E4BE',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     writingDirection: 'rtl',
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   mainSubtitle: {
     marginTop: 4,
     color: '#E8D4AF',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   levelTheme: {
     marginTop: 8,
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   lockedText: {
     marginTop: 8,
     color: '#8F5B32',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   completedText: {
     marginTop: 8,
     color: '#2F7D45',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     textAlign: 'right',
     writingDirection: 'rtl',

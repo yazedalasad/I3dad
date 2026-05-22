@@ -199,7 +199,14 @@ function buildExplanation(bestRecommendation, strengths, gameSignals) {
 function buildNextSteps({ bestRecommendation, hasPersonality, hasGames }) {
   const degreeName = bestRecommendation?.name || 'التخصص المقترح';
   const steps = [
-    { key: 'report', title: 'افتح التقرير الكامل', route: 'studentInsightReport', icon: 'document-text' },
+    {
+      key: 'report',
+      title: 'تقرير الرؤية التعليمية (الأحدث)',
+      title_he: 'דו"ח תובנות לימודיות (מעודכן)',
+      title_en: 'Student insight report (latest)',
+      route: 'studentInsightReport',
+      icon: 'document-text',
+    },
     { key: 'recommendations', title: 'شاهد كل التوصيات', route: 'recommendations', icon: 'compass' },
     { key: 'miniTasks', title: `جرّب مهمة قصيرة في ${degreeName}`, route: 'miniTasks', icon: 'bulb' },
     { key: 'games', title: 'العب لعبة جديدة', route: 'games', icon: 'game-controller' },
@@ -295,6 +302,7 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     gameSignalSummary,
     topDegreesRes,
     institutionsRes,
+    completedTestSessionsRes,
   ] = await Promise.all([
     supabase.from('students').select('*').eq('id', studentId).maybeSingle(),
     supabase.from('student_abilities').select('*, subjects(name_ar, name_he, name_en, code)').eq('student_id', studentId),
@@ -309,6 +317,13 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     getStudentGameCareerSignalSummary(studentId),
     recommendTopDegrees(studentId, { language, limit: 5 }),
     getRecommendedMajorsWithInstitutions(studentId, { language, limit: 5 }),
+    supabase
+      .from('test_sessions')
+      .select('id, session_type, status, started_at, completed_at')
+      .eq('student_id', studentId)
+      .eq('status', 'completed')
+      .order('started_at', { ascending: false })
+      .limit(25),
   ]);
 
   if (studentRes.error) throw studentRes.error;
@@ -368,6 +383,10 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
   const learningPotential = buildLearningPotential(learningPotentialRows, gameSessions);
   const explanation = buildExplanation(bestRecommendation, strengths, gameSignals);
 
+  const completedSessions = completedTestSessionsRes.error ? [] : completedTestSessionsRes.data || [];
+  const latestFullAssessmentSession =
+    completedSessions.find((s) => s.session_type === 'full_assessment') || completedSessions[0] || null;
+
   return {
     student: { ...student, display_name: studentName(student) },
     profileCompletion,
@@ -386,6 +405,10 @@ export async function buildStudentProfileSummary(studentId, options = {}) {
     recommendedInstitutions: buildRecommendedInstitutions(institutionRecommendations, language),
     learningPotential,
     nextSteps: buildNextSteps({ bestRecommendation, hasPersonality: Boolean(personality), hasGames }),
+    /** Latest completed comprehensive (`full_assessment`) session for StudentInsightReportScreen */
+    insightReport: {
+      abilitySessionId: latestFullAssessmentSession?.id || null,
+    },
     explanation,
     dataQuality: {
       fullAssessmentCompleted: hasAssessment,

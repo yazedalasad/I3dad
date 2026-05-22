@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   heroContent: {
@@ -459,13 +459,13 @@ const styles = StyleSheet.create({
   },
   verticalStepTitle: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     marginBottom: 4,
   },
   verticalStepText: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 13.5,
+    fontSize: 16.5,
     lineHeight: 21,
   },
   formContainer: {
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   },
   formBadgeText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   formTitle: {
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   formLead: {
     marginTop: 8,
     marginBottom: 24,
-    fontSize: 14.5,
+    fontSize: 16.5,
     lineHeight: 22,
     color: '#5f7268',
     textAlign: 'left',
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     color: '#166534',
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 20,
     textAlign: 'right',
     fontWeight: '700',
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   rtlText: {
