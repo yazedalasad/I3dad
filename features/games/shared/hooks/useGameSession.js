@@ -34,6 +34,9 @@ export function useGameSession() {
   const actionsRef = useRef([]);
   const correctAnswersRef = useRef(0);
   const totalAnswersRef = useRef(0);
+  const startingRef = useRef(false);
+  const completingRef = useRef(false);
+  const completedResultRef = useRef(null);
 
   const resetLocalState = useCallback(() => {
     setSession(null);
@@ -46,6 +49,8 @@ export function useGameSession() {
     actionsRef.current = [];
     correctAnswersRef.current = 0;
     totalAnswersRef.current = 0;
+    completedResultRef.current = null;
+    completingRef.current = false;
   }, []);
 
   const startSession = useCallback(async ({
@@ -55,7 +60,12 @@ export function useGameSession() {
     language,
     currentSceneId,
   }) => {
+    if (startingRef.current) {
+      return session;
+    }
+
     try {
+      startingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -101,9 +111,10 @@ export function useGameSession() {
       setError(err);
       throw err;
     } finally {
+      startingRef.current = false;
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   const logAction = useCallback(async ({
     sceneId,
@@ -162,17 +173,48 @@ export function useGameSession() {
       throw new Error('No active session');
     }
 
-    const averageDecisionTimeMs =
-      actionsRef.current.length > 0
-        ? Math.round(
-            actionsRef.current
-              .map((item) => item.timeToChooseMs)
-              .filter((item) => typeof item === 'number')
-              .reduce((sum, value, _, arr) => sum + value / arr.length, 0)
-          )
-        : 0;
+    if (session.status === 'completed') {
+      return (
+        completedResultRef.current || {
+          session,
+          scores: scoresRef.current,
+          topSubjects: getTopSubjects(scoresRef.current),
+          analytics: null,
+        }
+      );
+    }
 
-    const completionRate = 1;
+    if (completingRef.current) {
+      return new Promise((resolve, reject) => {
+        const waitForComplete = () => {
+          if (completedResultRef.current) {
+            resolve(completedResultRef.current);
+            return;
+          }
+          if (!completingRef.current) {
+            reject(new Error('Session completion failed'));
+            return;
+          }
+          setTimeout(waitForComplete, 50);
+        };
+        waitForComplete();
+      });
+    }
+
+    completingRef.current = true;
+
+    try {
+      const averageDecisionTimeMs =
+        actionsRef.current.length > 0
+          ? Math.round(
+              actionsRef.current
+                .map((item) => item.timeToChooseMs)
+                .filter((item) => typeof item === 'number')
+                .reduce((sum, value, _, arr) => sum + value / arr.length, 0)
+            )
+          : 0;
+
+      const completionRate = 1;
     const engagementScore = estimateEngagementScore({
       actionsCount: actionsRef.current.length,
       completionRate,
@@ -224,17 +266,23 @@ export function useGameSession() {
 
     setSession(updated);
 
-    return {
-      session: updated,
-      scores: analytics.normalizedScores,
-      topSubjects: analytics.topSubjects,
-      analytics: {
-        ...analytics,
-        engagementScore: finalEngagementScore,
-        trustScore: finalTrustScore,
-      },
-    };
-  }, [session?.id]);
+      const result = {
+        session: updated,
+        scores: analytics.normalizedScores,
+        topSubjects: analytics.topSubjects,
+        analytics: {
+          ...analytics,
+          engagementScore: finalEngagementScore,
+          trustScore: finalTrustScore,
+        },
+      };
+
+      completedResultRef.current = result;
+      return result;
+    } finally {
+      completingRef.current = false;
+    }
+  }, [session]);
 
   const abandonSession = useCallback(async ({ currentSceneId } = {}) => {
     if (!session?.id) {

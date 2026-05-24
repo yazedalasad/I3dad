@@ -4,6 +4,8 @@ import { supabase } from '../../../../config/supabase';
 import { processCompletedGameSession } from '../../../../services/gameCareerSignalService';
 import { recommendTopDegreesAfterSession } from '../../../../services/recommendationService';
 
+const processedCompletedSessionIds = new Set();
+
 const GAME_CATALOG_ROWS = {
   doctor_soroka: {
     game: { id: 'doctor_soroka', title: 'Doctor at Soroka', domain: 'clinical_reasoning', language: 'he', status: 'active' },
@@ -231,7 +233,8 @@ export async function updateGameSession(sessionId, input) {
 
   if (error) throw error;
 
-  if (data?.status === 'completed') {
+  if (data?.status === 'completed' && !processedCompletedSessionIds.has(sessionId)) {
+    processedCompletedSessionIds.add(sessionId);
     processCompletedGameSession(data)
       .then(async () => {
         await recommendTopDegreesAfterSession(data.student_id, { limit: 5 });

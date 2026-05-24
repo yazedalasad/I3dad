@@ -1,7 +1,7 @@
 // screens/AdaptiveTest/TotalExamScreen.js
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -175,6 +175,7 @@ export default function TotalExamScreen({
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
   const [startError, setStartError] = useState('');
 
   const effectiveStudentId =
@@ -242,6 +243,7 @@ export default function TotalExamScreen({
   }, []);
 
   const startTotalExam = async () => {
+    if (startingRef.current) return;
     setStartError('');
 
     if (!effectiveStudentId) {
@@ -274,6 +276,7 @@ export default function TotalExamScreen({
     }
 
     setStarting(true);
+    startingRef.current = true;
 
     try {
       const res = await adaptiveTestService.startComprehensiveAssessment({
@@ -305,6 +308,7 @@ export default function TotalExamScreen({
       });
     } finally {
       setStarting(false);
+      startingRef.current = false;
     }
   };
 

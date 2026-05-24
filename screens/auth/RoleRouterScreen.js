@@ -55,7 +55,7 @@ async function getProfileRole(userId) {
 }
 
 export default function RoleRouterScreen({ navigateTo }) {
-  const { user, initializingAuth, profile, studentDataLoading } = useAuth();
+  const { user, initializingAuth, profile, studentDataLoading, profileError } = useAuth();
   const { t } = useTranslation();
   const navRef = useRef(navigateTo);
   const routedRef = useRef(false);
@@ -71,6 +71,12 @@ export default function RoleRouterScreen({ navigateTo }) {
     const route = async () => {
       if (initializingAuth || studentDataLoading || routedRef.current) return;
 
+      if (profileError) {
+        routedRef.current = true;
+        navRef.current('login', {}, { replace: true });
+        return;
+      }
+
       setStatusText('Checking session...');
       const authUser = user || (await getFreshAuthUser());
 
@@ -82,7 +88,7 @@ export default function RoleRouterScreen({ navigateTo }) {
         return;
       }
 
-      setStatusText('Checking role...');
+      if (!cancelled) setStatusText('Checking role...');
       const metadataRole = roleFromUser(authUser);
       const contextRole = normalizeRole(profile?.role);
       const dbRole = metadataRole || contextRole ? '' : await getProfileRole(authUser.id);
@@ -113,7 +119,7 @@ export default function RoleRouterScreen({ navigateTo }) {
     return () => {
       cancelled = true;
     };
-  }, [user, initializingAuth, studentDataLoading, profile?.role]);
+  }, [user, initializingAuth, studentDataLoading, profile?.role, profileError]);
 
   return (
     <View style={styles.container}>

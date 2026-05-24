@@ -84,6 +84,7 @@ export function useSudokuGame({ difficulty = 'easy', level = null, studentId = n
   const [selectedConflictCell, setSelectedConflictCell] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedMsRef = useRef(0);
+  const endingRef = useRef(false);
 
   useEffect(() => {
     elapsedMsRef.current = elapsedSeconds * 1000;
@@ -172,11 +173,17 @@ export function useSudokuGame({ difficulty = 'easy', level = null, studentId = n
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     const nextPuzzle = loadValidPuzzle();
-    if (nextPuzzle) {
+    if (nextPuzzle && !cancelled) {
       setPuzzle(nextPuzzle);
       initializeBoard(nextPuzzle);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeLevel, puzzleDifficulty, loadValidPuzzle, initializeBoard]);
 
   useEffect(() => {
@@ -186,6 +193,11 @@ export function useSudokuGame({ difficulty = 'easy', level = null, studentId = n
 
   const startGame = useCallback(async () => {
     if (!studentId || !puzzle?.id) return false;
+
+    const existingSession = sessionApi.session;
+    if (existingSession?.id && existingSession.status === 'completed') {
+      sessionApi.resetLocalState();
+    }
 
     if (!sessionApi.session?.id) {
       await sessionApi.startSession({
@@ -198,7 +210,7 @@ export function useSudokuGame({ difficulty = 'easy', level = null, studentId = n
     }
 
     return true;
-  }, [studentId, sessionApi, puzzle?.id, puzzleDifficulty, activeLevel]);
+  }, [studentId, sessionApi, puzzle?.id, activeLevel]);
 
   const finishGame = useCallback(
     async (completed, unlockedLevel = null) => {
@@ -251,21 +263,30 @@ export function useSudokuGame({ difficulty = 'easy', level = null, studentId = n
 
   const endWithStatus = useCallback(
     async (status) => {
-      if (gameStatus === 'won' || gameStatus === 'lost') {
+      if (endingRef.current || gameStatus === 'won' || gameStatus === 'lost') {
         return gameResult;
       }
+      endingRef.current = true;
+
       setGameStatus(status);
       const completed = status === 'won';
       let unlockedLevel = null;
-      if (completed) {
-        unlockedLevel = await unlockSudokuLevelAfterCompletion(activeLevel, studentId);
-      } else {
-        unlockedLevel = await getSudokuUnlockedLevel(studentId);
+
+      try {
+        if (completed) {
+          unlockedLevel = await unlockSudokuLevelAfterCompletion(activeLevel, studentId);
+        } else {
+          unlockedLevel = await getSudokuUnlockedLevel(studentId);
+        }
+        const payload = await finishGame(completed, unlockedLevel);
+        const result = { status, ...payload };
+        setGameResult(result);
+        return result;
+      } catch (error) {
+        console.error('[Sudoku] endWithStatus failed:', error?.message || error);
+        endingRef.current = false;
+        throw error;
       }
-      const payload = await finishGame(completed, unlockedLevel);
-      const result = { status, ...payload };
-      setGameResult(result);
-      return result;
     },
     [finishGame, gameStatus, gameResult, activeLevel, studentId]
   );
@@ -476,6 +497,7 @@ export function useSudokuGame({ difficulty = 'easy', level = null, studentId = n
   }, [gameStatus]);
 
   const restartWithNewPuzzle = useCallback(() => {
+    endingRef.current = false;
     const nextPuzzle = loadValidPuzzle();
     if (!nextPuzzle) return;
     setPuzzle(nextPuzzle);

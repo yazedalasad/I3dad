@@ -405,7 +405,7 @@ export default function SignupScreen({ navigateTo }) {
         return;
       }
 
-      navigateTo('roleRouter');
+      // Post-signup routing is handled by ManualNavigator once session/profile are ready.
     } finally {
       setLoading(false);
       submitRef.current = false;

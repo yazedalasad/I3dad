@@ -91,6 +91,12 @@ export default function AdaptiveTestScreen({
 
   // ✅ keep current question paused time if user jumps away (optional but helpful)
   const pausedCurrentTimeLeftRef = useRef(null);
+  const submittingRef = useRef(false);
+  const finishingRef = useRef(false);
+  const loadSeqRef = useRef(0);
+  const timeoutHandledRef = useRef(false);
+  const mountedRef = useRef(true);
+  const skippedCountRef = useRef(0);
 
   /* -------------------- DERIVED -------------------- */
   const totals = useMemo(() => {
@@ -177,6 +183,7 @@ export default function AdaptiveTestScreen({
 
     return () => {
       mounted = false;
+      mountedRef.current = false;
       stopTimer();
       stopHeartbeat();
       stopAppStateTracking();
@@ -228,6 +235,7 @@ export default function AdaptiveTestScreen({
   /* -------------------- TIMER -------------------- */
   function startTimer(initialSeconds = QUESTION_TIME_LIMIT) {
     stopTimer();
+    timeoutHandledRef.current = false;
     questionStartRef.current = Date.now();
     setTimeLeft(initialSeconds);
 
@@ -235,7 +243,14 @@ export default function AdaptiveTestScreen({
       setTimeLeft((tsec) => {
         if (tsec <= 1) {
           stopTimer();
-          handleAutoTimeout(); // Option A => becomes pending
+          if (
+            !submittingRef.current &&
+            !finishingRef.current &&
+            !timeoutHandledRef.current
+          ) {
+            timeoutHandledRef.current = true;
+            queueMicrotask(() => handleAutoTimeout());
+          }
           return 0;
         }
         return tsec - 1;
@@ -255,6 +270,9 @@ export default function AdaptiveTestScreen({
 
   /* -------------------- QUESTIONS -------------------- */
   async function loadNextQuestion(currentStates) {
+    if (finishingRef.current) return;
+
+    const seq = ++loadSeqRef.current;
     setFetchingQuestion(true);
 
     // leaving history mode when fetching a new question
@@ -268,6 +286,8 @@ export default function AdaptiveTestScreen({
         subjectStates: currentStates,
       });
 
+      if (seq !== loadSeqRef.current || finishingRef.current) return;
+
       if (next?.success === false) {
         console.log('Next question error:', next.error);
 
@@ -276,7 +296,6 @@ export default function AdaptiveTestScreen({
           return;
         }
 
-        setFetchingQuestion(false);
         return;
       }
 
@@ -290,11 +309,14 @@ export default function AdaptiveTestScreen({
     } catch (e) {
       console.log('loadNextQuestion error:', e);
     } finally {
-      setFetchingQuestion(false);
+      if (seq === loadSeqRef.current) {
+        setFetchingQuestion(false);
+      }
     }
   }
 
   async function handleAnswer(answer) {
+    if (submittingRef.current || finishingRef.current) return;
     if (submitting || fetchingQuestion) return;
 
     // If viewing history:
@@ -305,137 +327,154 @@ export default function AdaptiveTestScreen({
     const activeQuestion = shownQuestion;
     if (!activeQuestion) return;
 
+    submittingRef.current = true;
     setSelectedAnswer(answer);
     setSubmitting(true);
     stopTimer();
 
-    const limitForThisAttempt =
-      isViewingHistory && isViewingPending
-        ? safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT)
-        : QUESTION_TIME_LIMIT;
+    try {
+      const limitForThisAttempt =
+        isViewingHistory && isViewingPending
+          ? safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT)
+          : QUESTION_TIME_LIMIT;
 
-    const timeTakenSeconds =
-      isViewingHistory && isViewingPending
-        ? Math.max(0, Math.floor(limitForThisAttempt - safeNum(timeLeft, 0)))
-        : Math.floor((Date.now() - questionStartRef.current) / 1000);
+      const timeTakenSeconds =
+        isViewingHistory && isViewingPending
+          ? Math.max(0, Math.floor(limitForThisAttempt - safeNum(timeLeft, 0)))
+          : Math.floor((Date.now() - questionStartRef.current) / 1000);
 
-    const result = await adaptiveTestService.submitComprehensiveAnswer({
-      sessionId,
-      studentId,
-      question: activeQuestion,
-      selectedAnswer: answer,
-      timeTakenSeconds,
-      subjectStates,
-      questionOrder: isViewingHistory ? viewingHistoryIndex + 1 : history.length + 1,
-      subjectStatesFromUi: subjectStates,
-    });
+      const result = await adaptiveTestService.submitComprehensiveAnswer({
+        sessionId,
+        studentId,
+        question: activeQuestion,
+        selectedAnswer: answer,
+        timeTakenSeconds,
+        subjectStates,
+        questionOrder: isViewingHistory ? viewingHistoryIndex + 1 : history.length + 1,
+        subjectStatesFromUi: subjectStates,
+      });
 
-    if (!result?.success) {
-      setSubmitting(false);
+      if (!result?.success) {
+        if (isViewingHistory && isViewingPending) {
+          startTimer(safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT));
+        } else {
+          startTimer(QUESTION_TIME_LIMIT);
+        }
+        return;
+      }
 
       if (isViewingHistory && isViewingPending) {
-        startTimer(safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT));
-      } else {
-        startTimer(QUESTION_TIME_LIMIT);
-      }
-      return;
-    }
+        setHistory((prev) => {
+          const copy = [...prev];
+          const old = copy[viewingHistoryIndex];
+          copy[viewingHistoryIndex] = {
+            ...old,
+            selectedAnswer: answer,
+            timeTakenSeconds,
+            status: 'answered',
+            timeLeftWhenLeft: null,
+          };
+          return copy;
+        });
 
-    if (isViewingHistory && isViewingPending) {
-      setHistory((prev) => {
-        const copy = [...prev];
-        const old = copy[viewingHistoryIndex];
-        copy[viewingHistoryIndex] = {
-          ...old,
+        setSubjectStates(result.subjectStates);
+
+        setViewingHistoryIndex(null);
+        const paused = pausedCurrentTimeLeftRef.current;
+        if (paused != null) startTimer(paused);
+        else startTimer(QUESTION_TIME_LIMIT);
+
+        return;
+      }
+
+      setHistory((prev) => [
+        ...prev,
+        {
+          question: activeQuestion,
           selectedAnswer: answer,
           timeTakenSeconds,
           status: 'answered',
           timeLeftWhenLeft: null,
-        };
-        return copy;
-      });
+        },
+      ]);
 
-      setSubmitting(false);
       setSubjectStates(result.subjectStates);
-
-      setViewingHistoryIndex(null);
-      const paused = pausedCurrentTimeLeftRef.current;
-      if (paused != null) startTimer(paused);
-      else startTimer(QUESTION_TIME_LIMIT);
-
-      return;
+      await loadNextQuestion(result.subjectStates);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
-
-    setHistory((prev) => [
-      ...prev,
-      {
-        question: activeQuestion,
-        selectedAnswer: answer,
-        timeTakenSeconds,
-        status: 'answered',
-        timeLeftWhenLeft: null,
-      },
-    ]);
-
-    setSubmitting(false);
-    setSubjectStates(result.subjectStates);
-    await loadNextQuestion(result.subjectStates);
   }
 
   async function handleSkipQuestion() {
+    if (submittingRef.current || finishingRef.current) return;
     if (submitting || fetchingQuestion) return;
     if (!question) return;
     if (isViewingHistory) return;
 
+    submittingRef.current = true;
     setSubmitting(true);
     stopTimer();
 
-    const remaining = safeNum(timeLeft, QUESTION_TIME_LIMIT);
+    try {
+      const remaining = safeNum(timeLeft, QUESTION_TIME_LIMIT);
 
-    setHistory((prev) => [
-      ...prev,
-      {
-        question,
-        selectedAnswer: null,
-        timeTakenSeconds: null,
-        status: 'pending',
-        timeLeftWhenLeft: remaining,
-      },
-    ]);
+      setHistory((prev) => [
+        ...prev,
+        {
+          question,
+          selectedAnswer: null,
+          timeTakenSeconds: null,
+          status: 'pending',
+          timeLeftWhenLeft: remaining,
+        },
+      ]);
 
-    setSkippedCount((c) => c + 1);
+      skippedCountRef.current += 1;
+      setSkippedCount(skippedCountRef.current);
 
-    setSubmitting(false);
-    await loadNextQuestion(subjectStates);
+      await loadNextQuestion(subjectStates);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   }
 
   async function handleAutoTimeout() {
+    if (submittingRef.current || finishingRef.current) return;
     if (submitting || fetchingQuestion) return;
     if (!question) return;
     if (isViewingHistory) return;
 
+    submittingRef.current = true;
     setSubmitting(true);
     stopTimer();
 
-    setHistory((prev) => [
-      ...prev,
-      {
-        question,
-        selectedAnswer: null,
-        timeTakenSeconds: null,
-        status: 'pending',
-        timeLeftWhenLeft: 0,
-      },
-    ]);
+    try {
+      setHistory((prev) => [
+        ...prev,
+        {
+          question,
+          selectedAnswer: null,
+          timeTakenSeconds: null,
+          status: 'pending',
+          timeLeftWhenLeft: 0,
+        },
+      ]);
 
-    setSkippedCount((c) => c + 1);
+      skippedCountRef.current += 1;
+      setSkippedCount(skippedCountRef.current);
 
-    setSubmitting(false);
-    await loadNextQuestion(subjectStates);
+      await loadNextQuestion(subjectStates);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   }
 
   /* -------------------- NAVIGATOR -------------------- */
   function jumpToQuestion(item) {
+    if (submittingRef.current || finishingRef.current) return;
     if (submitting || fetchingQuestion) return;
 
     if (item.type === 'current') {
@@ -463,47 +502,64 @@ export default function AdaptiveTestScreen({
 
   /* -------------------- FINISH -------------------- */
   async function finishTest(finalStates) {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+
     stopTimer();
     stopHeartbeat();
 
     const totalTimeSpentSeconds = Math.floor((Date.now() - examStartRef.current) / 1000);
+    const finalSkippedCount = skippedCountRef.current;
 
-    await adaptiveTestService.completeComprehensiveAssessment({
-      sessionId,
-      studentId,
-      subjectStates: finalStates,
-      totalTimeSpentSeconds,
-      skippedCount,
-      language,
-    });
-
-    let recommendationRefreshError = null;
     try {
-      await abilityService.updateAbilitiesFromSession(sessionId);
-      await interestService.updateInterestsFromSession(sessionId);
-      const recommendationResult = await regenerateRecommendations(studentId, {
-        source: 'assessment_completed',
+      const completeResult = await adaptiveTestService.completeComprehensiveAssessment({
+        sessionId,
+        studentId,
+        subjectStates: finalStates,
+        totalTimeSpentSeconds,
+        skippedCount: finalSkippedCount,
+        language,
+      });
+
+      if (!completeResult?.success) {
+        console.error('finishTest failed:', completeResult?.error);
+        finishingRef.current = false;
+        return;
+      }
+
+      let recommendationRefreshError = null;
+      try {
+        await abilityService.updateAbilitiesFromSession(sessionId);
+        await interestService.updateInterestsFromSession(sessionId);
+        const recommendationResult = await regenerateRecommendations(studentId, {
+          source: 'assessment_completed',
+          sessionId,
+          language,
+          limit: 5,
+        });
+        if (!recommendationResult?.success) {
+          recommendationRefreshError = recommendationResult?.error || 'recommendations_failed';
+        }
+      } catch (error) {
+        recommendationRefreshError = error?.message || String(error);
+      }
+
+      if (!mountedRef.current) return;
+
+      navigateTo('testResults', {
+        studentId,
         sessionId,
         language,
-        limit: 5,
+        subjectNames,
+        skippedCount: finalSkippedCount,
+        totalTimeSpent: totalTimeSpentSeconds,
+        assessmentCompleted: true,
+        recommendationRefreshError,
       });
-      if (!recommendationResult?.success) {
-        recommendationRefreshError = recommendationResult?.error || 'recommendations_failed';
-      }
     } catch (error) {
-      recommendationRefreshError = error?.message || String(error);
+      console.error('finishTest error:', error?.message || error);
+      finishingRef.current = false;
     }
-
-    navigateTo('testResults', {
-      studentId,
-      sessionId,
-      language,
-      subjectNames,
-      skippedCount,
-      totalTimeSpent: totalTimeSpentSeconds,
-      assessmentCompleted: true,
-      recommendationRefreshError,
-    });
   }
 
   /* -------------------- RENDER -------------------- */

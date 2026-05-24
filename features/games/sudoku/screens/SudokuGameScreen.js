@@ -25,6 +25,10 @@ export default function SudokuGameScreen({ navigation, route, studentId: propStu
   const [duplicateWarning, setDuplicateWarning] = useState(null);
 
   useEffect(() => {
+    startedRef.current = false;
+  }, [level]);
+
+  useEffect(() => {
     if (!studentId || startedRef.current) return;
     startedRef.current = true;
     game.startGame().catch(() => {});
@@ -219,6 +223,7 @@ export default function SudokuGameScreen({ navigation, route, studentId: propStu
             <Pressable
               style={styles.modalBtn}
               onPress={() => {
+                game.resetLocalState();
                 game.restartWithNewPuzzle();
                 startedRef.current = false;
                 game.startGame().catch(() => {});

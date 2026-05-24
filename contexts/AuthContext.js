@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }) => {
   const [profileError, setProfileError] = useState(null);
 
   const refreshInFlightRef = useRef(null);
-  const initSessionHandledRef = useRef(false);
+  const authOperationRef = useRef(null);
 
   const loading = initializingAuth;
   const authLoading = initializingAuth || authBusy;
@@ -261,7 +261,7 @@ export const AuthProvider = ({ children }) => {
     const userId = authUser.id;
     if (!userId) return { profile: null, studentData: null };
 
-    if (refreshInFlightRef.current && !force) {
+    if (refreshInFlightRef.current) {
       return refreshInFlightRef.current;
     }
 
@@ -361,6 +361,7 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
           console.error('refreshUserData failed:', error?.message || error);
         }
+        if (!isMounted) return;
       } else {
         refreshUserData(nextUser).catch((error) =>
           console.error('refreshUserData failed:', error?.message || error)
@@ -380,7 +381,6 @@ export const AuthProvider = ({ children }) => {
 
         const session0 = data?.session ?? null;
         console.log('getSession result:', Boolean(session0));
-        initSessionHandledRef.current = true;
         await applySession(session0, { waitForProfile: Boolean(session0), event: 'INITIAL_SESSION' });
       } catch (error) {
         console.error('getSession fail:', error?.message || error);
@@ -398,7 +398,11 @@ export const AuthProvider = ({ children }) => {
 
       console.log('auth event:', event, Boolean(newSession));
 
-      if (event === 'INITIAL_SESSION' && initSessionHandledRef.current) {
+      if (event === 'INITIAL_SESSION') {
+        return;
+      }
+
+      if (authOperationRef.current === 'signIn' || authOperationRef.current === 'signUp') {
         return;
       }
 
@@ -418,7 +422,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signUp = async (email, password, studentInfo) => {
+    if (authBusy) {
+      return authResult({ success: false, error: new Error('Auth operation already in progress') });
+    }
     setAuthBusy(true);
+    authOperationRef.current = 'signUp';
 
     try {
       const normalizedEmail = normalizeAuthEmail(email);
@@ -533,12 +541,17 @@ export const AuthProvider = ({ children }) => {
       console.error('auth error:', error?.message || error);
       return authResult({ success: false, error });
     } finally {
+      authOperationRef.current = null;
       setAuthBusy(false);
     }
   };
 
   const signIn = async (email, password) => {
+    if (authBusy) {
+      return authResult({ success: false, error: new Error('Auth operation already in progress') });
+    }
     setAuthBusy(true);
+    authOperationRef.current = 'signIn';
 
     try {
       const normalizedEmail = normalizeAuthEmail(email);
@@ -609,11 +622,15 @@ export const AuthProvider = ({ children }) => {
       console.error('auth error:', error?.message || error);
       return authResult({ success: false, error });
     } finally {
+      authOperationRef.current = null;
       setAuthBusy(false);
     }
   };
 
   const signOut = async () => {
+    if (authBusy) {
+      return authResult({ success: false, error: new Error('Auth operation already in progress') });
+    }
     setAuthBusy(true);
 
     try {

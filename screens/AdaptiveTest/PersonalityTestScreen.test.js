@@ -623,7 +623,7 @@ describe('PersonalityTestScreen', () => {
     });
   });
 
-  it('completePersonalityTest (negative): if complete throws, still navigates (results or insight)', async () => {
+  it('completePersonalityTest (negative): if complete throws, does not navigate', async () => {
     mockStartPersonalityTest.mockResolvedValueOnce({ success: true, sessionId: 'p-sess-throw' });
     mockGetPersonalityQuestion.mockResolvedValueOnce(qScale({ answered: 12 }));
     mockCompletePersonalityTest.mockRejectedValueOnce(new Error('complete broke'));
@@ -632,17 +632,19 @@ describe('PersonalityTestScreen', () => {
     render(<PersonalityTestScreen {...props} />);
 
     await waitFor(() => {
-      expect(props.navigateTo).toHaveBeenCalledWith(
-        'personalityResults',
-        expect.objectContaining({
-          studentId: 'stu-1',
-          personalitySessionId: 'p-sess-throw',
-        })
-      );
+      expect(mockCompletePersonalityTest).toHaveBeenCalled();
     });
+
+    expect(props.navigateTo).not.toHaveBeenCalledWith(
+      'personalityResults',
+      expect.objectContaining({
+        studentId: 'stu-1',
+        personalitySessionId: 'p-sess-throw',
+      })
+    );
   });
 
-  it('completePersonalityTest (negative): if getQuestion returns success:false AND complete throws, still navigates', async () => {
+  it('completePersonalityTest (negative): if getQuestion returns success:false AND complete throws, does not navigate', async () => {
     mockStartPersonalityTest.mockResolvedValueOnce({ success: true, sessionId: 'p-sess-done' });
     mockGetPersonalityQuestion.mockResolvedValueOnce({ success: false, error: 'DONE' });
     mockCompletePersonalityTest.mockRejectedValueOnce(new Error('complete broke'));
@@ -651,14 +653,16 @@ describe('PersonalityTestScreen', () => {
     render(<PersonalityTestScreen {...props} />);
 
     await waitFor(() => {
-      expect(props.navigateTo).toHaveBeenCalledWith(
-        'personalityResults',
-        expect.objectContaining({
-          studentId: 'stu-1',
-          personalitySessionId: 'p-sess-done',
-        })
-      );
+      expect(mockCompletePersonalityTest).toHaveBeenCalled();
     });
+
+    expect(props.navigateTo).not.toHaveBeenCalledWith(
+      'personalityResults',
+      expect.objectContaining({
+        studentId: 'stu-1',
+        personalitySessionId: 'p-sess-done',
+      })
+    );
   });
 
   /* =========================================================

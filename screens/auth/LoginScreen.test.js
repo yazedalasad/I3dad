@@ -117,7 +117,7 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('login (positive): successful signIn navigates to roleRouter', async () => {
+  it('login (positive): successful signIn does not navigate directly (ManualNavigator handles routing)', async () => {
     const navigateTo = jest.fn();
     const utils = render(<LoginScreen {...baseProps({ navigateTo })} />);
 
@@ -126,7 +126,7 @@ describe('LoginScreen', () => {
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith('user@test.com', 'pass12345');
-      expect(navigateTo).toHaveBeenCalledWith('roleRouter');
+      expect(navigateTo).not.toHaveBeenCalledWith('roleRouter');
     });
   });
 

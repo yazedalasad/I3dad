@@ -331,7 +331,7 @@ describe('SignupScreen', () => {
     });
   });
 
-  it('signup (positive): immediate session -> navigates to roleRouter', async () => {
+  it('signup (positive): immediate session -> ManualNavigator handles routing', async () => {
     mockSignUp.mockResolvedValueOnce({
       success: true,
       data: { needsEmailConfirmation: false, session: { access_token: 't' }, user: { id: 'u1' } },
@@ -351,7 +351,7 @@ describe('SignupScreen', () => {
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledTimes(1);
-      expect(navigateTo).toHaveBeenCalledWith('roleRouter');
+      expect(navigateTo).not.toHaveBeenCalledWith('roleRouter');
     });
   });
 

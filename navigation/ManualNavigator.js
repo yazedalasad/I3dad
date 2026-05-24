@@ -168,6 +168,7 @@ export default function ManualNavigator() {
 
     const shouldRouteAfterAuth =
       currentScreen === 'login' ||
+      currentScreen === 'signup' ||
       (currentScreen === 'home' && isAdministrativeRole);
 
     // Only route once after an auth transition or an invited admin/principal callback.
@@ -709,6 +710,16 @@ export default function ManualNavigator() {
 
       case 'profile':
         if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        if (studentDataLoading) {
+          return (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#27ae60" />
+              <Text style={styles.loadingText}>
+                {normalizeLang(i18n.language) === 'he' ? 'טוען את פרטי התלמיד...' : 'جاري تحميل بيانات الطالب...'}
+              </Text>
+            </View>
+          );
+        }
         if (!studentData?.id) {
           return <EditStudentProfileScreen navigateTo={navigateTo} />;
         }

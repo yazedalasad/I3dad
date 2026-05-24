@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -21,6 +21,7 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
+  const requestIdRef = useRef(0);
 
   const isArabic = String(i18n.language || '').toLowerCase().startsWith('ar');
   const isHebrew = String(i18n.language || '').toLowerCase().startsWith('he');
@@ -182,6 +183,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
         return;
       }
 
+      const requestId = ++requestIdRef.current;
+
       try {
         setLoading(true);
         setError(null);
@@ -190,7 +193,7 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           language: i18n.language,
         });
 
-        if (cancelled) return;
+        if (cancelled || requestId !== requestIdRef.current) return;
 
         if (!result?.success) {
           setError(result?.error || 'Failed to load recommendations');
@@ -199,11 +202,11 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
 
         setSnapshot(result.data || null);
       } catch (loadError) {
-        if (!cancelled) {
+        if (!cancelled && requestId === requestIdRef.current) {
           setError(loadError?.message || 'Unexpected error');
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && requestId === requestIdRef.current) {
           setLoading(false);
         }
       }

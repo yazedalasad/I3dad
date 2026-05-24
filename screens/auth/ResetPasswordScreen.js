@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -26,6 +26,7 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const submitRef = useRef(false);
 
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
@@ -93,9 +94,10 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
   };
 
   const handleResetPassword = async () => {
-    if (loading) return;
+    if (loading || submitRef.current) return;
     if (!validateForm()) return;
 
+    submitRef.current = true;
     setLoading(true);
 
     try {
@@ -103,7 +105,6 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
       if (sessionError) throw sessionError;
 
       if (!sessionData?.session) {
-        setLoading(false);
         Alert.alert(
           isHebrew ? 'לא ניתן לשנות סיסמה' : 'لا يمكن تغيير كلمة المرور',
           isHebrew
@@ -118,7 +119,6 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
 
       await supabase.auth.signOut();
 
-      setLoading(false);
       Alert.alert(resetT('success.title'), resetT('success.message'), [
         {
           text: resetT('success.loginButton'),
@@ -126,8 +126,6 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
         },
       ]);
     } catch (err) {
-      setLoading(false);
-
       const msg = String(err?.message || '').toLowerCase();
       if (msg.includes('same password')) {
         Alert.alert(isHebrew ? 'שגיאה' : 'خطأ', resetT('errors.samePassword'));
@@ -135,6 +133,9 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
       }
 
       showSupabaseError(err);
+    } finally {
+      setLoading(false);
+      submitRef.current = false;
     }
   };
 

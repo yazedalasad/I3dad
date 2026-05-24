@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -25,6 +25,7 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
   const [email, setEmail] = useState(initialEmail || '');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const submitRef = useRef(false);
 
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
@@ -102,9 +103,10 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
   };
 
   const handleSendRecoveryCode = async () => {
-    if (loading) return;
+    if (loading || submitRef.current) return;
     if (!validateForm()) return;
 
+    submitRef.current = true;
     const cleanEmail = email.trim().toLowerCase();
     setLoading(true);
 
@@ -112,13 +114,10 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
       const result = await sendPasswordResetCode(cleanEmail, i18n?.language || 'ar');
       if (!result.success) throw result.error;
 
-      setLoading(false);
       navigateTo('verifyCode', { email: cleanEmail });
 
       Alert.alert(forgotT('alerts.sentTitle'), forgotT('alerts.sentMessage'));
     } catch (err) {
-      setLoading(false);
-
       const msg = String(err?.message || '').toLowerCase();
       if (
         msg.includes('too many requests') ||
@@ -130,6 +129,9 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
       }
 
       showSupabaseError(err);
+    } finally {
+      setLoading(false);
+      submitRef.current = false;
     }
   };
 

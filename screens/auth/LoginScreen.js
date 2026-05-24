@@ -89,7 +89,7 @@ export default function LoginScreen({ navigateTo }) {
         return;
       }
 
-      navigateTo('roleRouter');
+      // Post-login routing is handled by ManualNavigator once session/profile are ready.
     } finally {
       setLoading(false);
       submitRef.current = false;

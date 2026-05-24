@@ -74,6 +74,9 @@ export default function PersonalityTestScreen({
   const [rankingOrder, setRankingOrder] = useState([]); // ordered items
 
   const questionStartRef = useRef(Date.now());
+  const submittingRef = useRef(false);
+  const finishingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   // ✅ FIX: RTL should be true for BOTH Arabic + Hebrew
   const lang = String(i18n.language).toLowerCase();
@@ -139,6 +142,7 @@ export default function PersonalityTestScreen({
 
     return () => {
       mounted = false;
+      mountedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -161,12 +165,26 @@ export default function PersonalityTestScreen({
 
   // ✅ finish: go to Insight ONLY if this personality flow came right after ability finish
   async function finishPersonality(sid) {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+
     const finalSid = sid || sessionId;
 
     try {
       const done = await completePersonalityTest(finalSid);
 
-      // ✅ Insight report ONLY when ability part just finished in same flow
+      if (done?.success === false) {
+        console.error('finishPersonality failed:', done?.error);
+        Alert.alert(
+          tt('errors.title', 'خطأ'),
+          done?.error || tt('errors.tryAgain', 'فشل إكمال اختبار الشخصية.')
+        );
+        finishingRef.current = false;
+        return;
+      }
+
+      if (!mountedRef.current) return;
+
       if (abilitySessionId && abilityJustFinished) {
         navigateTo('studentInsightReport', {
           studentId,
@@ -177,7 +195,6 @@ export default function PersonalityTestScreen({
         return;
       }
 
-      // otherwise: go to personality results
       navigateTo('personalityResults', {
         studentId,
         language,
@@ -186,30 +203,14 @@ export default function PersonalityTestScreen({
         profile: done?.profile || null,
       });
     } catch (e) {
-      console.log('finishPersonality error:', e?.message || e);
-
-      // even if complete fails:
-      if (abilitySessionId && abilityJustFinished) {
-        navigateTo('studentInsightReport', {
-          studentId,
-          language,
-          abilitySessionId,
-          personalitySessionId: finalSid,
-        });
-        return;
-      }
-
-      navigateTo('personalityResults', {
-        studentId,
-        language,
-        abilitySessionId,
-        personalitySessionId: finalSid,
-      });
+      console.error('finishPersonality error:', e?.message || e);
+      Alert.alert(tt('errors.title', 'خطأ'), tt('errors.tryAgain', 'فشل إكمال اختبار الشخصية.'));
+      finishingRef.current = false;
     }
   }
 
   async function loadNextQuestion(sid) {
-    if (!sid) return;
+    if (!sid || finishingRef.current) return;
 
     setLoadingQuestion(true);
     resetAnswerState();
@@ -328,6 +329,7 @@ export default function PersonalityTestScreen({
   }
 
   async function onSubmit() {
+    if (submittingRef.current || finishingRef.current) return;
     if (submitting || loadingQuestion) return;
 
     const v = validateAnswer();
@@ -336,6 +338,7 @@ export default function PersonalityTestScreen({
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
 
     try {
@@ -351,9 +354,10 @@ export default function PersonalityTestScreen({
 
       await loadNextQuestion(sessionId);
     } catch (e) {
-      console.log('submit error:', e?.message || e);
+      console.error('submit error:', e?.message || e);
       Alert.alert(tt('errors.title', 'خطأ'), tt('errors.somethingWrong', 'حدث خطأ غير متوقع.'));
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
