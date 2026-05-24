@@ -11,7 +11,7 @@
     "ios": "expo start --ios",
     "web:clear": "expo start --web --clear",
     "export:web": "expo export --platform web",
-    "export:web:prod": "eas env:exec --environment production -- npx expo export --platform web --clear",
+    "export:web:prod": "eas env:exec production \"npx expo export --platform web --clear\"",
     "verify:web:env": "node scripts/verify-web-supabase-env.mjs",
     "deploy:web": "eas deploy",
     "deploy:web:prod": "npm run export:web:prod && npm run verify:web:env && eas deploy --prod",
