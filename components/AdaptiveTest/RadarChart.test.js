@@ -19,6 +19,28 @@ import { render } from '@testing-library/react-native';
 // default language for tests
 globalThis.__TEST_LANG__ = 'ar';
 
+/* -------------------- react-native-svg mock (SvgText → Text for queries) -------------------- */
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+
+  const Box = ({ children, ...props }) => <View {...props}>{children}</View>;
+
+  return {
+    __esModule: true,
+    default: Box,
+    Svg: ({ children, ...props }) => (
+      <View testID="radar-svg" {...props}>
+        {children}
+      </View>
+    ),
+    Circle: Box,
+    Line: Box,
+    Polygon: Box,
+    Text: ({ children, ...props }) => <Text {...props}>{children}</Text>,
+  };
+});
+
 /* -------------------- i18n mock -------------------- */
 jest.mock('react-i18next', () => ({
   __esModule: true,
@@ -77,8 +99,7 @@ describe('RadarChart', () => {
     expect(getByText('أفضل 2')).toBeTruthy();
 
     // legend
-    expect(getByText('نقاط الأداء')).toBeTruthy();
-    expect(getByText('مستويات (20–100)')).toBeTruthy();
+    expect(getByText('نقاط السمات')).toBeTruthy();
   });
 
   test('renders chart (labels+values mode) in Arabic', () => {
@@ -139,7 +160,6 @@ describe('RadarChart', () => {
     expect(getByText('מובילים 2')).toBeTruthy();
 
     // legend Hebrew fallbacks
-    expect(getByText('נקודות ביצוע')).toBeTruthy();
-    expect(getByText('רמות (20–100)')).toBeTruthy();
+    expect(getByText('נקודות תכונות')).toBeTruthy();
   });
 });

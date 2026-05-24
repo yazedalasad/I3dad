@@ -113,6 +113,27 @@ const GAME_CATALOG_ROWS = {
       },
     },
   },
+  sudoku: {
+    game: { id: 'sudoku', title: 'Sudoku', domain: 'logic', language: 'he', status: 'active' },
+    levels: Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => {
+        const levelNumber = index + 1;
+        const levelId = `sudoku_level_${levelNumber}`;
+        return [
+          levelId,
+          {
+            id: levelId,
+            game_id: 'sudoku',
+            title: `Sudoku Level ${levelNumber}`,
+            difficulty:
+              levelNumber <= 3 ? 'beginner' : levelNumber <= 10 ? 'training' : levelNumber <= 15 ? 'intermediate' : 'advanced',
+            estimated_minutes: 8,
+            is_active: true,
+          },
+        ];
+      })
+    ),
+  },
 };
 
 async function ensureGameCatalogRows({ gameId, levelId }) {

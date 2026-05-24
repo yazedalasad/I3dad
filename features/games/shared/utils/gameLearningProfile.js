@@ -80,6 +80,36 @@ export const gameLearningProfiles = {
       en: 'Move to a deeper physics task or a short engineering activity.',
     },
   },
+  sudoku: {
+    title: {
+      ar: 'سودوكو',
+      he: 'סודוקו',
+      en: 'Sudoku',
+    },
+    topics: {
+      ar: ['تفكير منطقي', 'دقة الملاحظة', 'أنماط رقمية', 'حل المشكلات'],
+      he: ['חשיבה לוגית', 'דיוק תשומת לב', 'דפוסים מספריים', 'פתרון בעיות'],
+      en: ['Logical reasoning', 'Attention to detail', 'Number patterns', 'Problem solving'],
+    },
+    abilities: ['logic', 'focus', 'problem_solving', 'math', 'patience'],
+    subjectWeights: { math: 4, computer_science: 3, psychology: 2, engineering: 2 },
+    skillBoosts: { logic: 14, problem_solving: 12, focus: 10, math: 8, patience: 6 },
+    focusArea: {
+      ar: 'ميل تحليلي ومنطقي',
+      he: 'נטייה אנליטית ולוגית',
+      en: 'Analytical and logical tendency',
+    },
+    suggestedMajors: {
+      ar: ['علوم حاسوب', 'رياضيات', 'هندسة', 'علوم بيانات'],
+      he: ['מדעי המחשב', 'מתמטיקה', 'הנדסה', 'מדעי הנתונים'],
+      en: ['Computer science', 'Mathematics', 'Engineering', 'Data science'],
+    },
+    nextStep: {
+      ar: 'جرّب لغزاً أصعب أو نشاط تحليل بيانات قصير لتعميق التفكير المنطقي.',
+      he: 'נסו חידה קשה יותר או משימת ניתוח נתונים קצרה להעמקת החשיבה הלוגית.',
+      en: 'Try a harder puzzle or a short data-analysis task to deepen logical thinking.',
+    },
+  },
   physics_bridge: {
     title: {
       ar: 'الجسر الفيزيائي',

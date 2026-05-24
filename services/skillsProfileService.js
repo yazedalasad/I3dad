@@ -42,6 +42,7 @@ const gameBoosts = {
   doctor_soroka: { medical: 14, hebrew: 10, logic: 8, focus: 6 },
   physics_lab: { scientific: 14, problem_solving: 12, speed: 6, logic: 8 },
   arabic_poet_puzzle: { arabic: 14, memory: 12, focus: 7, speed: 4 },
+  sudoku: { logic: 14, problem_solving: 12, focus: 10, math: 8 },
 };
 
 export async function getStudentSkillsProfile(studentId, options = {}) {

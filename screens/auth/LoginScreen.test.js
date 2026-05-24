@@ -68,7 +68,7 @@ describe('LoginScreen', () => {
     jest.clearAllMocks();
     mockValidateEmail.mockReturnValue({ isValid: true, error: null });
     mockValidatePassword.mockReturnValue({ isValid: true, error: null });
-    mockSignIn.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
+    mockSignIn.mockResolvedValue({ success: true, data: { user: { id: 'u1' } }, error: null });
   });
 
   it('render (positive): shows translated title/subtitle keys + login button', async () => {

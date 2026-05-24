@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -65,6 +65,7 @@ export default function SignupScreen({ navigateTo }) {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const submitRef = useRef(false);
   const [schoolItems, setSchoolItems] = useState([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
   const [schoolsError, setSchoolsError] = useState('');
@@ -352,42 +353,63 @@ export default function SignupScreen({ navigateTo }) {
   };
 
   const handleSignup = async () => {
+    if (loading || submitRef.current) return;
     if (!validateStep3()) return;
 
+    submitRef.current = true;
     setLoading(true);
 
-    const studentInfo = {
-      studentId: normalizeIsraeliId(formData.studentId),
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      phone: formatPhone(formData.phone),
-      birthday: formData.birthday,
-      schoolName: formData.schoolName,
-      schoolId: formData.schoolId,
-      grade: parseInt(formData.grade, 10),
-      classSection: formData.classSection,
-    };
+    try {
+      const studentInfo = {
+        studentId: normalizeIsraeliId(formData.studentId),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formatPhone(formData.phone),
+        birthday: formData.birthday,
+        schoolName: formData.schoolName,
+        schoolId: formData.schoolId,
+        grade: parseInt(formData.grade, 10),
+        classSection: formData.classSection,
+      };
 
-    const { error } = await signUp(formData.email, formData.password, studentInfo);
-    setLoading(false);
+      const result = await signUp(formData.email, formData.password, studentInfo);
+      const error = result?.error;
 
-    if (error) {
-      let errorMessage = t('auth.signup.errors.generic');
+      if (error || result?.success === false) {
+        const exactMessage = String(error?.message || '').trim();
+        console.error('auth error:', exactMessage || error);
 
-      if (error.message.includes('already registered')) {
-        errorMessage = t('auth.signup.errors.emailExists');
-      } else if (error.message.includes('Password')) {
-        errorMessage = t('auth.signup.errors.weakPassword');
+        let errorMessage = exactMessage || t('auth.signup.errors.generic');
+
+        if (exactMessage.includes('already registered') || exactMessage.includes('User already registered')) {
+          errorMessage = t('auth.signup.errors.emailExists');
+        } else if (exactMessage.includes('Password')) {
+          errorMessage = t('auth.signup.errors.weakPassword');
+        } else if (exactMessage === 'INVALID_STUDENT_ID') {
+          errorMessage = t('auth.signup.errors.generic');
+        }
+
+        Alert.alert(t('common.error'), errorMessage);
+        return;
       }
 
-      Alert.alert(t('common.error'), errorMessage);
-      return;
-    }
+      if (result?.data?.needsEmailConfirmation) {
+        const confirmationMessage = isHebrew
+          ? 'החשבון נוצר. בדוק/י את הדוא״ל לאישור החשבון.'
+          : 'تم إنشاء الحساب. افحص بريدك الإلكتروني لتأكيد الحساب.';
 
-    navigateTo('login');
-    setTimeout(() => {
-      Alert.alert(t('auth.signup.success.title'), t('auth.signup.success.message'));
-    }, 500);
+        navigateTo('login');
+        setTimeout(() => {
+          Alert.alert(t('auth.signup.success.title'), confirmationMessage);
+        }, 400);
+        return;
+      }
+
+      navigateTo('roleRouter');
+    } finally {
+      setLoading(false);
+      submitRef.current = false;
+    }
   };
 
   const gradeItems = [
@@ -703,6 +725,7 @@ export default function SignupScreen({ navigateTo }) {
           onPress={handleSignup}
           icon="check"
           loading={loading}
+          disabled={loading}
           fullWidth={false}
         />
       </View>

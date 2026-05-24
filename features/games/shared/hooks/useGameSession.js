@@ -156,6 +156,7 @@ export function useGameSession() {
     trustScore = undefined,
     hebrewScore = undefined,
     medicalReasoningScore = undefined,
+    metadata = undefined,
   } = {}) => {
     if (!session?.id) {
       throw new Error('No active session');
@@ -203,6 +204,7 @@ export function useGameSession() {
       trustScore: finalTrustScore,
       hebrewScore,
       medicalReasoningScore,
+      metadata,
     };
 
     const updated = isLocalSession(session)
@@ -216,6 +218,7 @@ export function useGameSession() {
           trust_score: finalTrustScore,
           hebrew_score: hebrewScore,
           medical_reasoning_score: medicalReasoningScore,
+          metadata,
         }
       : await updateGameSession(session.id, completedPayload);
 

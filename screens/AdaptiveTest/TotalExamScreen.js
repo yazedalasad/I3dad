@@ -6,9 +6,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -20,6 +22,7 @@ import {
   lh,
   textColors,
   touchTargets,
+  webContent,
 } from '../../src/theme/typography';
 
 function StatChip({ icon, label }) {
@@ -40,28 +43,40 @@ function SubjectTile({ subject, t, isArabic }) {
     t('totalExam.subjectFallback', isArabic ? 'مادة' : 'מקצוע');
 
   return (
-    <View style={styles.tile}>
-      <View style={styles.tileTopRow}>
-        <View style={styles.tileBadge}>
-          <Ionicons name="checkmark" size={14} color="#fff" />
-          <Text style={styles.tileBadgeText}>
-            {t('totalExam.included', isArabic ? 'مُضمن' : 'כלול')}
-          </Text>
+    <Pressable
+      accessibilityRole="text"
+      style={({ hovered, pressed }) => [
+        styles.tile,
+        hovered && styles.tileHover,
+        pressed && styles.tilePressed,
+      ]}
+    >
+      <View style={styles.tileHeader}>
+        <View style={styles.tileIconBox}>
+          <Ionicons name="albums-outline" size={20} color="#2455D6" />
         </View>
 
-        <Text style={styles.tileTitle}>{name}</Text>
-      </View>
+        <View style={styles.tileTextBlock}>
+          <View style={styles.tileTitleRow}>
+            <View style={styles.tileBadge}>
+              <Ionicons name="checkmark" size={12} color="#2455D6" />
+              <Text style={styles.tileBadgeText}>
+                {t('totalExam.included', isArabic ? 'مُضمن' : 'כלול')}
+              </Text>
+            </View>
 
-      <View style={styles.tileMetaRow}>
-        <Ionicons name="albums-outline" size={18} color={textColors.muted} />
-        <Text style={styles.tileMetaText}>
-          {t(
-            'totalExam.inTotalExam',
-            isArabic ? 'ضمن الاختبار الشامل' : 'כלול במבחן המלא'
-          )}
-        </Text>
+            <Text style={styles.tileTitle}>{name}</Text>
+          </View>
+
+          <Text style={styles.tileMetaText}>
+            {t(
+              'totalExam.inTotalExam',
+              isArabic ? 'ضمن الاختبار الشامل' : 'כלול במבחן המלא'
+            )}
+          </Text>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -113,6 +128,7 @@ export default function TotalExamScreen({
   studentName,
   language = 'ar',
 }) {
+  const { width } = useWindowDimensions();
   const { t: rawT, i18n } = useTranslation();
   const {
     studentData: authStudentData,
@@ -150,6 +166,8 @@ export default function TotalExamScreen({
   }, [language]);
 
   const isArabic = String(i18n.language).toLowerCase() !== 'he';
+  const isCompact = width < 720;
+  const numColumns = width < 520 ? 1 : 2;
 
   const displayStudentName =
     studentName ||
@@ -293,6 +311,7 @@ export default function TotalExamScreen({
   return (
     <View style={styles.page}>
       <FlatList
+        key={`subjects-${numColumns}`}
         ListHeaderComponent={
           <>
             <LinearGradient
@@ -413,9 +432,12 @@ export default function TotalExamScreen({
         }
         data={loading ? [] : subjects}
         keyExtractor={(item) => String(item.id)}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        contentContainerStyle={styles.listContent}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? styles.gridRow : null}
+        contentContainerStyle={[
+          styles.listContent,
+          isCompact && styles.listContentCompact,
+        ]}
         renderItem={({ item }) => (
           <SubjectTile subject={item} t={t} isArabic={isArabic} />
         )}
@@ -524,21 +546,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F8FF',
     width: '100%',
   },
-  listContent: { paddingBottom: 22 },
+  listContent: {
+    width: '100%',
+    maxWidth: 1180,
+    alignSelf: 'center',
+    paddingHorizontal: Platform.OS === 'web' ? webContent.paddingHorizontal : 16,
+    paddingTop: 18,
+    paddingBottom: 28,
+  },
+  listContentCompact: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 104,
+  },
 
-  hero: { padding: 22, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  hero: {
+    padding: 22,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#1E4FBF',
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 3,
+  },
   heroTopRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 18,
   },
-  heroTextBlock: { flex: 1, paddingRight: 10 },
+  heroTextBlock: { flex: 1, minWidth: 0 },
   heroTitle: {
     color: textColors.inverse,
     fontWeight: '900',
     fontSize: font('heroTitle'),
     lineHeight: lh('heroTitle'),
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   heroSubtitle: {
     color: textColors.onHero,
@@ -547,6 +591,7 @@ const styles = StyleSheet.create({
     fontSize: font('body'),
     lineHeight: lh('body'),
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   heroDesc: {
     color: textColors.onHeroMuted,
@@ -555,11 +600,12 @@ const styles = StyleSheet.create({
     lineHeight: lh('body'),
     fontWeight: '700',
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
 
   abstractBox: {
-    width: 82,
-    height: 82,
+    width: 74,
+    height: 74,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.16)',
     position: 'relative',
@@ -584,9 +630,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
 
-  heroStatsRow: { flexDirection: 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' },
+  heroStatsRow: { flexDirection: 'row-reverse', gap: 10, marginTop: 16, flexWrap: 'wrap' },
   statChip: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 10,
@@ -599,15 +645,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: font('badge'),
     lineHeight: lh('badge'),
+    writingDirection: 'rtl',
   },
 
-  section: { paddingHorizontal: 18, paddingTop: 18 },
+  section: { paddingTop: 20, paddingBottom: 8 },
   sectionTitle: {
     color: textColors.primary,
     fontWeight: '900',
     fontSize: font('sectionTitle'),
     lineHeight: lh('sectionTitle'),
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   sectionHint: {
     color: textColors.muted,
@@ -616,6 +664,7 @@ const styles = StyleSheet.create({
     fontSize: font('helper'),
     lineHeight: lh('helper'),
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
 
   centerBox: { paddingVertical: 16, alignItems: 'center', gap: 8 },
@@ -626,7 +675,7 @@ const styles = StyleSheet.create({
     lineHeight: lh('helper'),
   },
 
-  gridRow: { paddingHorizontal: 16, gap: 10 },
+  gridRow: { gap: 12 },
   tile: {
     flex: 1,
     backgroundColor: '#fff',
@@ -634,45 +683,86 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5ECFF',
-    minHeight: 100,
+    minHeight: 112,
+    maxHeight: 132,
+    marginBottom: 12,
+    shadowColor: '#102A68',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  tileTopRow: { flexDirection: 'column', gap: 10 },
+  tileHover: {
+    borderColor: '#C9D8FF',
+    shadowOpacity: 0.1,
+    transform: [{ translateY: -1 }],
+  },
+  tilePressed: { transform: [{ scale: 0.99 }] },
+  tileHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  tileIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#EEF4FF',
+    borderWidth: 1,
+    borderColor: '#DCE7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'stretch',
+  },
+  tileTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   tileTitle: {
-    color: textColors.primary,
+    color: '#102A68',
     fontWeight: '900',
     textAlign: 'right',
-    fontSize: font('cardTitle'),
-    lineHeight: lh('cardTitle'),
+    writingDirection: 'rtl',
+    fontSize: font('bodyStrong'),
+    lineHeight: lh('bodyStrong'),
+    flex: 1,
   },
 
   tileBadge: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    gap: 6,
+    flexDirection: 'row-reverse',
+    gap: 5,
     alignItems: 'center',
-    backgroundColor: '#1E4FBF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: '#EEF4FF',
+    borderWidth: 1,
+    borderColor: '#DCE7FF',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 999,
   },
   tileBadgeText: {
-    color: '#fff',
+    color: '#2455D6',
     fontWeight: '900',
-    fontSize: font('badge'),
-    lineHeight: lh('badge'),
+    fontSize: font('tiny'),
+    lineHeight: lh('tiny'),
+    writingDirection: 'rtl',
   },
 
-  tileMetaRow: { marginTop: 10, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   tileMetaText: {
     color: textColors.muted,
     fontWeight: '800',
     textAlign: 'right',
-    fontSize: font('body'),
-    lineHeight: lh('body'),
-    flex: 1,
+    writingDirection: 'rtl',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+    marginTop: 10,
   },
 
-  footer: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
+  footer: { paddingTop: 10, gap: 10 },
   profileWarningBox: { gap: 10, alignItems: 'center' },
   profileBtn: {
     minHeight: 42,
@@ -680,18 +770,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E4FBF',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 8,
     paddingHorizontal: 16,
   },
   profileBtnText: { color: '#fff', fontWeight: '900' },
   startBtn: {
     minHeight: touchTargets.examButtonMinHeight,
-    borderRadius: 16,
-    backgroundColor: '#1E4FBF',
+    borderRadius: 18,
+    backgroundColor: '#2455D6',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 10,
     paddingHorizontal: 20,
   },
@@ -702,6 +792,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: font('button'),
     lineHeight: lh('button'),
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
 
   warnText: {

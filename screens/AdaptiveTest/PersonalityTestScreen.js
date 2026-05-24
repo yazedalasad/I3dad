@@ -12,9 +12,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
+import RankingQuestionList from '../../components/AdaptiveTest/RankingQuestionList';
 import {
   completePersonalityTest,
   getPersonalityQuestion,
@@ -33,6 +35,7 @@ export default function PersonalityTestScreen({
   abilityJustFinished = false, // ✅ NEW: trust flag from ability flow
   existingPersonalitySessionId = null, // optional resume
 }) {
+  const { width } = useWindowDimensions();
   // ✅ IMPORTANT: personalityTest keys are inside adaptiveTest namespace (adaptiveTest.json)
   const { t, i18n } = useTranslation('adaptiveTest');
 
@@ -398,14 +401,17 @@ export default function PersonalityTestScreen({
             <Pressable
               key={String(idx)}
               onPress={() => setChoiceIndex(idx)}
-              style={({ pressed }) => [
-                styles.choiceItem,
-                active && styles.choiceItemActive,
-                pressed && !active ? styles.choiceItemPressed : null,
+              style={({ hovered, pressed }) => [
+                styles.optionCard,
+                active && styles.optionCardActive,
+                hovered && styles.optionCardHover,
+                pressed && !active ? styles.optionCardPressed : null,
               ]}
             >
-              <View style={[styles.radio, active && styles.radioActive]} />
-              <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text>
+              <View style={styles.optionRow}>
+                <View style={[styles.radioCircle, active && styles.radioCircleActive]} />
+                <Text style={[styles.optionText, active && styles.optionTextActive]}>{label}</Text>
+              </View>
             </Pressable>
           );
         })}
@@ -447,79 +453,44 @@ export default function PersonalityTestScreen({
       <View style={styles.choiceList}>
         <Pressable
           onPress={() => setForcedChoice('A')}
-          style={({ pressed }) => [
-            styles.choiceItem,
-            activeA && styles.choiceItemActive,
-            pressed && !activeA ? styles.choiceItemPressed : null,
+          style={({ hovered, pressed }) => [
+            styles.optionCard,
+            activeA && styles.optionCardActive,
+            hovered && styles.optionCardHover,
+            pressed && !activeA ? styles.optionCardPressed : null,
           ]}
         >
-          <View style={[styles.radio, activeA && styles.radioActive]} />
-          <Text style={[styles.choiceText, activeA && styles.choiceTextActive]}>{labelA}</Text>
+          <View style={styles.optionRow}>
+            <View style={[styles.radioCircle, activeA && styles.radioCircleActive]} />
+            <Text style={[styles.optionText, activeA && styles.optionTextActive]}>{labelA}</Text>
+          </View>
         </Pressable>
 
         <Pressable
           onPress={() => setForcedChoice('B')}
-          style={({ pressed }) => [
-            styles.choiceItem,
-            activeB && styles.choiceItemActive,
-            pressed && !activeB ? styles.choiceItemPressed : null,
+          style={({ hovered, pressed }) => [
+            styles.optionCard,
+            activeB && styles.optionCardActive,
+            hovered && styles.optionCardHover,
+            pressed && !activeB ? styles.optionCardPressed : null,
           ]}
         >
-          <View style={[styles.radio, activeB && styles.radioActive]} />
-          <Text style={[styles.choiceText, activeB && styles.choiceTextActive]}>{labelB}</Text>
+          <View style={styles.optionRow}>
+            <View style={[styles.radioCircle, activeB && styles.radioCircleActive]} />
+            <Text style={[styles.optionText, activeB && styles.optionTextActive]}>{labelB}</Text>
+          </View>
         </Pressable>
       </View>
     );
   }
 
-  function moveRanking(fromIdx, toIdx) {
-    setRankingOrder((prev) => {
-      const arr = Array.isArray(prev) ? [...prev] : [];
-      if (fromIdx < 0 || toIdx < 0 || fromIdx >= arr.length || toIdx >= arr.length) return arr;
-      const [item] = arr.splice(fromIdx, 1);
-      arr.splice(toIdx, 0, item);
-      return arr;
-    });
-  }
-
   function renderRanking10() {
-    if (!rankingOrder?.length) {
-      return (
-        <Text style={styles.muted}>
-          {tt('personalityTest.noRankingItems', isArabic ? 'لا توجد عناصر للترتيب.' : 'אין פריטים לסידור.')}
-        </Text>
-      );
-    }
-
     return (
-      <View style={{ gap: 10 }}>
-        {rankingOrder.map((item, idx) => {
-          const label = (isArabic ? item?.ar : item?.he) ?? item?.en ?? `Item ${idx + 1}`;
-          return (
-            <View key={String(item?.id ?? idx)} style={styles.rankRow}>
-              <Text style={styles.rankIndex}>{idx + 1}</Text>
-              <Text style={styles.rankLabel} numberOfLines={2}>
-                {label}
-              </Text>
-
-              <View style={styles.rankBtns}>
-                <Pressable
-                  onPress={() => moveRanking(idx, Math.max(0, idx - 1))}
-                  style={({ pressed }) => [styles.rankBtn, pressed ? styles.rankBtnPressed : null]}
-                >
-                  <Text style={styles.rankBtnText}>↑</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => moveRanking(idx, Math.min(rankingOrder.length - 1, idx + 1))}
-                  style={({ pressed }) => [styles.rankBtn, pressed ? styles.rankBtnPressed : null]}
-                >
-                  <Text style={styles.rankBtnText}>↓</Text>
-                </Pressable>
-              </View>
-            </View>
-          );
-        })}
-      </View>
+      <RankingQuestionList
+        items={rankingOrder}
+        onOrderChange={setRankingOrder}
+        isArabic={isArabic}
+      />
     );
   }
 
@@ -547,10 +518,21 @@ export default function PersonalityTestScreen({
   }
 
   const pct = progress.total ? Math.min(100, Math.round((progress.answered / progress.total) * 100)) : 0;
+  const canShowReadyState =
+    scaleValue != null ||
+    choiceIndex != null ||
+    String(textValue || '').trim().length > 0 ||
+    forcedChoice === 'A' ||
+    forcedChoice === 'B' ||
+    (question?.question_type === 'ranking_10' && rankingOrder.length >= 2);
+  const isCompact = width < 560;
 
   return (
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[styles.content, isCompact && styles.contentCompact]}
+        keyboardShouldPersistTaps="handled"
+      >
         <LinearGradient colors={['#1E4FBF', '#274B9F']} style={styles.hero}>
           <Text style={styles.heroTitle}>
             {tt('personalityTest.title', isArabic ? 'اختبار الشخصية' : 'מבחן אישיות')}
@@ -564,6 +546,9 @@ export default function PersonalityTestScreen({
 
           <View style={styles.progressRow}>
             <Text style={styles.progressText}>{pct}%</Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${pct}%` }]} />
           </View>
         </LinearGradient>
 
@@ -599,6 +584,7 @@ export default function PersonalityTestScreen({
               style={({ pressed }) => [
                 styles.submitBtn,
                 (submitting || loadingQuestion) && styles.btnDisabled,
+                !canShowReadyState && styles.submitBtnIdle,
                 pressed ? styles.submitBtnPressed : null,
               ]}
             >
@@ -615,144 +601,227 @@ export default function PersonalityTestScreen({
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F6F8FF' },
-  content: { paddingBottom: 24 },
+  content: {
+    width: '100%',
+    maxWidth: 980,
+    alignSelf: 'center',
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
+    paddingTop: 18,
+    paddingBottom: 32,
+  },
+  contentCompact: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+  },
 
   hero: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 22,
     paddingTop: 18,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingBottom: 18,
+    borderRadius: 24,
+    shadowColor: '#1E4FBF',
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 3,
   },
-  heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  heroSubtitle: { color: '#EAF0FF', marginTop: 6, fontSize: 16 },
-  progressRow: { marginTop: 14 },
-  progressText: { color: '#EAF0FF', fontSize: 17, fontWeight: '600' },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '900',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  heroSubtitle: {
+    color: '#EAF0FF',
+    marginTop: 4,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  progressRow: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  progressText: {
+    color: '#EAF0FF',
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  progressTrack: {
+    marginTop: 10,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+  },
 
   card: {
     marginTop: 14,
-    marginHorizontal: 16,
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#E5ECFF',
+    shadowColor: '#102A68',
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
     elevation: 2,
   },
 
   badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EEF2FF',
+    alignSelf: 'flex-end',
+    backgroundColor: '#EEF4FF',
+    borderWidth: 1,
+    borderColor: '#DCE7FF',
     borderRadius: 999,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 6,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  badgeText: { color: '#1E40AF', fontWeight: '700', fontSize: 17 },
+  badgeText: {
+    color: '#2455D6',
+    fontWeight: '900',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 
-  qText: { fontSize: 16, fontWeight: '800', color: '#0F172A', lineHeight: 24 },
-  body: { marginTop: 14 },
+  qText: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: '#102A68',
+    lineHeight: 31,
+  },
+  body: { marginTop: 16 },
 
-  muted: { marginTop: 10, color: '#64748b', fontWeight: '700' },
+  muted: {
+    marginTop: 10,
+    color: '#64748B',
+    fontWeight: '800',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 
   scaleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 9,
     justifyContent: 'space-between',
   },
   scaleBtn: {
     width: '18%',
     minWidth: 48,
-    height: 44,
-    borderRadius: 12,
+    height: 48,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5ECFF',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scaleBtnActive: { borderColor: '#1E4FBF', backgroundColor: '#EEF2FF' },
+  scaleBtnActive: { borderColor: '#2455D6', backgroundColor: '#F3F7FF', borderWidth: 2 },
   scaleBtnPressed: { transform: [{ scale: 0.98 }] },
   scaleBtnText: { fontWeight: '800', color: '#0F172A' },
   scaleBtnTextActive: { color: '#1E40AF' },
 
-  choiceList: { gap: 10 },
-  choiceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
+  choiceList: { gap: 12, width: '100%' },
+  optionCard: {
+    width: '100%',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5ECFF',
     backgroundColor: '#fff',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    minHeight: 68,
   },
-  choiceItemActive: { borderColor: '#1E4FBF', backgroundColor: '#EEF2FF' },
-  choiceItemPressed: { transform: [{ scale: 0.99 }] },
-  radio: {
-    width: 16,
-    height: 16,
+  optionCardActive: { borderColor: '#2455D6', backgroundColor: '#F3F7FF', borderWidth: 2 },
+  optionCardHover: { borderColor: '#C9D8FF' },
+  optionCardPressed: { transform: [{ scale: 0.99 }] },
+  optionRow: {
+    width: '100%',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 12,
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
-    marginRight: 10,
+    borderColor: '#94A3B8',
+    backgroundColor: '#fff',
+    flexShrink: 0,
   },
-  radioActive: { borderColor: '#1E4FBF', backgroundColor: '#1E4FBF' },
-  choiceText: { flex: 1, fontWeight: '800', color: '#0F172A' },
-  choiceTextActive: { color: '#1E40AF' },
+  radioCircleActive: {
+    borderColor: '#2455D6',
+    backgroundColor: '#2455D6',
+  },
+  optionText: {
+    flex: 1,
+    minWidth: 0,
+    width: '100%',
+    fontWeight: '800',
+    color: '#102A68',
+    fontSize: 17,
+    lineHeight: 26,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  optionTextActive: { color: '#1E3A8A', fontWeight: '900' },
 
   inputBox: {
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 10,
+    borderColor: '#E5ECFF',
+    borderRadius: 16,
+    padding: 12,
     backgroundColor: '#fff',
   },
   textArea: {
     minHeight: 110,
-    fontWeight: '700',
-    color: '#0F172A',
-    lineHeight: 20,
+    fontWeight: '800',
+    color: '#111827',
+    fontSize: 17,
+    lineHeight: 25,
   },
 
-  rankRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#fff',
-  },
-  rankIndex: { width: 26, textAlign: 'center', fontWeight: '900', color: '#1E40AF' },
-  rankLabel: { flex: 1, fontWeight: '800', color: '#0F172A' },
-  rankBtns: { flexDirection: 'row', gap: 8 },
-  rankBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  rankBtnPressed: { transform: [{ scale: 0.97 }] },
-  rankBtnText: { fontWeight: '900', color: '#0F172A' },
-
-  actions: { marginTop: 14, gap: 10 },
+  actions: { marginTop: 16, gap: 10 },
 
   submitBtn: {
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#1E4FBF',
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: '#2455D6',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row-reverse',
+    gap: 8,
   },
+  submitBtnIdle: { opacity: 0.72 },
   submitBtnPressed: { transform: [{ scale: 0.99 }] },
-  submitBtnText: { color: '#fff', fontWeight: '900' },
+  submitBtnText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+  },
 
   btnDisabled: { opacity: 0.7 },
 });

@@ -1,22 +1,47 @@
 /**
- * RADAR CHART COMPONENT (Theme matched: blue/white/yellow)
+ * Radar chart — SVG layout with spaced trait labels and a single left scale axis.
  *
- * ✅ Supports BOTH usages:
- * 1) <RadarChart abilities={[{ ability_score, subjects:{name_ar/name_he/name_en} }]} />
- * 2) <RadarChart labels={['Math', ...]} values={[80, ...]} />
- *
- * i18n:
- * - UI strings (title/legend/empty) from i18next
- * - Labels (subject names) from DB (name_ar/name_he) when "abilities" is used
- *
- * Note: Pure React Native (no SVG).
+ * Supports:
+ * 1) <RadarChart abilities={[{ ability_score, subjects }]} />
+ * 2) <RadarChart labels={[...]} values={[...]} />
  */
 
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 
-const gridLevels = [20, 40, 60, 80, 100];
+function traitPressHandlers(interactive, index, selectedIndex, onTraitPress) {
+  if (!interactive || typeof onTraitPress !== 'function') return {};
+  const selected = selectedIndex === index;
+  return {
+    onPress: () => onTraitPress(index),
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  };
+}
+
+const GRID_LEVELS = [20, 40, 60, 80, 100];
+
+const DEFAULT_LABEL_LAYOUT = {
+  textAnchor: 'middle',
+  percentDy: -14,
+  labelDy: 12,
+  labelLineDy: 15,
+  radiusBoost: 0,
+  labelSize: 15,
+  percentSize: 20,
+};
+
+const COLORS = {
+  grid: '#DCE7FF',
+  axis: '#C8D8F8',
+  fill: 'rgba(37, 99, 235, 0.2)',
+  stroke: '#2563EB',
+  dot: '#F59E0B',
+  dotBorder: '#0F2A5F',
+  label: '#102A68',
+  percent: '#1E4FBF',
+};
 
 function safeNum(v, fallback = 0) {
   const n = Number(v);
@@ -25,6 +50,11 @@ function safeNum(v, fallback = 0) {
 
 function isHe(lang) {
   return String(lang || '').toLowerCase().startsWith('he');
+}
+
+function isRtlLang(lang) {
+  const value = String(lang || '').toLowerCase();
+  return value.startsWith('he') || value.startsWith('ar');
 }
 
 function getSubjectNameByLang(ability, index, lang) {
@@ -40,22 +70,155 @@ function getSubjectNameByLang(ability, index, lang) {
   return s?.name_en || s?.name_ar || s?.name_he || fallback;
 }
 
-export default function RadarChart({ abilities, labels, values }) {
+function shortenLabel(text, maxLen = 14) {
+  const value = String(text || '').trim();
+  if (value.length <= maxLen) return value;
+  return `${value.slice(0, maxLen - 1)}…`;
+}
+
+function getChartMetrics(windowWidth) {
+  const compact = safeNum(windowWidth, 390) < 520;
+  const viewWidth = compact
+    ? Math.min(Math.max(safeNum(windowWidth, 360) - 24, 340), 380)
+    : Math.min(Math.max(safeNum(windowWidth, 900) - 48, 520), 560);
+  const viewHeight = compact ? 420 : 500;
+  const centerX = viewWidth / 2;
+  const centerY = viewHeight / 2 + (compact ? 8 : 10);
+  const outerPad = compact ? 76 : 92;
+  const radarRadius = Math.min(compact ? 118 : 138, Math.min(centerX, centerY) - outerPad);
+  const labelRadius = radarRadius + (compact ? 48 : 55);
+  const percentRadius = radarRadius + (compact ? 68 : 78);
+  return {
+    viewWidth,
+    viewHeight,
+    centerX,
+    centerY,
+    radarRadius,
+    labelRadius,
+    percentRadius,
+    compact,
+  };
+}
+
+function pointAt(index, radius, total, centerX, centerY) {
+  const angle = (-90 + index * (360 / total)) * (Math.PI / 180);
+  return {
+    x: centerX + radius * Math.cos(angle),
+    y: centerY + radius * Math.sin(angle),
+    angle,
+  };
+}
+
+function pointsString(points) {
+  return points.map((point) => `${point.x},${point.y}`).join(' ');
+}
+
+function getLabelZone(angle) {
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  if (sin < -0.42) return 'top';
+  if (sin > 0.42) return 'bottom';
+  if (cos < -0.38) return 'left';
+  return 'right';
+}
+
+function getLabelLayout(zone, compact, lineCount) {
+  const gap = compact ? 12 : 14;
+  const labelSize = compact ? 14 : 16;
+  const percentSize = compact ? 18 : 20;
+  const lineStep = compact ? 14 : 15;
+
+  switch (zone) {
+    case 'top':
+      return {
+        textAnchor: 'middle',
+        useRadialStack: true,
+        labelLineDy: lineStep,
+        radiusBoost: compact ? 8 : 10,
+        labelSize,
+        percentSize,
+      };
+    case 'bottom':
+      return {
+        textAnchor: 'middle',
+        useRadialStack: true,
+        labelLineDy: lineStep,
+        radiusBoost: compact ? 6 : 8,
+        labelSize,
+        percentSize,
+      };
+    case 'left':
+      return {
+        textAnchor: 'end',
+        useRadialStack: false,
+        percentDy: -(gap + 12),
+        labelDy: 12,
+        labelLineDy: lineStep,
+        radiusBoost: compact ? 32 : 38,
+        labelSize,
+        percentSize,
+      };
+    case 'right':
+      return {
+        textAnchor: 'start',
+        useRadialStack: false,
+        percentDy: -(gap + 12),
+        labelDy: 12,
+        labelLineDy: lineStep,
+        radiusBoost: compact ? 28 : 34,
+        labelSize,
+        percentSize,
+      };
+    default:
+      return { ...DEFAULT_LABEL_LAYOUT, labelSize, percentSize };
+  }
+}
+
+function splitLabelLines(name, maxChars = 11) {
+  const text = String(name || '').trim();
+  if (text.length <= maxChars) return [text];
+  const mid = Math.ceil(text.length / 2);
+  let splitAt = text.lastIndexOf(' ', mid);
+  if (splitAt < 4) splitAt = mid;
+  const line1 = text.slice(0, splitAt).trim();
+  const line2 = text.slice(splitAt).trim();
+  if (!line2) return [line1];
+  return [line1, line2];
+}
+
+export default function RadarChart({
+  abilities,
+  labels,
+  values,
+  headerTitle,
+  headerBadge,
+  maxItems = 8,
+  preserveOrder = false,
+  interactive = false,
+  selectedIndex = null,
+  onTraitPress,
+}) {
   const { t: rawT, i18n } = useTranslation();
   const lang = i18n.language;
+  const rtl = isRtlLang(lang);
   const { width: windowWidth } = useWindowDimensions();
-  const chartSize = Math.min(Math.max(safeNum(windowWidth, 360) - 80, 180), 320);
-  const center = chartSize / 2;
-  const radius = chartSize / 2 - 44;
+  const metrics = getChartMetrics(windowWidth);
+  const {
+    viewWidth,
+    viewHeight,
+    centerX,
+    centerY,
+    radarRadius,
+    labelRadius,
+    percentRadius,
+    compact,
+  } = metrics;
 
   const t = (key, fallback) => {
     const v = rawT(key);
     return typeof v === 'string' && v !== key ? v : fallback;
   };
 
-  // Build a unified list of abilities either from:
-  // - "abilities" (original format, DB subject names)
-  // - OR (labels + values) format
   const computedAbilities = useMemo(() => {
     if (Array.isArray(abilities) && abilities.length) return abilities;
 
@@ -68,7 +231,6 @@ export default function RadarChart({ abilities, labels, values }) {
       return labels
         .map((name, i) => ({
           ability_score: safeNum(values[i]),
-          // keep labels as all languages for safety
           subjects: {
             name_ar: String(name || '').trim(),
             name_he: String(name || '').trim(),
@@ -96,173 +258,245 @@ export default function RadarChart({ abilities, labels, values }) {
     );
   }
 
-  // Sort by score and show Top 8 for clarity
-  const displayAbilities = [...computedAbilities]
-    .sort((a, b) => safeNum(b.ability_score) - safeNum(a.ability_score))
-    .slice(0, 8);
+  const displayAbilities = (
+    preserveOrder
+      ? [...computedAbilities]
+      : [...computedAbilities].sort((a, b) => safeNum(b.ability_score) - safeNum(a.ability_score))
+  ).slice(0, Math.max(3, Number(maxItems) || 8));
 
-  const angleStep = (2 * Math.PI) / displayAbilities.length;
+  const count = displayAbilities.length;
+  const scorePoints = displayAbilities.map((ability, index) => {
+    const score = safeNum(ability.ability_score);
+    return pointAt(index, (score / 100) * radarRadius, count, centerX, centerY);
+  });
 
-  const getPoint = (index, score) => {
-    const angle = angleStep * index - Math.PI / 2; // start at top
-    const distance = (safeNum(score) / 100) * radius;
-    return {
-      x: center + distance * Math.cos(angle),
-      y: center + distance * Math.sin(angle),
-      angle,
-    };
-  };
+  const title =
+    headerTitle ||
+    t(
+      'results.radarTitle',
+      String(lang).toLowerCase() === 'ar'
+        ? 'خريطة القدرات حسب المواد'
+        : 'מפת יכולות לפי מקצועות'
+    );
 
-  const title = t(
-    'results.radarTitle',
-    String(lang).toLowerCase() === 'ar'
-      ? 'خريطة القدرات حسب المواد'
-      : 'מפת יכולות לפי מקצועות'
-  );
-
-  const topN = t(
-    'results.topN',
-    String(lang).toLowerCase() === 'ar' ? 'أفضل {{n}}' : 'מובילים {{n}}'
-  ).replace('{{n}}', String(displayAbilities.length));
+  const topN =
+    headerBadge ||
+    t(
+      'results.topN',
+      String(lang).toLowerCase() === 'ar' ? 'أفضل {{n}}' : 'מובילים {{n}}'
+    ).replace('{{n}}', String(displayAbilities.length));
 
   const legendPoints = t(
     'results.legendPoints',
-    String(lang).toLowerCase() === 'ar' ? 'نقاط الأداء' : 'נקודות ביצוע'
-  );
-
-  const legendLevels = t(
-    'results.legendLevels',
-    String(lang).toLowerCase() === 'ar' ? 'مستويات (20–100)' : 'רמות (20–100)'
+    String(lang).toLowerCase() === 'ar' ? 'نقاط السمات' : 'נקודות תכונות'
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.shell}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, rtl && styles.titleRtl]}>{title}</Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{topN}</Text>
         </View>
       </View>
 
-      <View style={[styles.chartContainer, { width: chartSize, height: chartSize }]}>
-        {/* Grid circles */}
-        {gridLevels.map((level) => {
-          const r = (level / 100) * radius;
-          return (
-            <View
-              key={`grid-${level}`}
-              style={[
-                styles.gridCircle,
-                {
-                  width: r * 2,
-                  height: r * 2,
-                  borderRadius: r,
-                  top: center - r,
-                  left: center - r,
-                },
-              ]}
-            />
-          );
-        })}
+      <View style={[styles.chartFrame, { width: viewWidth, height: viewHeight }]}>
+        <Svg width={viewWidth} height={viewHeight} viewBox={`0 0 ${viewWidth} ${viewHeight}`}>
+          {GRID_LEVELS.map((level) => {
+            const ringPoints = displayAbilities.map((_, index) =>
+              pointAt(index, radarRadius * (level / 100), count, centerX, centerY)
+            );
+            return (
+              <Polygon
+                key={`grid-${level}`}
+                points={pointsString(ringPoints)}
+                fill="none"
+                stroke={COLORS.grid}
+                strokeWidth={1}
+              />
+            );
+          })}
 
-        {/* Level labels (left side) */}
-        {gridLevels.map((level) => {
-          const r = (level / 100) * radius;
-          return (
-            <Text
-              key={`lvl-${level}`}
-              style={[
-                styles.levelText,
-                {
-                  left: center - r - 18,
-                  top: center - 10,
-                },
-              ]}
-            >
-              {level}
-            </Text>
-          );
-        })}
+          {displayAbilities.map((_, index) => {
+            const end = pointAt(index, radarRadius, count, centerX, centerY);
+            return (
+              <Line
+                key={`axis-${index}`}
+                x1={centerX}
+                y1={centerY}
+                x2={end.x}
+                y2={end.y}
+                stroke={COLORS.axis}
+                strokeWidth={1}
+              />
+            );
+          })}
 
-        {/* Axes */}
-        {displayAbilities.map((_, index) => (
-          <View
-            key={`axis-${index}`}
-            style={[
-              styles.axisLine,
-              {
-                position: 'absolute',
-                left: center,
-                top: center,
-                width: radius,
-                transform: [{ rotate: `${(angleStep * index * 180) / Math.PI - 90}deg` }],
-              },
-            ]}
+          <Polygon
+            points={pointsString(scorePoints)}
+            fill={COLORS.fill}
+            stroke={COLORS.stroke}
+            strokeWidth={2.5}
+            strokeLinejoin="round"
           />
-        ))}
 
-        {/* Points */}
-        {displayAbilities.map((ability, index) => {
-          const score = safeNum(ability.ability_score);
-          const point = getPoint(index, score);
-          return (
-            <View
-              key={`point-${index}`}
-              style={[
-                styles.dataPoint,
-                {
-                  left: point.x - 7,
-                  top: point.y - 7,
-                },
-              ]}
-            />
-          );
-        })}
+          {interactive
+            ? scorePoints.map((point, index) => (
+                <Circle
+                  key={`hit-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={26}
+                  fill="transparent"
+                  {...traitPressHandlers(interactive, index, selectedIndex, onTraitPress)}
+                />
+              ))
+            : null}
 
-        {/* Labels */}
-        {displayAbilities.map((ability, index) => {
-          const score = safeNum(ability.ability_score);
-          const labelPoint = getPoint(index, 112); // slightly outside
-          const name = getSubjectNameByLang(ability, index, lang);
+          {scorePoints.map((point, index) => {
+            const selected = interactive && selectedIndex === index;
+            return (
+              <Circle
+                key={`dot-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r={selected ? 7 : compact ? 5 : 5.5}
+                fill={COLORS.dot}
+                stroke={selected ? '#2455D6' : COLORS.dotBorder}
+                strokeWidth={selected ? 2.5 : 1.5}
+                {...traitPressHandlers(interactive, index, selectedIndex, onTraitPress)}
+              />
+            );
+          })}
 
-          let textAlign = 'center';
-          if (Math.cos(labelPoint.angle) > 0.3) textAlign = 'left';
-          if (Math.cos(labelPoint.angle) < -0.3) textAlign = 'right';
+          {displayAbilities.map((ability, index) => {
+            const score = Math.round(safeNum(ability.ability_score));
+            const name = getSubjectNameByLang(ability, index, lang);
+            const axisPoint = pointAt(index, labelRadius, count, centerX, centerY);
+            const zone = getLabelZone(axisPoint.angle);
+            const lines = splitLabelLines(shortenLabel(name, compact ? 16 : 18), compact ? 10 : 11);
+            const layout = {
+              ...DEFAULT_LABEL_LAYOUT,
+              ...getLabelLayout(zone, compact, lines.length),
+            };
+            const textAnchor = layout.textAnchor || 'middle';
+            const boost = safeNum(layout.radiusBoost, 0);
+            const selected = interactive && selectedIndex === index;
+            const labelFill = selected ? '#1E4FBF' : COLORS.label;
+            const percentFill = selected ? '#2455D6' : COLORS.percent;
+            const pressHandlers = traitPressHandlers(interactive, index, selectedIndex, onTraitPress);
 
-          return (
-            <View
-              key={`label-${index}`}
-              style={[
-                styles.label,
-                {
-                  left: labelPoint.x - 52,
-                  top: labelPoint.y - 14,
-                  width: 104,
-                },
-              ]}
-            >
-              <Text style={[styles.labelText, { textAlign }]} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={[styles.labelScore, { textAlign }]}>{Math.round(score)}%</Text>
-            </View>
-          );
-        })}
+            if (layout.useRadialStack) {
+              const percentPoint = pointAt(index, percentRadius + boost, count, centerX, centerY);
+              const labelPoint = pointAt(index, labelRadius + boost, count, centerX, centerY);
 
-        {/* Center dot */}
-        <View style={[styles.centerPoint, { left: center - 4, top: center - 4 }]} />
+              return (
+                <Fragment key={`trait-label-${index}`}>
+                  {zone === 'top' ? (
+                    <>
+                      <SvgText
+                        x={percentPoint.x}
+                        y={percentPoint.y - 2}
+                        fill={percentFill}
+                        fontSize={layout.percentSize}
+                        fontWeight="800"
+                        textAnchor={textAnchor}
+                        {...pressHandlers}
+                      >
+                        {`${score}%`}
+                      </SvgText>
+                      {lines.map((line, lineIndex) => (
+                        <SvgText
+                          key={`name-${index}-${lineIndex}`}
+                          x={labelPoint.x}
+                          y={labelPoint.y + 12 + lineIndex * layout.labelLineDy}
+                          fill={labelFill}
+                          fontSize={layout.labelSize}
+                          fontWeight="800"
+                          textAnchor={textAnchor}
+                          {...pressHandlers}
+                        >
+                          {line}
+                        </SvgText>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {lines.map((line, lineIndex) => (
+                        <SvgText
+                          key={`name-${index}-${lineIndex}`}
+                          x={labelPoint.x}
+                          y={labelPoint.y + 12 + lineIndex * layout.labelLineDy}
+                          fill={labelFill}
+                          fontSize={layout.labelSize}
+                          fontWeight="800"
+                          textAnchor={textAnchor}
+                          {...pressHandlers}
+                        >
+                          {line}
+                        </SvgText>
+                      ))}
+                      <SvgText
+                        x={percentPoint.x}
+                        y={percentPoint.y + 14}
+                        fill={percentFill}
+                        fontSize={layout.percentSize}
+                        fontWeight="800"
+                        textAnchor={textAnchor}
+                        {...pressHandlers}
+                      >
+                        {`${score}%`}
+                      </SvgText>
+                    </>
+                  )}
+                </Fragment>
+              );
+            }
+
+            const anchorPoint = pointAt(index, labelRadius + boost, count, centerX, centerY);
+
+            return (
+              <Fragment key={`trait-label-${index}`}>
+                <SvgText
+                  x={anchorPoint.x}
+                  y={anchorPoint.y}
+                  dy={safeNum(layout.percentDy, DEFAULT_LABEL_LAYOUT.percentDy)}
+                  fill={percentFill}
+                  fontSize={layout.percentSize}
+                  fontWeight="800"
+                  textAnchor={textAnchor}
+                  {...pressHandlers}
+                >
+                  {`${score}%`}
+                </SvgText>
+                {lines.map((line, lineIndex) => (
+                  <SvgText
+                    key={`name-${index}-${lineIndex}`}
+                    x={anchorPoint.x}
+                    y={anchorPoint.y}
+                    dy={
+                      safeNum(layout.labelDy, DEFAULT_LABEL_LAYOUT.labelDy) +
+                      lineIndex * safeNum(layout.labelLineDy, DEFAULT_LABEL_LAYOUT.labelLineDy)
+                    }
+                    fill={labelFill}
+                    fontSize={layout.labelSize}
+                    fontWeight="800"
+                    textAnchor={textAnchor}
+                    {...pressHandlers}
+                  >
+                    {line}
+                  </SvgText>
+                ))}
+              </Fragment>
+            );
+          })}
+        </Svg>
       </View>
 
-      {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={styles.legendDot} />
           <Text style={styles.legendText}>{legendPoints}</Text>
-        </View>
-
-        <View style={styles.legendItem}>
-          <View style={styles.legendLine} />
-          <Text style={styles.legendText}>{legendLevels}</Text>
         </View>
       </View>
     </View>
@@ -270,93 +504,67 @@ export default function RadarChart({ abilities, labels, values }) {
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', gap: 12 },
-
+  shell: {
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
+    alignItems: 'center',
+  },
   headerRow: {
     width: '100%',
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   title: {
+    flex: 1,
     color: '#142B63',
     fontWeight: '900',
     fontSize: 16,
-    textAlign: 'right',
+    textAlign: 'left',
   },
+  titleRtl: { textAlign: 'right' },
   badge: {
     backgroundColor: '#EEF3FF',
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  badgeText: { color: '#1B3A8A', fontWeight: '900', fontSize: 16 },
+  badgeText: { color: '#1B3A8A', fontWeight: '900', fontSize: 14 },
+
+  chartFrame: {
+    alignSelf: 'center',
+    backgroundColor: '#F8FAFF',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E5ECFF',
+    overflow: 'visible',
+  },
 
   emptyContainer: { height: 220, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#6B7FAE', fontWeight: '800' },
 
-  chartContainer: {
-    position: 'relative',
-    backgroundColor: '#F6F8FF',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E6ECFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 1,
-  },
-
-  gridCircle: { position: 'absolute', borderWidth: 1, borderColor: '#D6E0FF' },
-  axisLine: { height: 1, backgroundColor: '#D6E0FF' },
-
-  levelText: {
-    position: 'absolute',
-    color: '#6B7FAE',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
-  dataPoint: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#F5B301',
-    borderWidth: 2,
-    borderColor: '#1B3A8A',
-  },
-
-  label: { position: 'absolute' },
-  labelText: { fontSize: 16, color: '#142B63', fontWeight: '900' },
-  labelScore: { marginTop: 2, fontSize: 16, color: '#1B3A8A', fontWeight: '900' },
-
-  centerPoint: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1B3A8A',
-  },
-
   legend: {
+    width: '100%',
     flexDirection: 'row-reverse',
-    gap: 14,
-    alignItems: 'center',
-    marginTop: 6,
     flexWrap: 'wrap',
+    gap: 18,
+    alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 22,
+    marginBottom: 6,
+    paddingHorizontal: 8,
   },
   legendItem: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   legendDot: {
-    width: 12,
-    height: 12,
+    width: 11,
+    height: 11,
     borderRadius: 6,
-    backgroundColor: '#F5B301',
-    borderWidth: 2,
-    borderColor: '#1B3A8A',
+    backgroundColor: '#F59E0B',
+    borderWidth: 1.5,
+    borderColor: '#0F2A5F',
   },
-  legendLine: { width: 18, height: 2, backgroundColor: '#D6E0FF', borderRadius: 2 },
-  legendText: { color: '#6B7FAE', fontWeight: '800', fontSize: 17 },
+  legendText: { color: '#52678F', fontWeight: '700', fontSize: 13 },
 });

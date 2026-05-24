@@ -97,6 +97,7 @@ import {
   PhysicsBridgeGameScreen,
   PhysicsBridgeLevelSelectScreen,
 } from '../features/games/physicsBridge';
+import { SudokuHomeScreen, SudokuGameScreen } from '../features/games/sudoku';
 
 function normalizeLang(lng) {
   const s = String(lng || '').toLowerCase();
@@ -135,10 +136,12 @@ const STUDENT_ID_REQUIRED_SCREENS = new Set([
   'ArabicPoetPuzzleResult',
   'physicsBridgeLevelSelect',
   'physicsBridgeGame',
+  'SudokuHome',
+  'SudokuGame',
 ]);
 
 export default function ManualNavigator() {
-  const { user, loading, profile, studentData, studentDataLoading, studentId, studentIdentity } = useAuth();
+  const { user, initializingAuth, profile, studentData, studentDataLoading, studentId, studentIdentity, profileError } = useAuth();
   const { i18n } = useTranslation();
 
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -150,7 +153,7 @@ export default function ManualNavigator() {
   const routedAfterLoginRef = useRef(false);
 
   useEffect(() => {
-    if (loading) return;
+    if (initializingAuth) return;
 
     // If logged out, reset the ref so next login will route again
     if (!user) {
@@ -159,9 +162,13 @@ export default function ManualNavigator() {
     }
 
     const role = String(user?.app_metadata?.role || profile?.role || '').toLowerCase();
+    const isAdministrativeRole = ['admin', 'principal', 'school_admin'].includes(role);
+
+    if (!isAdministrativeRole && studentDataLoading) return;
+
     const shouldRouteAfterAuth =
       currentScreen === 'login' ||
-      (currentScreen === 'home' && ['admin', 'principal', 'school_admin'].includes(role));
+      (currentScreen === 'home' && isAdministrativeRole);
 
     // Only route once after an auth transition or an invited admin/principal callback.
     if (shouldRouteAfterAuth && !routedAfterLoginRef.current) {
@@ -169,7 +176,7 @@ export default function ManualNavigator() {
       navigateTo('roleRouter', {}, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading, profile?.role, user?.app_metadata?.role, currentScreen]);
+  }, [user, initializingAuth, profile?.role, user?.app_metadata?.role, studentDataLoading, currentScreen]);
 
   const navigateTo = (screen, params = {}, options = {}) => {
     const currentLang = normalizeLang(i18n.language);
@@ -305,6 +312,27 @@ export default function ManualNavigator() {
     }
 
     if (currentScreen === 'roleRouter') {
+      if (studentDataLoading) {
+        return (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#27ae60" />
+            <Text style={styles.loadingText}>
+              {normalizeLang(i18n.language) === 'he'
+                ? 'טוען את פרטי המשתמש...'
+                : 'جاري تحميل بيانات المستخدم...'}
+            </Text>
+          </View>
+        );
+      }
+
+      if (profileError) {
+        return (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>{profileError}</Text>
+          </View>
+        );
+      }
+
       return <RoleRouterScreen navigateTo={navigateTo} />;
     }
 
@@ -437,6 +465,25 @@ export default function ManualNavigator() {
             navigation={gameNavigation}
             route={gameRoute}
             navigateTo={navigateTo}
+            studentId={resolvedStudentId}
+          />
+        );
+
+      case 'SudokuHome':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <SudokuHomeScreen
+            navigation={gameNavigation}
+            studentId={resolvedStudentId}
+          />
+        );
+
+      case 'SudokuGame':
+        if (!user) return <LoginScreen navigateTo={navigateTo} />;
+        return (
+          <SudokuGameScreen
+            navigation={gameNavigation}
+            route={gameRoute}
             studentId={resolvedStudentId}
           />
         );
@@ -715,7 +762,7 @@ export default function ManualNavigator() {
     }
   };
 
-  if (loading) {
+  if (initializingAuth) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#27ae60" />
@@ -790,6 +837,8 @@ export default function ManualNavigator() {
     'ArabicPoetPuzzleResult',
     'physicsBridgeLevelSelect',
     'physicsBridgeGame',
+    'SudokuHome',
+    'SudokuGame',
     'personalityTest',
     'personalityResults',
     'testResults',

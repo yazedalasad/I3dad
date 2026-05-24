@@ -44,6 +44,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
         profileSignals: 'אותות מהפרופיל',
         topStrengths: 'חוזקות מובילות',
         gameSignals: 'מהמשחקים',
+        sudokuImpactTitle: 'השפעת משחק סודוקו',
+        noSudokuSignals: 'עדיין אין נתוני סודוקו.',
         fullReport: 'לפתיחת הדוח המלא',
         details: 'פרטי מסלול',
         miniTask: 'משימת טעימה',
@@ -79,6 +81,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           profileSignals: 'إشارات من ملفك',
           topStrengths: 'أقوى نقاطك',
           gameSignals: 'من الألعاب',
+          sudokuImpactTitle: 'تأثير لعبة السودوكو',
+          noSudokuSignals: 'لا توجد بيانات سودوكو بعد.',
           fullReport: 'فتح التقرير الكامل',
           details: 'تفاصيل التخصص',
           miniTask: 'مهمة تجريبية',
@@ -113,6 +117,8 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
           profileSignals: 'Profile signals',
           topStrengths: 'Top strengths',
           gameSignals: 'From games',
+          sudokuImpactTitle: 'Sudoku game impact',
+          noSudokuSignals: 'No Sudoku signals yet.',
           fullReport: 'Open full report',
           details: 'Major details',
           miniTask: 'Try a mini task',
@@ -214,7 +220,11 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
   const topRecommendation = snapshot?.topRecommendation || null;
   const strongestAbilities = snapshot?.strongestAbilities || [];
   const gameHighlights = snapshot?.gameHighlights || [];
-  const gameCareerSignals = snapshot?.gameCareerSignals || { skills: [], topics: [], degrees: [], explanations: [] };
+  const gameCareerSignals = snapshot?.gameCareerSignals || { skills: [], topics: [], degrees: [], explanations: [], sudokuSkills: [] };
+  const sudokuSkills =
+    gameCareerSignals.sudokuSkills?.length > 0
+      ? gameCareerSignals.sudokuSkills
+      : (gameCareerSignals.skills || []).filter((skill) => skill.game_key === 'sudoku').slice(0, 3);
   const isGameOnlyPreliminary = recommendations.some((recommendation) => recommendation.is_game_only_preliminary);
   const hasLowConfidence = recommendations.some((recommendation) => Number(recommendation.confidence_score || 0) < 40);
 
@@ -298,6 +308,20 @@ export default function StudentRecommendationsScreen({ navigateTo }) {
                 </View>
               )}
             </View>
+
+            {sudokuSkills.length > 0 ? (
+              <View style={styles.signalBlock}>
+                <Text style={[styles.signalTitle, isRtl && styles.rtlText]}>{copy.sudokuImpactTitle}</Text>
+                <View style={[styles.chipsRow, isRtl && styles.chipsRowRtl]}>
+                  {sudokuSkills.slice(0, 3).map((skill) => (
+                    <View key={skill.key || `${skill.game_key}:${skill.skill_tag}`} style={styles.signalChip}>
+                      <Text style={styles.signalChipScore}>{skill.score}%</Text>
+                      <Text style={[styles.signalChipText, isRtl && styles.rtlText]}>{skill.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.signalBlock}>
               <Text style={[styles.signalTitle, isRtl && styles.rtlText]}>{copy.gameSignals}</Text>

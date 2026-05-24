@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 import { isDevRuntime } from './env';
 import { supabaseAnonKey, supabaseUrl } from './supabaseEnv';
@@ -7,7 +8,7 @@ const DEV_FALLBACK_URL = 'https://xeczbejdaqkszhnacxeh.supabase.co';
 const DEV_FALLBACK_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlY3piZWpkYXFrc3pobmFjeGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3Mjc2MTQsImV4cCI6MjA3NzMwMzYxNH0.1UCGPY04rj0I6rUTR60qdog990TtZ_OtCfb-yO9gkeY';
 
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 12000;
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
@@ -50,15 +51,27 @@ const fetchWithTimeout = async (url, options = {}) => {
   }
 };
 
+function getNativeAuthStorage() {
+  if (Platform.OS === 'web') return undefined;
+  try {
+    // eslint-disable-next-line global-require
+    return require('@react-native-async-storage/async-storage').default;
+  } catch (error) {
+    console.warn('[supabase] AsyncStorage unavailable, session may not persist on native:', error?.message);
+    return undefined;
+  }
+}
+
 /** @type {import('@supabase/supabase-js').SupabaseClient | null} */
 export const supabase =
   clientUrl && clientKey
     ? createClient(clientUrl, clientKey, {
         global: { fetch: fetchWithTimeout },
         auth: {
+          storage: getNativeAuthStorage(),
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          detectSessionInUrl: Platform.OS === 'web',
         },
       })
     : null;
@@ -86,4 +99,11 @@ if (!hasSupabaseConfig) {
     '[supabase] Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY in bundle. ' +
       'Run: eas env:exec --environment production -- npx expo export --platform web --clear'
   );
+} else if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('[supabase] Client configured:', {
+    url: Boolean(clientUrl),
+    anonKey: Boolean(clientKey),
+    platform: Platform.OS,
+    webStorage: Platform.OS === 'web' ? 'localStorage' : 'AsyncStorage',
+  });
 }

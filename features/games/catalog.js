@@ -87,6 +87,35 @@ const gameHubItems = [
     },
   },
   {
+    key: 'sudoku',
+    title: {
+      ar: 'سودوكو',
+      he: 'סודוקו',
+      en: 'Sudoku',
+    },
+    description: {
+      ar: 'لغز أرقام 9×9 يقوّي التفكير المنطقي والتركيز خطوة بخطوة.',
+      he: 'חידת מספרים 9×9 שמחזקת חשיבה לוגית וריכוז שלב אחר שלב.',
+      en: 'A 9×9 number puzzle that builds logical thinking and focus step by step.',
+    },
+    longDescription: {
+      ar: 'اختر مستوى الصعوبة، املأ الخانات الفارغة، وراقب الوقت والأخطاء حتى تكمل اللغز.',
+      he: 'בחרו רמת קושי, מלאו תאים ריקים, ועקבו אחרי הזמן והטעויות עד השלמת הפאזל.',
+      en: 'Pick a difficulty, fill empty cells, and track time and mistakes until the puzzle is complete.',
+    },
+    icon: 'th',
+    iconBg: '#2563eb',
+    buttonBg: '#2563eb',
+    accentSoft: '#dbeafe',
+    gradient: ['#2563eb', '#3b82f6'],
+    screen: 'SudokuHome',
+    badge: {
+      ar: 'منطق',
+      he: 'לוגיקה',
+      en: 'Logic',
+    },
+  },
+  {
     key: 'physics-bridge-game',
     title: {
       ar: 'مهندس الجسور',

@@ -24,6 +24,7 @@ export function buildUpdateSessionPayload({
   trustScore,
   hebrewScore,
   medicalReasoningScore,
+  metadata,
 }) {
   const payload = {};
 
@@ -35,6 +36,7 @@ export function buildUpdateSessionPayload({
   if (typeof trustScore === 'number') payload.trust_score = trustScore;
   if (typeof hebrewScore === 'number') payload.hebrew_score = hebrewScore;
   if (typeof medicalReasoningScore === 'number') payload.medical_reasoning_score = medicalReasoningScore;
+  if (metadata && typeof metadata === 'object') payload.metadata = metadata;
 
   return payload;
 }

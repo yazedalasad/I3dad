@@ -123,6 +123,28 @@ const gameProfileMap = {
       en: 'Follow with a deeper physics activity or a short engineering path.',
     },
   },
+  sudoku: {
+    title: {
+      ar: 'سودوكو',
+      he: 'סודוקו',
+      en: 'Sudoku',
+    },
+    skillTags: {
+      ar: ['تفكير منطقي', 'دقة', 'صبر', 'أنماط'],
+      he: ['חשיבה לוגית', 'דיוק', 'סבלנות', 'דפוסים'],
+      en: ['Logical reasoning', 'Attention', 'Patience', 'Patterns'],
+    },
+    focusArea: {
+      ar: 'ميل تحليلي',
+      he: 'נטייה אנליטית',
+      en: 'Analytical tendency',
+    },
+    nextStep: {
+      ar: 'جرّب مستوى أصعب أو نشاط منطق رياضي قصير بعد اللعبة.',
+      he: 'נסו רמה קשה יותר או פעילות לוגית-מתמטית קצרה אחרי המשחק.',
+      en: 'Try a harder level or a short logic-math activity after the game.',
+    },
+  },
   arabic_poet_puzzle: {
     title: {
       ar: 'كنوز الألفاظ',

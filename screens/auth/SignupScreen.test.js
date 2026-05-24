@@ -194,7 +194,11 @@ describe('SignupScreen', () => {
 
     makeAllValid();
 
-    mockSignUp.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
+    mockSignUp.mockResolvedValue({
+      success: true,
+      data: { needsEmailConfirmation: true, user: { id: 'u1' } },
+      error: null,
+    });
   });
 
   afterEach(() => {
@@ -295,7 +299,7 @@ describe('SignupScreen', () => {
    * STEP 3 / SIGNUP
    * ========================= */
 
-  it('signup (positive): create account success -> navigates to login and shows success alert after 500ms', async () => {
+  it('signup (positive): create account success with email confirmation -> navigates to login and shows confirmation alert', async () => {
     const { getByText, getByLabelText, navigateTo } = renderScreen();
 
     fireEvent.press(getByText('common.next')); // step2
@@ -312,20 +316,48 @@ describe('SignupScreen', () => {
       expect(navigateTo).toHaveBeenCalledWith('login');
     });
 
-    // success alert is shown after a timeout of 500ms
-    expect(Alert.alert).not.toHaveBeenCalledWith('auth.signup.success.title', 'auth.signup.success.message');
+    // confirmation alert is shown after a timeout of 400ms
+    expect(Alert.alert).not.toHaveBeenCalled();
 
     act(() => {
-      jest.advanceTimersByTime(500);
+      jest.advanceTimersByTime(400);
     });
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('auth.signup.success.title', 'auth.signup.success.message');
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'auth.signup.success.title',
+        'تم إنشاء الحساب. افحص بريدك الإلكتروني لتأكيد الحساب.'
+      );
+    });
+  });
+
+  it('signup (positive): immediate session -> navigates to roleRouter', async () => {
+    mockSignUp.mockResolvedValueOnce({
+      success: true,
+      data: { needsEmailConfirmation: false, session: { access_token: 't' }, user: { id: 'u1' } },
+      error: null,
+    });
+
+    const { getByText, getByLabelText, navigateTo } = renderScreen();
+
+    fireEvent.press(getByText('common.next'));
+    await waitFor(() => expect(getByText('auth.signup.contactInfo')).toBeTruthy());
+
+    fireEvent.press(getByLabelText('picker:الشعبة'));
+    fireEvent.press(getByText('common.next'));
+    await waitFor(() => expect(getByText('auth.signup.accountInfo')).toBeTruthy());
+
+    fireEvent.press(getByText('auth.signup.createAccount'));
+
+    await waitFor(() => {
+      expect(mockSignUp).toHaveBeenCalledTimes(1);
+      expect(navigateTo).toHaveBeenCalledWith('roleRouter');
     });
   });
 
   it('signup (negative): signUp returns "already registered" -> shows emailExists error alert', async () => {
     mockSignUp.mockResolvedValueOnce({
+      success: false,
       data: null,
       error: { message: 'already registered' },
     });

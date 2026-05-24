@@ -8,7 +8,12 @@ jest.mock('react-i18next', () => ({
 }));
 
 /* -------------------- AuthContext mock -------------------- */
-let mockAuthState = { user: null, loading: false };
+let mockAuthState = {
+  user: null,
+  initializingAuth: false,
+  studentDataLoading: false,
+  profile: null,
+};
 
 jest.mock('../../contexts/AuthContext', () => ({
   __esModule: true,
@@ -68,7 +73,7 @@ beforeEach(() => {
 
 
   it('render (positive): shows pleaseWait hint', async () => {
-    mockAuthState = { user: null, loading: true };
+    mockAuthState = { user: null, initializingAuth: true, studentDataLoading: false, profile: null };
 
     const utils = render(<RoleRouterScreen {...baseProps()} />);
 
@@ -78,7 +83,7 @@ beforeEach(() => {
   });
 
   it('render (negative): if not logged in and not loading -> navigates login and does NOT query profile tables', async () => {
-    mockAuthState = { user: null, loading: false };
+    mockAuthState = { user: null, initializingAuth: false, studentDataLoading: false, profile: null };
     const navigateTo = jest.fn();
 
     render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
@@ -91,7 +96,7 @@ beforeEach(() => {
   });
 
   it('render (negative): if auth loading=true -> does NOT navigate yet', async () => {
-    mockAuthState = { user: null, loading: true };
+    mockAuthState = { user: null, initializingAuth: true, studentDataLoading: false, profile: null };
     const navigateTo = jest.fn();
 
     render(<RoleRouterScreen {...baseProps({ navigateTo })} />);
@@ -110,7 +115,7 @@ beforeEach(() => {
   
 
   it('route (negative): principal exists but inactive -> falls through to home', async () => {
-    mockAuthState = { user: { id: 'u3' }, loading: false };
+    mockAuthState = { user: { id: 'u3' }, initializingAuth: false, studentDataLoading: false, profile: null };
 
     mockMaybeSinglePrincipals.mockResolvedValueOnce({
       data: { user_id: 'u3', is_active: false },
@@ -130,7 +135,8 @@ beforeEach(() => {
   it('route (positive): app metadata admin -> navigates admin dashboard', async () => {
     mockAuthState = {
       user: { id: 'u-admin', app_metadata: { role: 'admin' } },
-      loading: false,
+      initializingAuth: false,
+      studentDataLoading: false,
       profile: null,
     };
 
@@ -145,7 +151,8 @@ beforeEach(() => {
   it('route (security): user metadata admin is ignored without trusted role source', async () => {
     mockAuthState = {
       user: { id: 'u-user-meta-admin', user_metadata: { role: 'admin' } },
-      loading: false,
+      initializingAuth: false,
+      studentDataLoading: false,
       profile: null,
     };
     mockMaybeSingleProfiles.mockResolvedValueOnce({ data: { role: 'student' }, error: null });
@@ -162,7 +169,8 @@ beforeEach(() => {
   it('route (positive): database profile admin -> navigates admin dashboard', async () => {
     mockAuthState = {
       user: { id: 'u-admin-db', user_metadata: {} },
-      loading: false,
+      initializingAuth: false,
+      studentDataLoading: false,
       profile: null,
     };
     mockMaybeSingleProfiles.mockResolvedValueOnce({ data: { role: 'admin' }, error: null });
@@ -176,7 +184,7 @@ beforeEach(() => {
   });
 
   it('route (negative): supabase throws -> catches and navigates home', async () => {
-    mockAuthState = { user: { id: 'u4' }, loading: false };
+    mockAuthState = { user: { id: 'u4' }, initializingAuth: false, studentDataLoading: false, profile: null };
 
     mockMaybeSinglePrincipals.mockRejectedValueOnce(new Error('DB DOWN'));
 
@@ -189,7 +197,7 @@ beforeEach(() => {
   });
 
   it('route (positive): fresh session admin -> navigates admin dashboard', async () => {
-    mockAuthState = { user: null, loading: false, profile: null };
+    mockAuthState = { user: null, initializingAuth: false, studentDataLoading: false, profile: null };
     mockGetSession.mockResolvedValueOnce({
       data: { session: { user: { id: 'fresh-admin', app_metadata: { role: 'admin' }, user_metadata: {} } } },
       error: null,

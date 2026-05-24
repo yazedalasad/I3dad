@@ -1,16 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '../config/supabase';
+import { requireSupabase } from '../config/supabase';
 import { CLASS_SECTION_DEFAULT, normalizeClassSection } from '../utils/classSections';
 import { buildStudentIdentity } from '../utils/studentIdentity';
 import { isValidIsraeliId, normalizeIsraeliId } from '../src/utils/israeliId';
+import {
+  authResult,
+  normalizeAuthEmail,
+  withAuthTimeout,
+  AUTH_INIT_TIMEOUT_MS,
+  AUTH_REQUEST_TIMEOUT_MS,
+} from '../utils/authHelpers';
+import { validateEmail, validatePassword } from '../utils/validation';
 
 const AuthContext = createContext(null);
-
-const withTimeout = (promise, ms = 12000) =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ]);
 
 const hasValue = (value) => String(value ?? '').trim().length > 0;
 
@@ -141,20 +143,21 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-
-  // Only means: "auth is being restored / login state changing"
-  const [loading, setLoading] = useState(true);
-
+  const [initializingAuth, setInitializingAuth] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
   const [studentData, setStudentData] = useState(null);
   const [profile, setProfile] = useState(null);
   const [studentDataLoading, setStudentDataLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
 
-  // Prevent overlapping refresh calls
-  const refreshInFlightRef = useRef(false);
-  const lastRefreshForUserRef = useRef(null);
+  const refreshInFlightRef = useRef(null);
+  const initSessionHandledRef = useRef(false);
+
+  const loading = initializingAuth;
+  const authLoading = initializingAuth || authBusy;
 
   const fetchUserProfile = async (userId) => {
-    const { data, error } = await supabase
+    const { data, error } = await requireSupabase()
       .from('user_profiles')
       .select('*')
       .eq('user_id', userId)
@@ -170,12 +173,11 @@ export const AuthProvider = ({ children }) => {
     const userId = authUser.id;
     const email = String(authUser.email || '').trim();
     const metadata = authUser.user_metadata || {};
-    const metadataStudentId = metadata.student_id || metadata.studentId || null;
 
     const fetchMatches = async (column, value) => {
       if (!hasValue(value)) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await requireSupabase()
         .from('students')
         .select('*')
         .eq(column, value)
@@ -185,6 +187,7 @@ export const AuthProvider = ({ children }) => {
       return data || [];
     };
 
+    const metadataStudentId = metadata.student_id || metadata.studentId || null;
     const byUserId = await fetchMatches('user_id', userId);
     const byEmail = await fetchMatches('email', email);
     const byStudentId = await fetchMatches('student_id', metadataStudentId);
@@ -202,7 +205,7 @@ export const AuthProvider = ({ children }) => {
       const linkedStudent = byUserId.find((student) => student.user_id === userId) || null;
 
       if (bestStudent?.id && bestStudent.user_id !== userId && !bestStudent.user_id) {
-        const { data: linkedStudent, error: linkError } = await supabase
+        const { data: linkedStudent, error: linkError } = await requireSupabase()
           .from('students')
           .update({ user_id: userId })
           .eq('id', bestStudent.id)
@@ -217,7 +220,7 @@ export const AuthProvider = ({ children }) => {
         const missingUpdates = buildMissingStudentUpdates(linkedStudent, bestStudent);
 
         if (Object.keys(missingUpdates).length) {
-          const { data: mergedStudent, error: mergeError } = await supabase
+          const { data: mergedStudent, error: mergeError } = await requireSupabase()
             .from('students')
             .update(missingUpdates)
             .eq('id', linkedStudent.id)
@@ -239,7 +242,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (canCreateStudentFromPayload(metadataPayload)) {
-      const { data: createdStudent, error: createError } = await supabase
+      const { data: createdStudent, error: createError } = await requireSupabase()
         .from('students')
         .insert([metadataPayload])
         .select('*')
@@ -252,109 +255,160 @@ export const AuthProvider = ({ children }) => {
     return null;
   };
 
-  const refreshUserData = async (authUserOrId) => {
+  const refreshUserData = async (authUserOrId, { force = false } = {}) => {
     const authUser =
       typeof authUserOrId === 'string' ? { id: authUserOrId } : authUserOrId || {};
     const userId = authUser.id;
-    if (!userId) return;
+    if (!userId) return { profile: null, studentData: null };
 
-    // avoid duplicates for same user
-    if (refreshInFlightRef.current) return;
-    refreshInFlightRef.current = true;
-    lastRefreshForUserRef.current = userId;
-    setStudentDataLoading(true);
+    if (refreshInFlightRef.current && !force) {
+      return refreshInFlightRef.current;
+    }
+
+    const refreshPromise = (async () => {
+      setStudentDataLoading(true);
+      setProfileError(null);
+
+      try {
+        let prof = null;
+        try {
+          prof = await withAuthTimeout(fetchUserProfile(userId), AUTH_REQUEST_TIMEOUT_MS);
+        } catch (error) {
+          console.error('fetchUserProfile failed/timeout:', error?.message || error);
+          prof = null;
+        }
+
+        const metadataRole = String(authUser.app_metadata?.role || '').toLowerCase();
+        const metadataProfile = metadataRole
+          ? {
+              user_id: userId,
+              role: metadataRole,
+              full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+            }
+          : null;
+        const resolvedProfile = metadataRole
+          ? { ...(prof || {}), ...(metadataProfile || {}), role: metadataRole }
+          : prof;
+
+        const role = String(resolvedProfile?.role ?? 'student').toLowerCase();
+        setProfile(resolvedProfile);
+
+        const isAdministrativeRole = ['admin', 'principal', 'school_admin'].includes(role);
+        let stud = null;
+
+        if (!isAdministrativeRole) {
+          try {
+            stud = await withAuthTimeout(fetchStudentData(authUser), AUTH_REQUEST_TIMEOUT_MS);
+          } catch (error) {
+            console.error('fetchStudentData failed/timeout:', error?.message || error);
+            stud = null;
+          }
+          setStudentData((current) => stud ?? current);
+        } else {
+          setStudentData(null);
+        }
+
+        console.log('profile loaded:', Boolean(resolvedProfile || stud));
+        return { profile: resolvedProfile, studentData: stud };
+      } catch (error) {
+        const message = error?.message || 'Failed to load profile';
+        setProfileError(message);
+        throw error;
+      } finally {
+        setStudentDataLoading(false);
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
 
     try {
-      // ✅ Fetch profile (allow a bit longer)
-      let prof = null;
-      try {
-        prof = await withTimeout(fetchUserProfile(userId), 15000);
-      } catch (e) {
-        console.error('fetchUserProfile failed/timeout:', e?.message || e);
-        prof = null;
-      }
-
-      const metadataRole = String(authUser.app_metadata?.role || '').toLowerCase();
-      const metadataProfile = metadataRole
-        ? {
-            user_id: userId,
-            role: metadataRole,
-            full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
-          }
-        : null;
-      const resolvedProfile = metadataRole ? { ...(prof || {}), ...(metadataProfile || {}), role: metadataRole } : prof;
-
-      // ✅ If profile missing => use auth metadata role, then default student
-      const role = String(resolvedProfile?.role ?? 'student').toLowerCase();
-
-      // Update profile state (even if null)
-      setProfile(resolvedProfile);
-
-      // ✅ If student role, fetch student row
-      const isAdministrativeRole = ['admin', 'principal', 'school_admin'].includes(role);
-
-      if (!isAdministrativeRole) {
-        let stud = null;
-        try {
-          stud = await withTimeout(fetchStudentData(authUser), 12000);
-        } catch (e) {
-          console.error('fetchStudentData failed/timeout:', e?.message || e);
-          stud = null;
-        }
-        setStudentData((current) => stud ?? current);
-      } else {
-        // admin/principal -> studentData not required
-        setStudentData(null);
-      }
+      return await refreshPromise;
     } finally {
-      setStudentDataLoading(false);
-      refreshInFlightRef.current = false;
+      if (refreshInFlightRef.current === refreshPromise) {
+        refreshInFlightRef.current = null;
+      }
     }
   };
 
   useEffect(() => {
     let isMounted = true;
+    console.log('Auth init start');
 
-    const applySession = async (newSession) => {
+    const clearAuthState = () => {
+      setProfile(null);
+      setStudentData(null);
+      setStudentDataLoading(false);
+      setProfileError(null);
+    };
+
+    const applySession = async (newSession, { waitForProfile = false, event = 'manual' } = {}) => {
       if (!isMounted) return;
+
+      console.log('auth event:', event, Boolean(newSession));
 
       setSession(newSession);
       const nextUser = newSession?.user ?? null;
       setUser(nextUser);
 
       if (!nextUser) {
-        setProfile(null);
-        setStudentData(null);
-        setStudentDataLoading(false);
-        setLoading(false);
+        clearAuthState();
         return;
       }
 
-      // ✅ Do not block UI forever on refresh
-      refreshUserData(nextUser).catch((e) =>
-        console.error('refreshUserData failed:', e?.message || e)
-      );
-
-      setLoading(false);
+      if (waitForProfile) {
+        try {
+          await refreshUserData(nextUser, { force: true });
+        } catch (error) {
+          console.error('refreshUserData failed:', error?.message || error);
+        }
+      } else {
+        refreshUserData(nextUser).catch((error) =>
+          console.error('refreshUserData failed:', error?.message || error)
+        );
+      }
     };
 
     (async () => {
       try {
-        const res = await withTimeout(supabase.auth.getSession(), 8000);
-        const session0 = res?.data?.session ?? null;
-        await applySession(session0);
-      } catch (e) {
-        console.error('getSession fail:', e?.message || e);
-        if (isMounted) setLoading(false);
+        const { data, error } = await withAuthTimeout(
+          requireSupabase().auth.getSession(),
+          AUTH_INIT_TIMEOUT_MS
+        );
+        if (error) {
+          console.error('auth error:', error?.message);
+        }
+
+        const session0 = data?.session ?? null;
+        console.log('getSession result:', Boolean(session0));
+        initSessionHandledRef.current = true;
+        await applySession(session0, { waitForProfile: Boolean(session0), event: 'INITIAL_SESSION' });
+      } catch (error) {
+        console.error('getSession fail:', error?.message || error);
+      } finally {
+        if (isMounted) {
+          setInitializingAuth(false);
+        }
       }
     })();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    } = requireSupabase().auth.onAuthStateChange(async (event, newSession) => {
       if (!isMounted) return;
-      setLoading(true);
-      await applySession(newSession);
+
+      console.log('auth event:', event, Boolean(newSession));
+
+      if (event === 'INITIAL_SESSION' && initSessionHandledRef.current) {
+        return;
+      }
+
+      if (event === 'SIGNED_OUT' || !newSession) {
+        await applySession(null, { event });
+        return;
+      }
+
+      const waitForProfile = event === 'SIGNED_IN' || event === 'USER_UPDATED';
+      await applySession(newSession, { waitForProfile, event });
     });
 
     return () => {
@@ -364,44 +418,82 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signUp = async (email, password, studentInfo) => {
+    setAuthBusy(true);
+
     try {
-      const normalizedStudentId = normalizeValidStudentId(studentInfo?.studentId || studentInfo?.student_id);
-      if (!normalizedStudentId) throw new Error('INVALID_STUDENT_ID');
+      const normalizedEmail = normalizeAuthEmail(email);
+      const emailValidation = validateEmail(normalizedEmail);
+      if (!emailValidation.isValid) {
+        const validationError = new Error(emailValidation.error || 'Invalid email');
+        console.error('auth error:', validationError.message);
+        return authResult({ success: false, error: validationError });
+      }
+
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        const validationError = new Error(passwordValidation.error || 'Invalid password');
+        console.error('auth error:', validationError.message);
+        return authResult({ success: false, error: validationError });
+      }
+
+      const normalizedStudentId = normalizeValidStudentId(
+        studentInfo?.studentId || studentInfo?.student_id
+      );
+      if (!normalizedStudentId) {
+        const validationError = new Error('INVALID_STUDENT_ID');
+        console.error('auth error:', validationError.message);
+        return authResult({ success: false, error: validationError });
+      }
 
       const studentMetadata = buildStudentMetadata(studentInfo);
+      const client = requireSupabase();
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: studentMetadata,
-        },
-      });
-      if (authError) throw authError;
+      const { data: authData, error: authError } = await withAuthTimeout(
+        client.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            data: studentMetadata,
+          },
+        }),
+        AUTH_REQUEST_TIMEOUT_MS
+      );
 
+      if (authError) {
+        console.error('auth error:', authError?.message);
+        return authResult({ success: false, error: authError });
+      }
+
+      const needsEmailConfirmation = !authData.session;
       const newUserId = authData.user?.id;
 
       if (newUserId) {
         const birthday = normalizeBirthday(studentInfo.birthday);
 
-        const { data: studentRow, error: studentError } = await supabase.from('students').insert([
+        const { error: studentError } = await client.from('students').insert([
           {
             user_id: newUserId,
             student_id: normalizedStudentId,
             first_name: studentInfo.firstName,
             last_name: studentInfo.lastName,
             phone: studentInfo.phone,
-            email,
+            email: normalizedEmail,
             birthday,
             school_name: studentInfo.schoolName,
             school_id: studentInfo.schoolId || null,
             grade: studentInfo.grade,
-            class_section: normalizeClassSection(studentInfo.classSection || CLASS_SECTION_DEFAULT),
+            class_section: normalizeClassSection(
+              studentInfo.classSection || CLASS_SECTION_DEFAULT
+            ),
           },
-        ]).select('*').maybeSingle();
-        if (studentError) throw studentError;
+        ]);
 
-        await supabase.from('user_profiles').upsert(
+        if (studentError) {
+          console.error('auth error:', studentError?.message);
+          return authResult({ success: false, error: studentError });
+        }
+
+        await client.from('user_profiles').upsert(
           {
             user_id: newUserId,
             role: 'student',
@@ -409,66 +501,141 @@ export const AuthProvider = ({ children }) => {
           },
           { onConflict: 'user_id' }
         );
-
-        setStudentData(studentRow ?? null);
-
-        // refresh (don’t block)
-        await supabase.auth.signOut();
-        setProfile(null);
-        setStudentData(null);
-        setStudentDataLoading(false);
-        setUser(null);
-        setSession(null);
       }
 
-      return { data: authData, error: null };
+      if (needsEmailConfirmation) {
+        return authResult({
+          success: true,
+          data: {
+            needsEmailConfirmation: true,
+            user: authData.user,
+          },
+        });
+      }
+
+      if (authData.session) {
+        setSession(authData.session);
+        setUser(authData.user);
+        await refreshUserData(authData.user, { force: true });
+      }
+
+      console.log('login success:', Boolean(authData?.session));
+
+      return authResult({
+        success: true,
+        data: {
+          needsEmailConfirmation: false,
+          session: authData.session,
+          user: authData.user,
+        },
+      });
     } catch (error) {
-      console.error('Sign up error:', error?.message || error);
-      return { data: null, error };
+      console.error('auth error:', error?.message || error);
+      return authResult({ success: false, error });
+    } finally {
+      setAuthBusy(false);
     }
   };
 
   const signIn = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
+    setAuthBusy(true);
 
-      const userId = data?.user?.id;
-      if (userId) {
-        refreshUserData(data.user).catch((e) =>
-          console.error('signIn refreshUserData fail:', e?.message || e)
-        );
+    try {
+      const normalizedEmail = normalizeAuthEmail(email);
+      const emailValidation = validateEmail(normalizedEmail);
+      if (!emailValidation.isValid) {
+        const validationError = new Error(emailValidation.error || 'Invalid email');
+        console.error('auth error:', validationError.message);
+        return authResult({ success: false, error: validationError });
       }
 
-      return { data, error: null };
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        const validationError = new Error(passwordValidation.error || 'Invalid password');
+        console.error('auth error:', validationError.message);
+        return authResult({ success: false, error: validationError });
+      }
+
+      const client = requireSupabase();
+      const { data, error } = await withAuthTimeout(
+        client.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        }),
+        AUTH_REQUEST_TIMEOUT_MS
+      );
+
+      if (error) {
+        console.error('auth error:', error?.message);
+        return authResult({ success: false, error });
+      }
+
+      console.log('login success:', Boolean(data?.session));
+
+      let activeSession = data?.session ?? null;
+      let activeUser = data?.user ?? activeSession?.user ?? null;
+
+      if (!activeSession) {
+        const { data: sessionData, error: sessionError } = await client.auth.getSession();
+        if (sessionError) {
+          console.error('auth error:', sessionError?.message);
+          return authResult({ success: false, error: sessionError });
+        }
+        activeSession = sessionData?.session ?? null;
+        activeUser = activeSession?.user ?? activeUser;
+      }
+
+      if (!activeSession || !activeUser) {
+        const sessionError = new Error('No session returned after login. Please try again.');
+        console.error('auth error:', sessionError.message);
+        return authResult({ success: false, error: sessionError });
+      }
+
+      setSession(activeSession);
+      setUser(activeUser);
+
+      const loaded = await refreshUserData(activeUser, { force: true });
+
+      return authResult({
+        success: true,
+        data: {
+          session: activeSession,
+          user: activeUser,
+          profile: loaded?.profile ?? null,
+          studentData: loaded?.studentData ?? null,
+        },
+      });
     } catch (error) {
-      console.error('Sign in error:', error?.message || error);
-      return { data: null, error };
+      console.error('auth error:', error?.message || error);
+      return authResult({ success: false, error });
+    } finally {
+      setAuthBusy(false);
     }
   };
 
   const signOut = async () => {
-    try {
-      setLoading(true);
+    setAuthBusy(true);
 
-      const { error } = await withTimeout(supabase.auth.signOut(), 12000);
-      if (error) throw error;
+    try {
+      const { error } = await withAuthTimeout(requireSupabase().auth.signOut(), AUTH_REQUEST_TIMEOUT_MS);
+      if (error) {
+        console.error('auth error:', error?.message);
+        return authResult({ success: false, error });
+      }
 
       setProfile(null);
       setStudentData(null);
       setStudentDataLoading(false);
+      setProfileError(null);
       setUser(null);
       setSession(null);
 
-      return { error: null };
+      return authResult({ success: true });
     } catch (error) {
-      console.error('Sign out error:', error?.message || error);
-      return { error };
+      console.error('auth error:', error?.message || error);
+      return authResult({ success: false, error });
     } finally {
-      setLoading(false);
+      setAuthBusy(false);
     }
   };
 
@@ -500,18 +667,21 @@ export const AuthProvider = ({ children }) => {
       };
 
       const query = baseStudent?.id
-        ? supabase.from('students').update(payload).eq('id', baseStudent.id)
-        : supabase.from('students').insert([payload]);
+        ? requireSupabase().from('students').update(payload).eq('id', baseStudent.id)
+        : requireSupabase().from('students').insert([payload]);
 
-      const { data, error } = await withTimeout(query.select('*').maybeSingle(), 12000);
+      const { data, error } = await withAuthTimeout(
+        query.select('*').maybeSingle(),
+        AUTH_REQUEST_TIMEOUT_MS
+      );
 
       if (error) throw error;
 
       setStudentData(data ?? null);
-      return { data: data ?? null, error: null };
+      return authResult({ success: true, data: data ?? null });
     } catch (error) {
       console.error('Update student data error:', error?.message || error);
-      return { data: null, error };
+      return authResult({ success: false, error });
     }
   };
 
@@ -522,24 +692,23 @@ export const AuthProvider = ({ children }) => {
       const targetStudent = studentData || (await fetchStudentData(user));
 
       if (targetStudent?.id) {
-        const { error: studentError } = await withTimeout(
-          supabase.from('students').delete().eq('id', targetStudent.id),
-          12000
+        const { error: studentError } = await withAuthTimeout(
+          requireSupabase().from('students').delete().eq('id', targetStudent.id),
+          AUTH_REQUEST_TIMEOUT_MS
         );
         if (studentError) throw studentError;
       }
 
       try {
-        await supabase.from('user_profiles').delete().eq('user_id', user.id);
+        await requireSupabase().from('user_profiles').delete().eq('user_id', user.id);
       } catch (_error) {
         // Some deployments restrict profile deletion. Student data removal is the critical path.
       }
 
-      await signOut();
-      return { error: null };
+      return await signOut();
     } catch (error) {
       console.error('Delete account error:', error?.message || error);
-      return { error };
+      return authResult({ success: false, error });
     }
   };
 
@@ -563,7 +732,11 @@ export const AuthProvider = ({ children }) => {
       user,
       session,
       loading,
+      initializingAuth,
+      authLoading,
+      authBusy,
       profile,
+      profileError,
       studentData,
       studentDataLoading,
       studentId,
@@ -575,7 +748,20 @@ export const AuthProvider = ({ children }) => {
       updateStudentData,
       refreshUserData,
     }),
-    [user, session, loading, profile, studentData, studentDataLoading, studentId, studentIdentity]
+    [
+      user,
+      session,
+      loading,
+      initializingAuth,
+      authLoading,
+      authBusy,
+      profile,
+      profileError,
+      studentData,
+      studentDataLoading,
+      studentId,
+      studentIdentity,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

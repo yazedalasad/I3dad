@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -28,6 +28,7 @@ export default function LoginScreen({ navigateTo }) {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const submitRef = useRef(false);
 
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
@@ -62,26 +63,37 @@ export default function LoginScreen({ navigateTo }) {
   };
 
   const handleLogin = async () => {
+    if (loading || submitRef.current) return;
     if (!validateForm()) return;
 
+    submitRef.current = true;
     setLoading(true);
-    const { error } = await signIn(email, password);
-    setLoading(false);
 
-    if (error) {
-      let errorMessage = t('auth.login.errors.generic');
+    try {
+      const result = await signIn(email, password);
+      const error = result?.error;
 
-      if (error.message.includes('Invalid login credentials')) {
-        errorMessage = t('auth.login.errors.invalidCredentials');
-      } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = t('auth.login.errors.emailNotConfirmed');
+      if (error || result?.success === false) {
+        const exactMessage = String(error?.message || '').trim();
+        console.error('auth error:', exactMessage || error);
+
+        let errorMessage = exactMessage || t('auth.login.errors.generic');
+
+        if (exactMessage.includes('Invalid login credentials')) {
+          errorMessage = t('auth.login.errors.invalidCredentials');
+        } else if (exactMessage.includes('Email not confirmed')) {
+          errorMessage = t('auth.login.errors.emailNotConfirmed');
+        }
+
+        Alert.alert(t('common.error'), errorMessage);
+        return;
       }
 
-      Alert.alert(t('common.error'), errorMessage);
-      return;
+      navigateTo('roleRouter');
+    } finally {
+      setLoading(false);
+      submitRef.current = false;
     }
-
-    navigateTo('roleRouter');
   };
 
   return (
@@ -204,6 +216,7 @@ export default function LoginScreen({ navigateTo }) {
                   onPress={handleLogin}
                   icon="sign-in"
                   loading={loading}
+                  disabled={loading}
                 />
 
                 <View style={styles.divider}>

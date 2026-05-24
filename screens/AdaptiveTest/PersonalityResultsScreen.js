@@ -9,10 +9,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 
+import RadarChart from '../../components/AdaptiveTest/RadarChart';
+import TraitDetailModal from '../../components/AdaptiveTest/TraitDetailModal';
 import { getStudentPersonalityProfile } from '../../services/personalityTestService';
 
 function safeNum(value, fallback = 0) {
@@ -49,9 +50,13 @@ const copy = {
     quickTitle: 'ملخص سريع',
     quickText: 'النتائج تعكس نمطاً عاماً حسب إجاباتك وتساعد في تحسين توصيات التخصصات.',
     traitsTitle: 'سمات الشخصية الخمس',
+    radarTitle: 'خريطة السمات الخمس',
+    radarBadge: 'Big Five',
     chartTitle: 'الرسم',
     chartHint: 'مقارنة مختصرة بين السمات الخمس.',
     chartEmpty: 'لا توجد بيانات كافية لعرض الرسم.',
+    chartTapHint: 'اضغط على الصفة في الرسم لعرض الشرح',
+    close: 'إغلاق',
     meaningTitle: 'ماذا تعني هذه النتائج؟',
     meaningText: 'المسؤولية تدعم المجالات التي تحتاج تخطيطاً، والانفتاح يدعم الإبداع والبحث، والانبساط يساعد في العمل الجماعي، والتعاون مهم للتعليم والرعاية، والحساسية للضغط تعني أن بيئة تعلم داعمة قد تساعدك أكثر.',
     recommendationTitle: 'كيف يؤثر هذا على التوصيات؟',
@@ -79,9 +84,13 @@ const copy = {
     quickTitle: 'סיכום מהיר',
     quickText: 'התוצאות משקפות דפוס כללי לפי התשובות שלך, ומסייעות לשפר את התאמת תחומי הלימוד.',
     traitsTitle: 'חמש תכונות האישיות',
+    radarTitle: 'מפת תכונות האישיות',
+    radarBadge: 'Big Five',
     chartTitle: 'תרשים',
     chartHint: 'השוואה קצרה בין חמש התכונות.',
     chartEmpty: 'אין מספיק נתונים להצגת התרשים.',
+    chartTapHint: 'לחץ/י על תכונה בגרף כדי לראות הסבר',
+    close: 'סגור',
     meaningTitle: 'מה זה אומר?',
     meaningText: 'מצפוניות גבוהה תומכת בתחומים שדורשים תכנון ואחריות, פתיחות גבוהה מתאימה ליצירה ולמחקר, מוחצנות תומכת בעבודה חברתית וצוותית, נעימות חשובה לחינוך, טיפול ושיתוף פעולה, ונוירוטיות גבוהה יותר מצביעה על צורך בסביבת למידה תומכת.',
     recommendationTitle: 'איך זה משפיע על ההמלצות?',
@@ -109,9 +118,13 @@ const copy = {
     quickTitle: 'Quick Summary',
     quickText: 'These results reflect a general pattern from your answers and help improve major recommendations.',
     traitsTitle: 'Big Five Traits',
+    radarTitle: 'Personality Trait Map',
+    radarBadge: 'Big Five',
     chartTitle: 'Chart',
     chartHint: 'A compact comparison across the five traits.',
     chartEmpty: 'Not enough data to show the chart.',
+    chartTapHint: 'Tap a trait on the chart to see details',
+    close: 'Close',
     meaningTitle: 'What does this mean?',
     meaningText: 'Conscientiousness supports fields that require planning and responsibility, openness supports creative and research paths, extraversion supports social and team fields, agreeableness supports education, care, and teamwork, and higher neuroticism suggests the student may benefit from supportive learning environments.',
     recommendationTitle: 'How does this affect recommendations?',
@@ -138,12 +151,9 @@ const traitOrder = [
 
 export default function PersonalityResultsScreen({ navigateTo, studentId, language = 'ar' }) {
   const { i18n } = useTranslation();
-  const { width } = useWindowDimensions();
   const lang = normalizeLang(language || i18n.language);
   const isRtl = lang === 'ar' || lang === 'he';
   const c = copy[lang];
-  const isWide = width >= 720;
-
   useEffect(() => {
     if (normalizeLang(i18n.language) !== lang) {
       i18n.changeLanguage(lang).catch(() => {});
@@ -153,6 +163,7 @@ export default function PersonalityResultsScreen({ navigateTo, studentId, langua
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [insights, setInsights] = useState(null);
+  const [selectedTraitIndex, setSelectedTraitIndex] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -201,6 +212,10 @@ export default function PersonalityResultsScreen({ navigateTo, studentId, langua
     [c, profile]
   );
   const hasChartData = traits.some((trait) => trait.value > 0);
+  const radarLabels = traits.map((trait) => trait.title);
+  const radarValues = traits.map((trait) => trait.value);
+  const selectedTrait =
+    selectedTraitIndex != null && traits[selectedTraitIndex] ? traits[selectedTraitIndex] : null;
   const description =
     lang === 'he'
       ? insights?.personality_type_description_he
@@ -220,63 +235,73 @@ export default function PersonalityResultsScreen({ navigateTo, studentId, langua
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.content}>
-        <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
-          <View style={[styles.heroTop, isRtl && styles.rowReverse]}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>5</Text>
+        <View style={styles.pageInner}>
+          <LinearGradient colors={['#1B3A8A', '#1E4FBF']} style={styles.hero}>
+            <View style={[styles.heroTop, isRtl && styles.rowReverse]}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>5</Text>
+              </View>
+              <View style={styles.heroText}>
+                <Text style={[styles.heroTitle, isRtl && styles.rtlText]}>{c.title}</Text>
+                <Text style={[styles.heroSubtitle, isRtl && styles.rtlText]}>{c.subtitle}</Text>
+              </View>
+              <View style={styles.confidencePill}>
+                <Text style={styles.confidenceText}>{c.confidence(confidence)}</Text>
+              </View>
             </View>
-            <View style={styles.heroText}>
-              <Text style={[styles.heroTitle, isRtl && styles.rtlText]}>{c.title}</Text>
-              <Text style={[styles.heroSubtitle, isRtl && styles.rtlText]}>{c.subtitle}</Text>
-            </View>
-            <View style={styles.confidencePill}>
-              <Text style={styles.confidenceText}>{c.confidence(confidence)}</Text>
-            </View>
+            <Text style={[styles.heroSummary, isRtl && styles.rtlText]}>{c.heroSummary}</Text>
+          </LinearGradient>
+
+          <InfoCard icon="sparkles" title={c.quickTitle} text={description || c.quickText} isRtl={isRtl} />
+
+          <View style={styles.radarCard}>
+            {hasChartData ? (
+              <>
+                <View style={styles.chartWrap}>
+                  <RadarChart
+                    labels={radarLabels}
+                    values={radarValues}
+                    headerTitle={c.radarTitle}
+                    headerBadge={c.radarBadge}
+                    maxItems={5}
+                    preserveOrder
+                    interactive
+                    selectedIndex={selectedTraitIndex}
+                    onTraitPress={setSelectedTraitIndex}
+                  />
+                </View>
+                <Text style={[styles.chartTapHint, isRtl && styles.rtlText]}>{c.chartTapHint}</Text>
+              </>
+            ) : (
+              <Text style={[styles.emptyChart, isRtl && styles.rtlText]}>{c.chartEmpty}</Text>
+            )}
           </View>
-          <Text style={[styles.heroSummary, isRtl && styles.rtlText]}>{c.heroSummary}</Text>
-        </LinearGradient>
 
-        <InfoCard icon="sparkles" title={c.quickTitle} text={description || c.quickText} isRtl={isRtl} />
+          <TraitDetailModal
+            visible={Boolean(selectedTrait)}
+            trait={selectedTrait}
+            isRtl={isRtl}
+            closeLabel={c.close}
+            onClose={() => setSelectedTraitIndex(null)}
+          />
 
-        <View style={styles.card}>
-          <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{c.traitsTitle}</Text>
-          <View style={[styles.traitsGrid, isWide && styles.traitsGridWide]}>
-            {traits.map((trait) => (
-              <TraitCard key={trait.key} trait={trait} isRtl={isRtl} isWide={isWide} />
-            ))}
+          <InfoCard icon="help" title={c.meaningTitle} text={c.meaningText} isRtl={isRtl} />
+          <InfoCard icon="link" title={c.recommendationTitle} text={c.recommendationText} isRtl={isRtl} />
+
+          <View style={styles.footerCard}>
+            <Pressable
+              onPress={() => navigateTo('studentInsightReport', { studentId, language: lang })}
+              style={({ pressed }) => [styles.primaryBtn, pressed && styles.btnPressed]}
+            >
+              <Text style={styles.primaryBtnText}>{c.fullReport}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigateTo('home')}
+              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.btnPressed]}
+            >
+              <Text style={styles.secondaryBtnText}>{c.backHome}</Text>
+            </Pressable>
           </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{c.chartTitle}</Text>
-          <Text style={[styles.muted, isRtl && styles.rtlText]}>{c.chartHint}</Text>
-          {hasChartData ? (
-            <View style={styles.chartList}>
-              {traits.map((trait) => (
-                <ChartRow key={trait.key} trait={trait} isRtl={isRtl} />
-              ))}
-            </View>
-          ) : (
-            <Text style={[styles.emptyChart, isRtl && styles.rtlText]}>{c.chartEmpty}</Text>
-          )}
-        </View>
-
-        <InfoCard icon="help" title={c.meaningTitle} text={c.meaningText} isRtl={isRtl} />
-        <InfoCard icon="link" title={c.recommendationTitle} text={c.recommendationText} isRtl={isRtl} />
-
-        <View style={styles.footerCard}>
-          <Pressable
-            onPress={() => navigateTo('studentInsightReport', { studentId, language: lang })}
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.btnPressed]}
-          >
-            <Text style={styles.primaryBtnText}>{c.fullReport}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => navigateTo('home')}
-            style={({ pressed }) => [styles.secondaryBtn, pressed && styles.btnPressed]}
-          >
-            <Text style={styles.secondaryBtnText}>{c.backHome}</Text>
-          </Pressable>
         </View>
       </ScrollView>
     </View>
@@ -297,54 +322,25 @@ function InfoCard({ icon, title, text, isRtl }) {
   );
 }
 
-function TraitCard({ trait, isRtl, isWide }) {
-  return (
-    <View style={[styles.traitCard, isWide && styles.traitCardWide]}>
-      <View style={[styles.traitTop, isRtl && styles.rowReverse]}>
-        <View style={styles.traitTextBlock}>
-          <Text style={[styles.traitTitle, isRtl && styles.rtlText]}>{trait.title}</Text>
-          <Text style={[styles.traitLabel, isRtl && styles.rtlText]}>{trait.label}</Text>
-        </View>
-        <Text style={styles.traitPct}>{trait.value}%</Text>
-      </View>
-      <Progress value={trait.value} />
-      <Text style={[styles.traitExplanation, isRtl && styles.rtlText]}>{trait.explanation}</Text>
-    </View>
-  );
-}
-
-function ChartRow({ trait, isRtl }) {
-  return (
-    <View style={styles.chartRow}>
-      <View style={[styles.chartLabelRow, isRtl && styles.rowReverse]}>
-        <Text style={[styles.chartLabel, isRtl && styles.rtlText]}>{trait.title}</Text>
-        <Text style={styles.chartPct}>{trait.value}%</Text>
-      </View>
-      <Progress value={trait.value} />
-    </View>
-  );
-}
-
-function Progress({ value }) {
-  return (
-    <View style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${pct(value)}%` }]} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#F6F8FF' },
-  content: { paddingBottom: 22 },
+  content: { paddingBottom: 28, flexGrow: 1 },
+  pageInner: {
+    width: '100%',
+    maxWidth: 1100,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F6F8FF' },
   centerText: { marginTop: 10, color: '#334155', fontWeight: '800' },
 
   hero: {
+    marginTop: 12,
     paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 18,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderRadius: 22,
+    overflow: 'hidden',
   },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroText: { flex: 1 },
@@ -365,25 +361,46 @@ const styles = StyleSheet.create({
   confidencePill: { borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 7 },
   confidenceText: { color: '#fff', fontWeight: '900', fontSize: 17 },
 
-  card: {
-    marginTop: 12,
-    marginHorizontal: 14,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 14,
+  radarCard: {
+    marginTop: 14,
+    backgroundColor: '#F8FAFF',
+    borderRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
     borderWidth: 1,
     borderColor: '#E5ECFF',
     shadowColor: '#102A68',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 2,
+    maxWidth: 620,
+    width: '100%',
+    alignSelf: 'center',
+    overflow: 'visible',
+  },
+  chartWrap: {
+    marginTop: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
+    overflow: 'visible',
+  },
+  chartTapHint: {
+    marginTop: 14,
+    color: '#64748B',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
   infoCard: {
-    marginTop: 12,
-    marginHorizontal: 14,
+    marginTop: 14,
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 22,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5ECFF',
   },
@@ -394,39 +411,13 @@ const styles = StyleSheet.create({
   bodyText: { color: '#334155', fontSize: 16, lineHeight: 22, fontWeight: '700' },
   muted: { color: '#64748B', marginTop: 4, fontSize: 16, lineHeight: 19, fontWeight: '700' },
 
-  traitsGrid: { marginTop: 12, gap: 10 },
-  traitsGridWide: { flexDirection: 'row', flexWrap: 'wrap' },
-  traitCard: {
-    width: '100%',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFF',
-    padding: 12,
-  },
-  traitCardWide: { width: '48.8%' },
-  traitTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  traitTextBlock: { flex: 1 },
-  traitTitle: { color: '#0F172A', fontWeight: '900', fontSize: 17, lineHeight: 20 },
-  traitLabel: { color: '#64748B', marginTop: 3, fontWeight: '800', fontSize: 17, lineHeight: 17 },
-  traitPct: { color: '#1E4FBF', fontSize: 28, lineHeight: 32, fontWeight: '900' },
-  traitExplanation: { color: '#475569', marginTop: 8, fontSize: 16, lineHeight: 19, fontWeight: '700' },
-
-  progressTrack: { height: 8, borderRadius: 999, backgroundColor: '#EAF0FF', overflow: 'hidden', marginTop: 10 },
-  progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#1E4FBF' },
-  chartList: { marginTop: 8, gap: 10 },
-  chartRow: { gap: 2 },
-  chartLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  chartLabel: { flex: 1, color: '#102A68', fontWeight: '900', fontSize: 16 },
-  chartPct: { color: '#1E4FBF', fontWeight: '900', fontSize: 16 },
   emptyChart: { marginTop: 10, color: '#64748B', fontWeight: '800', lineHeight: 20 },
 
   footerCard: {
-    marginTop: 12,
-    marginHorizontal: 14,
+    marginTop: 14,
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 12,
+    borderRadius: 22,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E5ECFF',
     gap: 10,

@@ -40,7 +40,7 @@ describe('supabase client configuration', () => {
         auth: expect.objectContaining({
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          detectSessionInUrl: expect.any(Boolean),
         }),
       })
     );

@@ -29,6 +29,7 @@ const GAME_DISPLAY_LABELS = {
   physics_lab: 'Physics Lab',
   physics_bridge_game: 'Physics Bridge',
   doctor_soroka: 'Doctor Soroka',
+  sudoku: 'Sudoku',
 };
 
 function gameDisplayLabel(gameKey) {
@@ -71,6 +72,11 @@ const DEGREE_CODE_ALIASES = {
   paramedic_studies: 'NURS_BN',
   physiotherapy: 'PT_BPT',
   pharmacy: 'medical_laboratory_science',
+  mathematics: 'MATH_BSC',
+  software_engineering: 'SE_BSC',
+  cybersecurity: 'CS_BSC',
+  information_systems: 'CS_BSC',
+  statistics: 'DATA_BSC',
 };
 
 export const GAME_TOPIC_MAPPINGS = {
@@ -106,6 +112,51 @@ export const GAME_TOPIC_MAPPINGS = {
         related_subjects: ['math'],
         related_degrees: ['industrial_engineering', 'engineering_management', 'business_management'],
         signal_weight: 0.8,
+      },
+    },
+  },
+  sudoku: {
+    alias: ['sudoku-game'],
+    topics: {
+      logical_reasoning: {
+        skill_tags: ['logical_reasoning', 'analytical_thinking', 'problem_solving'],
+        related_subjects: ['math', 'computer_science'],
+        related_degrees: [
+          'computer_science',
+          'software_engineering',
+          'mathematics',
+          'data_science',
+          'cybersecurity',
+        ],
+        signal_weight: 1,
+      },
+      pattern_recognition: {
+        skill_tags: ['pattern_recognition', 'analytical_thinking'],
+        related_subjects: ['math', 'computer_science'],
+        related_degrees: ['data_science', 'mathematics', 'statistics', 'computer_science'],
+        signal_weight: 0.95,
+      },
+      attention_to_detail: {
+        skill_tags: ['attention_to_detail', 'patience'],
+        related_subjects: ['math', 'psychology'],
+        related_degrees: [
+          'industrial_engineering',
+          'information_systems',
+          'electrical_engineering',
+          'mathematics',
+        ],
+        signal_weight: 0.92,
+      },
+      math_readiness: {
+        skill_tags: ['math_readiness', 'problem_solving'],
+        related_subjects: ['math', 'engineering'],
+        related_degrees: [
+          'mathematics',
+          'electrical_engineering',
+          'industrial_engineering',
+          'data_science',
+        ],
+        signal_weight: 0.9,
       },
     },
   },
@@ -260,7 +311,45 @@ async function getSessionActionStats(sessionId) {
   return { actions, total, optimal, avgMs };
 }
 
+function deriveSudokuScores(session, stats) {
+  const meta = session?.metadata || {};
+  const completionScore = clamp(safeNum(meta.completion_score, 0));
+  const completed = meta.completed === true;
+  const engagement = clamp(safeNum(session?.engagement_score, completionScore));
+  const levelBoost = clamp((safeNum(meta.level, 1) - 1) * 1.5, 0, 18);
+  const actionAccuracy = stats.total ? clamp((stats.optimal / stats.total) * 100) : completionScore;
+
+  const abilitySignal = clamp(completionScore + levelBoost * 0.35);
+  const interestSignal = clamp(
+    (completed ? completionScore * 0.75 : completionScore * 0.35) +
+      engagement * 0.15 +
+      actionAccuracy * 0.1
+  );
+
+  return {
+    accuracy_score: Math.round(actionAccuracy),
+    time_efficiency_score: Math.round(clamp(100 - Math.min(safeNum(meta.time_spent_seconds, 0) / 6, 35))),
+    persistence_score: Math.round(clamp(completionScore * 0.8 + safeNum(meta.restarts_count, 0) * 4)),
+    improvement_score: Math.round(completionScore),
+    engagement_score: Math.round(engagement),
+    completion_score: completed ? 100 : Math.round(completionScore * 0.4),
+    replay_bonus: 0,
+    slow_but_success_bonus: 0,
+    rushing_penalty: 0,
+    guessing_signal: 0,
+    deep_thinking_signal: completed ? Math.round(completionScore * 0.6) : 0,
+    ability_signal: Math.round(abilitySignal),
+    interest_signal: Math.round(interestSignal),
+    sudoku_completion_score: Math.round(completionScore),
+    sudoku_level: safeNum(meta.level, 1),
+  };
+}
+
 function deriveScores(session, stats) {
+  if (normalizeGameKey(session?.game_id) === 'sudoku' && session?.metadata?.completion_score != null) {
+    return deriveSudokuScores(session, stats);
+  }
+
   const trust = safeNum(session?.trust_score, 0);
   const medical = safeNum(session?.medical_reasoning_score, 0);
   const hebrew = safeNum(session?.hebrew_score, 0);
@@ -397,6 +486,10 @@ export async function processCompletedGameSession(sessionOrId) {
         reason_en: reason.en,
         scores: baseScores,
         action_count: stats.total,
+        ...(session.metadata?.skill_signals ? { sudoku_skill_signals: session.metadata.skill_signals } : {}),
+        ...(session.metadata?.completion_score != null
+          ? { sudoku_completion_score: session.metadata.completion_score }
+          : {}),
       };
 
       (topic.skill_tags || []).forEach((skillTag) => {
@@ -518,7 +611,7 @@ export async function refreshStudentGameCareerSignals(studentId) {
 }
 
 export async function getStudentGameCareerSignalSummary(studentId, { limit = 6 } = {}) {
-  if (!studentId) return { skills: [], topics: [], degrees: [], explanations: [] };
+  if (!studentId) return { skills: [], topics: [], degrees: [], explanations: [], sudokuSkills: [] };
 
   try {
     await refreshStudentGameCareerSignals(studentId).catch(() => null);
@@ -638,6 +731,9 @@ export async function getStudentGameCareerSignalSummary(studentId, { limit = 6 }
 
     return {
       skills: skills.slice(0, limit),
+      sudokuSkills: perGameSkills
+        .filter((item) => item.game_key === 'sudoku')
+        .slice(0, limit),
       topics: [...topicMap.values()]
         .map((item) => ({ ...item, label: titleCase(item.topic_key), score: Math.round(item.score / Math.max(1, item.count)) }))
         .sort((a, b) => b.score - a.score)

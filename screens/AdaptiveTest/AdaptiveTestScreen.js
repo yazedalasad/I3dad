@@ -639,9 +639,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 100,
+    paddingHorizontal: Platform.OS === 'web' ? webContent.paddingHorizontal : 14,
+    paddingTop: 14,
+    paddingBottom: 80,
     alignItems: 'stretch',
     width: '100%',
     maxWidth: webContent.examMaxWidth,
@@ -662,14 +662,18 @@ const styles = StyleSheet.create({
   },
 
   navigatorWrap: {
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: 6,
+    marginBottom: 8,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E5ECFF',
     width: '100%',
+    shadowColor: '#102A68',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 1,
   },
   navigatorHeader: {
     flexDirection: 'row-reverse',
@@ -685,6 +689,7 @@ const styles = StyleSheet.create({
     fontSize: font('cardTitle'),
     lineHeight: lh('cardTitle'),
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   viewOnlyChip: {
     paddingHorizontal: 12,
@@ -718,7 +723,7 @@ const styles = StyleSheet.create({
   navigatorGrid: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
 
   navigatorHint: {
@@ -726,14 +731,15 @@ const styles = StyleSheet.create({
     color: textColors.muted,
     fontWeight: '800',
     textAlign: 'right',
+    writingDirection: 'rtl',
     fontSize: font('helper'),
     lineHeight: lh('helper'),
   },
 
   navSquare: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 11,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFF',
