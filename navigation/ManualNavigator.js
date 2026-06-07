@@ -2,10 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
+import FloatingNavControls from '../components/Navigation/FloatingNavControls';
 import Navbar from '../components/Navigation/Navbar';
+import { useNavigationGuard, NavigationGuardProvider } from '../contexts/NavigationGuardContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getFloatingNavConfig } from './floatingNavConfig';
+import {
+  areSameRoute,
+  cloneRouteEntry,
+  normalizeRouteParams,
+  pushBackStack,
+} from './navigationHistory';
 
 import AboutScreen from '../screens/About/AboutScreen';
 import ActivitiesScreen from '../screens/Activities/ActivitiesScreen';
@@ -141,13 +150,55 @@ const STUDENT_ID_REQUIRED_SCREENS = new Set([
 ]);
 
 export default function ManualNavigator() {
+  return (
+    <NavigationGuardProvider>
+      <ManualNavigatorShell />
+    </NavigationGuardProvider>
+  );
+}
+
+function ManualNavigatorShell() {
   const { user, initializingAuth, profile, studentData, studentDataLoading, studentId, studentIdentity, profileError } = useAuth();
   const { i18n } = useTranslation();
+  const { guard } = useNavigationGuard();
 
   const [currentScreen, setCurrentScreen] = useState('home');
   const [activeTab, setActiveTab] = useState('home');
   const [screenParams, setScreenParams] = useState({});
-  const [historyStack, setHistoryStack] = useState([]);
+  const [backStack, setBackStack] = useState([]);
+  const [forwardStack, setForwardStack] = useState([]);
+
+  const routeRef = useRef({ screen: 'home', params: {} });
+  const backStackRef = useRef([]);
+  const forwardStackRef = useRef([]);
+
+  const syncStackState = (nextBack, nextForward) => {
+    backStackRef.current = nextBack;
+    forwardStackRef.current = nextForward;
+    setBackStack(nextBack);
+    setForwardStack(nextForward);
+  };
+
+  const applyRoute = (entry) => {
+    if (!entry?.screen) return;
+
+    const normalized = {
+      screen: entry.screen,
+      params: normalizeRouteParams(entry.params || {}, i18n.language),
+    };
+
+    routeRef.current = normalized;
+    setCurrentScreen(normalized.screen);
+    setScreenParams(normalized.params);
+
+    if (NAVBAR_TAB_SCREENS.includes(normalized.screen)) {
+      setActiveTab(normalized.screen);
+    }
+  };
+
+  const isRTL =
+    String(i18n.language || '').toLowerCase().startsWith('ar') ||
+    String(i18n.language || '').toLowerCase().startsWith('he');
 
   // ✅ Prevent loops: only route to roleRouter ONCE after login/signup
   const routedAfterLoginRef = useRef(false);
@@ -180,30 +231,32 @@ export default function ManualNavigator() {
   }, [user, initializingAuth, profile?.role, user?.app_metadata?.role, studentDataLoading, currentScreen]);
 
   const navigateTo = (screen, params = {}, options = {}) => {
-    const currentLang = normalizeLang(i18n.language);
-    const nextParams = { ...params };
     const { replace = false, resetHistory = false } = options;
-
-    if (!nextParams.language) {
-      nextParams.language = currentLang;
-    } else {
-      nextParams.language = normalizeLang(nextParams.language);
-    }
+    const nextEntry = {
+      screen,
+      params: normalizeRouteParams(params, i18n.language),
+    };
+    const currentEntry = cloneRouteEntry(routeRef.current);
 
     if (resetHistory) {
-      setHistoryStack([]);
-    } else if (replace) {
-      // Keep the stack as-is and swap the current screen.
-    } else if (screen !== currentScreen) {
-      setHistoryStack((prev) => [...prev, { screen: currentScreen, params: screenParams }]);
+      syncStackState([], []);
+      applyRoute(nextEntry);
+      return;
     }
 
-    setCurrentScreen(screen);
-    setScreenParams(nextParams);
-
-    if (NAVBAR_TAB_SCREENS.includes(screen)) {
-      setActiveTab(screen);
+    if (areSameRoute(currentEntry, nextEntry)) {
+      applyRoute(nextEntry);
+      return;
     }
+
+    if (replace) {
+      syncStackState(backStackRef.current, []);
+      applyRoute(nextEntry);
+      return;
+    }
+
+    syncStackState(pushBackStack(backStackRef.current, currentEntry), []);
+    applyRoute(nextEntry);
   };
 
   useEffect(() => {
@@ -224,44 +277,78 @@ export default function ManualNavigator() {
   // ✅ MIN CHANGE: make navbar "adaptiveTest" behave like Home "Start Exam"
   const handleTabPress = (tabId) => {
     if (tabId === 'adaptiveTest') {
-      navigateTo(user ? 'adaptiveTest' : 'signup', {}, { resetHistory: true });
+      navigateTo(user ? 'adaptiveTest' : 'signup');
       return;
     }
 
     if (tabId === 'profile' && !user) {
-      navigateTo('login', {}, { resetHistory: true });
+      navigateTo('login');
       return;
     }
 
     if (tabId === 'universitiesAndColleges' && !user) {
-      navigateTo('login', {}, { resetHistory: true });
+      navigateTo('login');
       return;
     }
 
-    navigateTo(tabId, {}, { resetHistory: true });
+    navigateTo(tabId);
   };
 
+  const performGoBack = () => {
+    if (!backStackRef.current.length) return;
+
+    const previousEntry = backStackRef.current[backStackRef.current.length - 1];
+    const nextBack = backStackRef.current.slice(0, -1);
+    const nextForward = [...forwardStackRef.current, cloneRouteEntry(routeRef.current)];
+
+    syncStackState(nextBack, nextForward);
+    applyRoute(previousEntry);
+  };
+
+  const performGoForward = () => {
+    if (!forwardStackRef.current.length) return;
+
+    const nextEntry = forwardStackRef.current[forwardStackRef.current.length - 1];
+    const nextForward = forwardStackRef.current.slice(0, -1);
+    const nextBack = pushBackStack(backStackRef.current, cloneRouteEntry(routeRef.current));
+
+    syncStackState(nextBack, nextForward);
+    applyRoute(nextEntry);
+  };
+
+  const floatingNavConfig = getFloatingNavConfig(currentScreen);
+  const shouldConfirmBack =
+    floatingNavConfig.confirmBack && guard.confirmBack && !guard.disabled;
+
   const handleGoBack = () => {
-    setHistoryStack((prev) => {
-      if (!prev.length) return prev;
+    if (guard.disabled || backStackRef.current.length === 0) return;
 
-      const nextHistory = [...prev];
-      const previousEntry = nextHistory.pop();
+    if (shouldConfirmBack) {
+      const isHebrew = normalizeLang(i18n.language) === 'he';
+      Alert.alert(
+        isHebrew ? 'לצאת מהמבחן?' : 'هل تريد الخروج من الاختبار؟',
+        isHebrew ? 'ייתכן שההתקדמות הנוכחית שלך תישמר.' : 'قد يتم حفظ تقدمك الحالي.',
+        [
+          { text: isHebrew ? 'ביטול' : 'إلغاء', style: 'cancel' },
+          { text: isHebrew ? 'יציאה' : 'خروج', style: 'destructive', onPress: performGoBack },
+        ]
+      );
+      return;
+    }
 
-      setCurrentScreen(previousEntry.screen);
-      setScreenParams(previousEntry.params || {});
+    performGoBack();
+  };
 
-      if (NAVBAR_TAB_SCREENS.includes(previousEntry.screen)) {
-        setActiveTab(previousEntry.screen);
-      }
-
-      return nextHistory;
-    });
+  const handleGoForward = () => {
+    if (guard.disabled || forwardStack.length === 0) return;
+    performGoForward();
   };
 
   const gameNavigation = {
     navigate: (screen, params = {}) => navigateTo(screen, params),
     replace: (screen, params = {}) => navigateTo(screen, params, { replace: true }),
+    goBack: handleGoBack,
+    canGoBack: () => backStackRef.current.length > 0,
   };
 
   const resolvedStudentId = screenParams.studentId || studentId || studentData?.id || null;
@@ -856,18 +943,27 @@ export default function ManualNavigator() {
     'reviewAnswers',
   ];
 
+  const showFloatingNav = !floatingNavConfig.hidden && !initializingAuth;
+
   return (
     <View style={styles.container}>
       {!hideNavbarOn.includes(currentScreen) && (
-        <Navbar
-          activeTab={activeTab}
-          onTabPress={handleTabPress}
-          canGoBack={historyStack.length > 0}
-          onBackPress={handleGoBack}
-        />
+        <Navbar activeTab={activeTab} onTabPress={handleTabPress} />
       )}
 
-      <View style={styles.screenHost}>{renderScreen()}</View>
+      <View style={styles.screenHost}>
+        {renderScreen()}
+      </View>
+
+      <FloatingNavControls
+        hidden={!showFloatingNav}
+        disabled={guard.disabled}
+        canGoBack={backStack.length > 0}
+        canGoForward={forwardStack.length > 0}
+        onBack={handleGoBack}
+        onForward={handleGoForward}
+        isRTL={isRTL}
+      />
     </View>
   );
 }

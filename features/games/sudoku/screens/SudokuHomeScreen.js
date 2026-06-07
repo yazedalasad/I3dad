@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ScreenContainer, GameCard } from '../../shared';
 import LevelSelector from '../components/LevelSelector';
@@ -58,12 +58,6 @@ export default function SudokuHomeScreen({ navigation, studentId = null }) {
   return (
     <ScreenContainer scroll>
       <View style={[styles.hero, isRTL && styles.rtl]}>
-        <Pressable
-          onPress={() => navigation?.navigate?.('games')}
-          style={({ pressed }) => [styles.exitButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.exitText}>{getSudokuText(i18n.language, 'backToGames')}</Text>
-        </Pressable>
         <Text style={[styles.title, isRTL && styles.rtlText]}>{getSudokuText(i18n.language, 'title')}</Text>
         <Text style={[styles.subtitle, isRTL && styles.rtlText]}>{getSudokuText(i18n.language, 'subtitle')}</Text>
       </View>

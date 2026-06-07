@@ -154,7 +154,7 @@ export function bumpLegacyFontSize(value) {
 }
 
 export const webContent = {
-  maxWidth: 1440,
+  maxWidth: 1280,
   examMaxWidth: 1100,
   paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
 };

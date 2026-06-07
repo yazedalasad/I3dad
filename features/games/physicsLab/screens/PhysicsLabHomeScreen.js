@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer, GameHeader } from '../../shared';
 import { physicsLabLevels } from '../data/levels';
 import LevelPickerCard from '../components/LevelPickerCard';
@@ -37,11 +37,6 @@ export default function PhysicsLabHomeScreen({ navigation, studentId = null }) {
       <GameHeader
         title="Physics Lab"
         subtitle="Choose a level, finish the animation, then unlock the next challenge."
-        rightContent={
-          <Pressable onPress={() => navigation?.navigate?.('games')} style={({ pressed }) => [styles.exitButton, pressed && styles.pressed]}>
-            <Text style={styles.exitButtonText}>Exit Game</Text>
-          </Pressable>
-        }
       />
 
       <View style={styles.progressPanel}>

@@ -2,26 +2,38 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FLOATING_NAV_BOTTOM_INSET } from '../../../../navigation/floatingNavConfig';
+
 export default function ScreenContainer({
   children,
   style,
   scroll = false,
   contentContainerStyle,
+  withFloatingNavInset = true,
 }) {
+  const bottomInset = withFloatingNavInset ? FLOATING_NAV_BOTTOM_INSET : 0;
+
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        bottomInset > 0 && { paddingBottom: bottomInset + 20 },
+        contentContainerStyle,
+      ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      style={[styles.flex, style]}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.container, style]}>{children}</View>
+    <View style={[styles.container, bottomInset > 0 && { paddingBottom: bottomInset }, style]}>
+      {children}
+    </View>
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, style]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -46,6 +58,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    flexGrow: 1,
+    flexGrow: 0,
   },
 });

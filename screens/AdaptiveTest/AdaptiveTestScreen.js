@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ProgressIndicator from '../../components/AdaptiveTest/ProgressIndicator';
 import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
+import { useNavigationGuard } from '../../contexts/NavigationGuardContext';
 import { font, lh, textColors, webContent } from '../../src/theme/typography';
 
 import abilityService from '../../services/abilityService';
@@ -36,6 +37,7 @@ export default function AdaptiveTestScreen({
 }) {
   // ✅ IMPORTANT: use the namespace where adaptiveTestScreen/navigator keys live
   const { t, i18n } = useTranslation('adaptiveTest');
+  const { setNavigationGuard } = useNavigationGuard();
 
   const isHebrew = String(language || '').toLowerCase().startsWith('he');
   const isArabic = !isHebrew;
@@ -128,6 +130,15 @@ export default function AdaptiveTestScreen({
     if (!isViewingHistory) return question;
     return history[viewingHistoryIndex]?.question || question;
   }, [isViewingHistory, question, history, viewingHistoryIndex]);
+
+  useEffect(() => {
+    const isActive = !initializing && !fetchingQuestion && !!shownQuestion;
+    setNavigationGuard({
+      disabled: submitting || initializing || fetchingQuestion,
+      confirmBack: isActive && !submitting,
+    });
+    return () => setNavigationGuard(null);
+  }, [initializing, fetchingQuestion, submitting, shownQuestion, setNavigationGuard]);
 
   const shownSelectedAnswer = useMemo(() => {
     if (!isViewingHistory) return selectedAnswer;
@@ -555,7 +566,7 @@ export default function AdaptiveTestScreen({
         totalTimeSpent: totalTimeSpentSeconds,
         assessmentCompleted: true,
         recommendationRefreshError,
-      });
+      }, { replace: true });
     } catch (error) {
       console.error('finishTest error:', error?.message || error);
       finishingRef.current = false;

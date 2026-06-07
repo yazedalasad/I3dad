@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { font, lh, textColors } from '../../src/theme/typography';
 import FloatingLanguageSwitcher from '../FloatingLanguageSwitcher';
 
-export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBackPress }) {
+export default function Navbar({ activeTab, onTabPress }) {
   const { t, i18n } = useTranslation();
   const { user, signOut } = useAuth();
   const { width } = useWindowDimensions();
@@ -27,10 +27,6 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
     onTabPress?.('home');
   };
 
-  const handleSignOut = () => {
-    doSignOut();
-  };
-
   const tabs = user
     ? [
         { id: 'home', icon: 'home' },
@@ -47,114 +43,141 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
         { id: 'about', icon: 'info-circle' },
         { id: 'login', icon: 'sign-in' },
       ];
-  const isCompact = width < 720;
+
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
   const isDesktop = width >= 1024;
-  const navItemWidth = isCompact ? Math.max(76, Math.floor((width - 96) / 4)) : undefined;
+  const iconSize = isMobile ? 20 : isTablet ? 22 : 24;
+  const tabMinHeight = isMobile ? 68 : isTablet ? 76 : 84;
+  const navItemWidth = isMobile ? Math.max(68, Math.floor((width - 48) / 4.5)) : isTablet ? 88 : undefined;
+  const horizontalPadding = isMobile ? 12 : isTablet ? 18 : 24;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
       <View style={[styles.inner, isDesktop && styles.innerDesktop]}>
-      <View style={[styles.topRow, isRTL && styles.topRowRtl]}>
-        <View style={styles.languageSlot}>
+        <View style={[styles.topRow, isRTL && styles.topRowRtl]}>
           <FloatingLanguageSwitcher inline />
         </View>
-        <TouchableOpacity
-          style={[styles.backButton, !canGoBack && styles.backButtonHidden]}
-          onPress={onBackPress}
-          disabled={!canGoBack}
-          activeOpacity={0.9}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.navScroll}
+          contentContainerStyle={[styles.navScrollContent, isRTL && styles.navScrollContentRtl]}
         >
-          <FontAwesome
-            name={isRTL ? 'arrow-right' : 'arrow-left'}
-            size={20}
-            color={canGoBack ? textColors.primary : 'transparent'}
-          />
-          <Text style={[styles.backLabel, !canGoBack && styles.backLabelHidden]}>
-            {label('common.back', 'Back')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <View style={[styles.shell, isRTL && styles.shellRtl, isMobile && styles.shellCompact]}>
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.navScroll}
-        contentContainerStyle={[styles.navScrollContent, isRTL && styles.navScrollContentRtl]}
-      >
-        <View style={[styles.shell, isRTL && styles.shellRtl]}>
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-
-            return (
-              <TouchableOpacity
-                key={tab.id}
-                style={[styles.tab, styles.scrollTab, { width: navItemWidth }, isActive && styles.activeTab]}
-                onPress={() => onTabPress(tab.id)}
-                activeOpacity={0.9}
-              >
-                <View style={[styles.iconWrap, isActive && styles.activeIconWrap]}>
-                  <FontAwesome
-                    name={tab.icon}
-                    size={26}
-                    color={isActive ? '#16a34a' : textColors.muted}
-                  />
-                </View>
-                <Text style={[styles.label, isActive && styles.activeLabel, isRTL && styles.rtlLabel]}>
-                  {label(`navigation:tabs.${tab.id}`, tab.id)}
-                </Text>
-                {isActive ? <View style={styles.activeGlow} /> : null}
-              </TouchableOpacity>
-            );
-          })}
-          {user ? (
-            <View style={[styles.accountTab, styles.scrollTab, { width: navItemWidth }, accountExpanded && styles.accountTabExpanded]}>
-              <TouchableOpacity
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[
+                    styles.tab,
+                    styles.scrollTab,
+                    { minHeight: tabMinHeight, width: navItemWidth },
+                    isActive && styles.activeTab,
+                  ]}
+                  onPress={() => onTabPress(tab.id)}
+                  activeOpacity={0.9}
+                >
+                  <View style={[styles.iconWrap, isMobile && styles.iconWrapCompact, isActive && styles.activeIconWrap]}>
+                    <FontAwesome
+                      name={tab.icon}
+                      size={iconSize}
+                      color={isActive ? '#16a34a' : textColors.muted}
+                    />
+                  </View>
+                  <Text
+                    numberOfLines={isMobile ? 1 : 2}
+                    style={[
+                      styles.label,
+                      isMobile && styles.labelCompact,
+                      isActive && styles.activeLabel,
+                      isRTL && styles.rtlLabel,
+                    ]}
+                  >
+                    {label(`navigation:tabs.${tab.id}`, tab.id)}
+                  </Text>
+                  {isActive ? <View style={styles.activeGlow} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+            {user ? (
+              <View
                 style={[
-                  styles.accountTabMain,
-                  activeTab === 'profile' && styles.activeTab,
-                  accountExpanded && styles.accountTabMainExpanded,
+                  styles.accountTab,
+                  styles.scrollTab,
+                  { minHeight: tabMinHeight, width: navItemWidth },
+                  accountExpanded && styles.accountTabExpanded,
                 ]}
-                onPress={() => setAccountExpanded((value) => !value)}
-                activeOpacity={0.9}
               >
-                <View style={[styles.accountIconWrap, activeTab === 'profile' && styles.activeIconWrap]}>
-                  <FontAwesome name="user-circle" size={22} color={activeTab === 'profile' ? '#16a34a' : '#94A3B8'} />
-                </View>
-                <Text numberOfLines={1} style={[styles.label, activeTab === 'profile' && styles.activeLabel, isRTL && styles.rtlLabel]}>
-                  {label('navigation:tabs.profile', 'حسابي')}
-                </Text>
-                {activeTab === 'profile' ? <View style={styles.activeGlow} /> : null}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.accountTabMain,
+                    { minHeight: tabMinHeight },
+                    activeTab === 'profile' && styles.activeTab,
+                    accountExpanded && styles.accountTabMainExpanded,
+                  ]}
+                  onPress={() => setAccountExpanded((value) => !value)}
+                  activeOpacity={0.9}
+                >
+                  <View
+                    style={[
+                      styles.accountIconWrap,
+                      isMobile && styles.iconWrapCompact,
+                      activeTab === 'profile' && styles.activeIconWrap,
+                    ]}
+                  >
+                    <FontAwesome
+                      name="user-circle"
+                      size={iconSize - 2}
+                      color={activeTab === 'profile' ? '#16a34a' : '#94A3B8'}
+                    />
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.label,
+                      isMobile && styles.labelCompact,
+                      activeTab === 'profile' && styles.activeLabel,
+                      isRTL && styles.rtlLabel,
+                    ]}
+                  >
+                    {label('navigation:tabs.profile', 'حسابي')}
+                  </Text>
+                  {activeTab === 'profile' ? <View style={styles.activeGlow} /> : null}
+                </TouchableOpacity>
 
-              {accountExpanded ? (
-                <View style={styles.accountDropdown}>
-                  <TouchableOpacity
-                    style={styles.accountDropdownItem}
-                    onPress={() => {
-                      setAccountExpanded(false);
-                      onTabPress?.('profile');
-                    }}
-                    activeOpacity={0.9}
-                  >
-                    <FontAwesome name="user" size={14} color="#0f766e" />
-                    <Text style={styles.accountDropdownText}>{label('navigation:tabs.profile', 'حسابي')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.accountDropdownItem, styles.accountDropdownDanger]}
-                    onPress={handleSignOut}
-                    activeOpacity={0.9}
-                  >
-                    <FontAwesome name="sign-out" size={14} color="#dc2626" />
-                    <Text style={[styles.accountDropdownText, styles.accountDropdownDangerText]}>
-                      {label('common.logout', 'خروج')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-      </ScrollView>
+                {accountExpanded ? (
+                  <View style={styles.accountDropdown}>
+                    <TouchableOpacity
+                      style={styles.accountDropdownItem}
+                      onPress={() => {
+                        setAccountExpanded(false);
+                        onTabPress?.('profile');
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <FontAwesome name="user" size={14} color="#0f766e" />
+                      <Text style={styles.accountDropdownText}>{label('navigation:tabs.profile', 'حسابي')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.accountDropdownItem, styles.accountDropdownDanger]}
+                      onPress={doSignOut}
+                      activeOpacity={0.9}
+                    >
+                      <FontAwesome name="sign-out" size={14} color="#dc2626" />
+                      <Text style={[styles.accountDropdownText, styles.accountDropdownDangerText]}>
+                        {label('common.logout', 'خروج')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -163,78 +186,43 @@ export default function Navbar({ activeTab, onTabPress, canGoBack = false, onBac
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingTop: 10,
+    paddingBottom: 12,
     backgroundColor: '#f8fbff',
     borderBottomWidth: 1,
     borderBottomColor: '#d9e6f5',
   },
   inner: {
     width: '100%',
-    maxWidth: 1440,
+    maxWidth: 1280,
     alignSelf: 'center',
   },
   innerDesktop: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
   },
   topRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    marginBottom: 8,
   },
   topRowRtl: {
     flexDirection: 'row-reverse',
-  },
-  languageSlot: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  backButton: {
-    minHeight: 42,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d7e2ef',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  backButtonHidden: {
-    opacity: 0,
-  },
-  backLabel: {
-    fontSize: font('navLabel'),
-    lineHeight: lh('navLabel'),
-    color: textColors.primary,
-    fontWeight: '900',
-  },
-  backLabelHidden: {
-    color: 'transparent',
+    justifyContent: 'flex-start',
   },
   accountTab: {
     position: 'relative',
     alignItems: 'center',
-    minHeight: 84,
     justifyContent: 'flex-start',
-    borderRadius: 22,
+    borderRadius: 18,
   },
   scrollTab: {
-    flex: 1,
     flexGrow: 1,
     flexShrink: 0,
-    minWidth: 82,
+    minWidth: 72,
   },
   accountTabExpanded: {
-    minHeight: 176,
+    minHeight: 168,
     backgroundColor: '#f0fdf4',
     borderWidth: 1,
     borderColor: '#a7f3d0',
@@ -243,39 +231,38 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     width: '100%',
-    minHeight: 84,
     justifyContent: 'center',
-    borderRadius: 22,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    borderRadius: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
   },
   accountTabMainExpanded: {
     backgroundColor: '#f0fdf4',
   },
   accountIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
   },
   accountDropdown: {
     width: '100%',
-    paddingHorizontal: 8,
-    paddingBottom: 10,
-    gap: 7,
+    paddingHorizontal: 6,
+    paddingBottom: 8,
+    gap: 6,
   },
   accountDropdownItem: {
-    minHeight: 36,
-    borderRadius: 13,
+    minHeight: 34,
+    borderRadius: 12,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#bbf7d0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
+    gap: 6,
     paddingHorizontal: 8,
   },
   accountDropdownDanger: {
@@ -284,7 +271,7 @@ const styles = StyleSheet.create({
   },
   accountDropdownText: {
     color: '#0f766e',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
   },
   accountDropdownDangerText: {
@@ -297,18 +284,23 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     flexGrow: 1,
     flexShrink: 0,
-    gap: 10,
+    gap: 8,
     width: '100%',
-    padding: 10,
-    borderRadius: 28,
+    padding: 8,
+    borderRadius: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#d7e2ef',
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.1,
-    shadowRadius: 30,
-    elevation: 7,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 5,
+  },
+  shellCompact: {
+    gap: 6,
+    padding: 6,
+    borderRadius: 18,
   },
   navScroll: {
     width: '100%',
@@ -326,59 +318,66 @@ const styles = StyleSheet.create({
   tab: {
     position: 'relative',
     alignItems: 'center',
-    minHeight: 84,
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
   },
   activeTab: {
     backgroundColor: '#f0fdf4',
     borderColor: '#a7f3d0',
   },
   iconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: 'transparent',
   },
+  iconWrapCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+  },
   activeIconWrap: {
     backgroundColor: '#ffffff',
     borderColor: '#dcfce7',
     shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 2,
   },
   label: {
     fontSize: font('navLabel'),
     lineHeight: lh('navLabel'),
     color: textColors.muted,
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'center',
     fontWeight: '800',
+  },
+  labelCompact: {
+    fontSize: font('tiny'),
+    lineHeight: lh('tiny'),
+    marginTop: 4,
   },
   activeLabel: {
     color: '#15803d',
     fontWeight: '900',
-    fontSize: font('body'),
-    lineHeight: lh('body'),
   },
   rtlLabel: {
     writingDirection: 'rtl',
   },
   activeGlow: {
     position: 'absolute',
-    bottom: 6,
-    width: 30,
-    height: 5,
+    bottom: 4,
+    width: 24,
+    height: 4,
     borderRadius: 999,
     backgroundColor: '#22c55e',
   },

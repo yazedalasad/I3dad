@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import RankingQuestionList from '../../components/AdaptiveTest/RankingQuestionList';
+import { useNavigationGuard } from '../../contexts/NavigationGuardContext';
 import {
   completePersonalityTest,
   getPersonalityQuestion,
@@ -38,6 +39,7 @@ export default function PersonalityTestScreen({
   const { width } = useWindowDimensions();
   // ✅ IMPORTANT: personalityTest keys are inside adaptiveTest namespace (adaptiveTest.json)
   const { t, i18n } = useTranslation('adaptiveTest');
+  const { setNavigationGuard } = useNavigationGuard();
 
   // Sync i18n language with prop
   useEffect(() => {
@@ -100,6 +102,15 @@ export default function PersonalityTestScreen({
     if (Array.isArray(raw)) return raw;
     return [];
   }, [question]);
+
+  useEffect(() => {
+    const isActive = !initializing && !!question;
+    setNavigationGuard({
+      disabled: submitting || initializing || loadingQuestion,
+      confirmBack: isActive && !submitting,
+    });
+    return () => setNavigationGuard(null);
+  }, [initializing, loadingQuestion, submitting, question, setNavigationGuard]);
 
   useEffect(() => {
     let mounted = true;
@@ -191,7 +202,7 @@ export default function PersonalityTestScreen({
           language,
           abilitySessionId,
           personalitySessionId: finalSid,
-        });
+        }, { replace: true });
         return;
       }
 
@@ -201,7 +212,7 @@ export default function PersonalityTestScreen({
         abilitySessionId,
         personalitySessionId: finalSid,
         profile: done?.profile || null,
-      });
+      }, { replace: true });
     } catch (e) {
       console.error('finishPersonality error:', e?.message || e);
       Alert.alert(tt('errors.title', 'خطأ'), tt('errors.tryAgain', 'فشل إكمال اختبار الشخصية.'));

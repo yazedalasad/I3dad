@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ImageBackground, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer, GameCard } from '../../shared';
 import { arabicPoetPuzzleLevels } from '../data/levels';
 import { desertTheme } from '../utils/theme';
-import desertThemeBgImage from '../assets/desert-theme-bg.png';
 import { getCompletedArabicPoetPuzzleLevels } from '../services/levelProgressService';
 import { getStudentGameSessions } from '../../shared/services/gameSessionService';
 
@@ -33,16 +32,9 @@ export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = nul
   }, [loadCompletedLevels, navigation]);
 
   return (
-    <ImageBackground
-      source={desertThemeBgImage}
-      resizeMode="cover"
-      style={styles.flex}
-    >
-      <ScreenContainer scroll style={styles.transparent}>
+    <ScreenContainer scroll style={styles.page} contentContainerStyle={styles.pageContent}>
+      <View style={styles.desertPanel}>
         <View style={styles.topBanner}>
-          <Pressable onPress={() => navigation?.navigate?.('games')} style={({ pressed }) => [styles.exitButton, pressed && styles.pressed]}>
-            <Text style={styles.exitButtonText}>{'\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0623\u0644\u0639\u0627\u0628'}</Text>
-          </Pressable>
           <Text style={styles.mainTitle}>{'\u0643\u0646\u0648\u0632 \u0627\u0644\u0623\u0644\u0641\u0627\u0638'}</Text>
           <Text style={styles.mainSubtitle}>
             {'\u0623\u0644\u0641\u0627\u0638 \u0634\u0639\u0631\u064a\u0629 \u0642\u062f\u064a\u0645\u0629 \u2022 \u0644\u0639\u0628\u0629 \u0643\u0644\u0645\u0627\u062a \u0639\u0631\u0628\u064a\u0629'}
@@ -116,47 +108,44 @@ export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = nul
             </GameCard>
           );
         })}
-      </ScreenContainer>
-    </ImageBackground>
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  transparent: { backgroundColor: 'transparent' },
+  page: {
+    backgroundColor: '#6B4428',
+  },
+  pageContent: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  desertPanel: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 720,
+    paddingHorizontal: 4,
+  },
   topBanner: {
     marginBottom: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
-  },
-  exitButton: {
-    alignSelf: 'flex-end',
-    borderRadius: 999,
-    backgroundColor: 'rgba(247, 228, 190, 0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(247, 228, 190, 0.42)',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginBottom: 10,
-  },
-  exitButtonText: {
-    color: '#F7E4BE',
-    fontSize: 16,
-    fontWeight: '900',
-    writingDirection: 'rtl',
   },
   mainTitle: {
     color: '#F7E4BE',
-    fontSize: 38,
+    fontSize: 34,
     fontWeight: '900',
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   mainSubtitle: {
     marginTop: 4,
     color: '#E8D4AF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   heroCard: { marginBottom: 16 },
   title: {
