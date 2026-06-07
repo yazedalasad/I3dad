@@ -44,6 +44,8 @@ function transliterateCityToHebrew(city) {
     'أبو تلول': 'אבו תלול',
     'كحلة': 'כחלה',
     'وادي النعم': 'ואדי אל נעם',
+    'السيّد': 'אל סייד',
+    'السيد': 'אל סייד',
   };
 
   return map[city] || city;

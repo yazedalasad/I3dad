@@ -21,6 +21,21 @@ jest.mock('../../contexts/AuthContext', () => ({
   }),
 }));
 
+jest.mock('../../services/studentIdentityService', () => ({
+  __esModule: true,
+  isStudentIdTaken: jest.fn().mockResolvedValue(false),
+}));
+
+jest.mock('../../utils/authErrors', () => ({
+  __esModule: true,
+  resolveAuthErrorMessage: (error, { t }) => {
+    const message = String(error?.message || '');
+    if (message === 'STUDENT_ID_EXISTS') return t('auth.signup.errors.studentIdExists');
+    if (message.includes('already registered')) return t('auth.signup.errors.emailExists');
+    return t('auth.signup.errors.generic');
+  },
+}));
+
 /* -------------------- Data: israeliSchools -------------------- */
 jest.mock('../../data/israeliSchools', () => ({
   __esModule: true,

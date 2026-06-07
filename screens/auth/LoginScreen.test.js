@@ -35,6 +35,17 @@ jest.mock('../../components/Form/CustomButton', () => {
   };
 });
 
+jest.mock('../../utils/authErrors', () => ({
+  __esModule: true,
+  resolveAuthErrorMessage: (error, { t }) => {
+    const message = String(error?.message || '');
+    if (message.includes('Invalid login credentials')) return t('auth.login.errors.invalidCredentials');
+    if (message.includes('Email not confirmed')) return t('auth.login.errors.emailNotConfirmed');
+    if (message.includes('Failed to fetch')) return t('auth.login.errors.network');
+    return t('auth.login.errors.generic');
+  },
+}));
+
 const mockValidateEmail = jest.fn();
 const mockValidatePassword = jest.fn();
 
@@ -147,6 +158,18 @@ describe('LoginScreen', () => {
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('common.error', 'auth.login.errors.invalidCredentials');
+    });
+  });
+
+  it('login (negative): network failure -> shows network alert message key', async () => {
+    mockSignIn.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    const utils = render(<LoginScreen {...baseProps()} />);
+
+    typeLogin(utils, { email: 'user@test.com', password: 'pass12345' });
+    pressLogin(utils);
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('common.error', 'auth.login.errors.network');
     });
   });
 

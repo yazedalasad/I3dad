@@ -17,6 +17,7 @@ import {
 import CustomButton from '../../components/Form/CustomButton';
 import CustomTextInput from '../../components/Form/CustomTextInput';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveAuthErrorMessage } from '../../utils/authErrors';
 import { validateEmail, validatePassword } from '../../utils/validation';
 
 export default function LoginScreen({ navigateTo }) {
@@ -74,18 +75,11 @@ export default function LoginScreen({ navigateTo }) {
       const error = result?.error;
 
       if (error || result?.success === false) {
-        const exactMessage = String(error?.message || '').trim();
-        console.error('auth error:', exactMessage || error);
-
-        let errorMessage = exactMessage || t('auth.login.errors.generic');
-
-        if (exactMessage.includes('Invalid login credentials')) {
-          errorMessage = t('auth.login.errors.invalidCredentials');
-        } else if (exactMessage.includes('Email not confirmed')) {
-          errorMessage = t('auth.login.errors.emailNotConfirmed');
-        }
-
-        Alert.alert(t('common.error'), errorMessage);
+        console.error('auth error:', error?.message || error);
+        Alert.alert(
+          t('common.error'),
+          resolveAuthErrorMessage(error, { t, context: 'login' })
+        );
         return;
       }
 

@@ -112,7 +112,10 @@ export default function ForgotPasswordScreen({ navigateTo, email: initialEmail }
 
     try {
       const result = await sendPasswordResetCode(cleanEmail, i18n?.language || 'ar');
-      if (!result.success) throw result.error;
+      if (!result.success) {
+        const message = result.error?.message || (isHebrew ? 'שליחת הקוד נכשלה' : 'تعذر إرسال الرمز');
+        throw { message, status: result.error?.status, code: result.error?.code };
+      }
 
       navigateTo('verifyCode', { email: cleanEmail });
 

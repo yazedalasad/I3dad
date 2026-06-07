@@ -125,7 +125,7 @@ describe('VerifyCodeScreen', () => {
     const { getByText, navigateTo } = renderScreen({ email: 'user@test.com' });
 
     fireEvent.press(getByText('رجوع'));
-    expect(navigateTo).toHaveBeenCalledWith('forgotPassword');
+    expect(navigateTo).toHaveBeenCalledWith('forgotPassword', { email: 'user@test.com' });
   });
 
  

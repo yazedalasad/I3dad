@@ -39,6 +39,8 @@ export const israeliSchools = [
   { id: 28, name: 'مدرسة أبو تلول الثانوية', name_he: 'תיכון אבו תלול', city: 'أبو تلول', city_he: 'אבו תלול', type: 'ثانوية', type_he: 'תיכון' },
   { id: 29, name: 'مدرسة كحلة الثانوية', name_he: 'תיכון כחלה', city: 'كحلة', city_he: 'כחלה', type: 'ثانوية', type_he: 'תיכון' },
   { id: 30, name: 'مدرسة وادي النعم الثانوية', name_he: 'תיכון ואדי אל-נעם', city: 'وادي النعم', city_he: 'ואדי אל-נעם', type: 'ثانوية', type_he: 'תיכון' },
+
+  { id: 31, name: 'المدرسة المتعددة المجالات عمَل السيّد', name_he: 'רב תחומי עמל אלסייד', city: 'السيّد', city_he: 'אל סייד', type: 'شاملة', type_he: 'רב תחומי' },
 ];
 
 function searchableSchoolText(school) {

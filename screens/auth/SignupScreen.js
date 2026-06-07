@@ -20,6 +20,8 @@ import CustomTextInput from '../../components/Form/CustomTextInput';
 import DatePicker from '../../components/Form/DatePicker';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { isStudentIdTaken } from '../../services/studentIdentityService';
+import { resolveAuthErrorMessage } from '../../utils/authErrors';
 import { getClassSectionOptions } from '../../utils/classSections';
 import { normalizeIsraeliId } from '../../src/utils/israeliId';
 import {
@@ -335,10 +337,26 @@ export default function SignupScreen({ navigateTo }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (step === 1 && validateStep1()) {
+  const handleNext = async () => {
+    if (step === 1) {
+      if (!validateStep1()) return;
+
+      const normalizedStudentId = normalizeIsraeliId(formData.studentId);
+      const taken = await isStudentIdTaken(normalizedStudentId);
+      if (taken === true) {
+        setErrors((prev) => ({
+          ...prev,
+          studentId: t('auth.signup.errors.studentIdExists'),
+        }));
+        Alert.alert(t('common.error'), t('auth.signup.errors.studentIdExists'));
+        return;
+      }
+
       setStep(2);
-    } else if (step === 2 && validateStep2()) {
+      return;
+    }
+
+    if (step === 2 && validateStep2()) {
       setStep3Submitted(false);
       setStep(3);
     }
@@ -376,20 +394,11 @@ export default function SignupScreen({ navigateTo }) {
       const error = result?.error;
 
       if (error || result?.success === false) {
-        const exactMessage = String(error?.message || '').trim();
-        console.error('auth error:', exactMessage || error);
-
-        let errorMessage = exactMessage || t('auth.signup.errors.generic');
-
-        if (exactMessage.includes('already registered') || exactMessage.includes('User already registered')) {
-          errorMessage = t('auth.signup.errors.emailExists');
-        } else if (exactMessage.includes('Password')) {
-          errorMessage = t('auth.signup.errors.weakPassword');
-        } else if (exactMessage === 'INVALID_STUDENT_ID') {
-          errorMessage = t('auth.signup.errors.generic');
-        }
-
-        Alert.alert(t('common.error'), errorMessage);
+        console.error('auth error:', error?.message || error);
+        Alert.alert(
+          t('common.error'),
+          resolveAuthErrorMessage(error, { t, context: 'signup' })
+        );
         return;
       }
 

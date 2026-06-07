@@ -11,6 +11,8 @@ import {
   AUTH_REQUEST_TIMEOUT_MS,
 } from '../utils/authHelpers';
 import { validateEmail, validatePassword } from '../utils/validation';
+import { buildStudentIdExistsError, isDuplicateStudentIdError } from '../utils/authErrors';
+import { isStudentIdTaken } from '../services/studentIdentityService';
 
 const AuthContext = createContext(null);
 
@@ -453,8 +455,15 @@ export const AuthProvider = ({ children }) => {
         return authResult({ success: false, error: validationError });
       }
 
-      const studentMetadata = buildStudentMetadata(studentInfo);
       const client = requireSupabase();
+      const studentIdTaken = await isStudentIdTaken(normalizedStudentId);
+      if (studentIdTaken === true) {
+        const duplicateError = buildStudentIdExistsError();
+        console.error('auth error:', duplicateError.message);
+        return authResult({ success: false, error: duplicateError });
+      }
+
+      const studentMetadata = buildStudentMetadata(studentInfo);
 
       const { data: authData, error: authError } = await withAuthTimeout(
         client.auth.signUp({
@@ -498,6 +507,9 @@ export const AuthProvider = ({ children }) => {
 
         if (studentError) {
           console.error('auth error:', studentError?.message);
+          if (isDuplicateStudentIdError(studentError)) {
+            return authResult({ success: false, error: buildStudentIdExistsError() });
+          }
           return authResult({ success: false, error: studentError });
         }
 

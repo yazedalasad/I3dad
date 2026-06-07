@@ -27,6 +27,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   const [resendLoading, setResendLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const inputRefs = useRef([]);
+  const verifyAttemptRef = useRef(false);
 
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width >= 1040;
@@ -107,9 +108,8 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   }, []);
 
   useEffect(() => {
-    if (isComplete) {
-      handleVerify();
-    }
+    if (!isComplete || loading || verifyAttemptRef.current) return;
+    handleVerify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isComplete]);
 
@@ -164,7 +164,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   };
 
   const handleVerify = async () => {
-    if (loading) return;
+    if (loading || verifyAttemptRef.current) return;
 
     if (!cleanEmail) {
       Alert.alert(isHebrew ? 'שגיאה' : 'خطأ', verifyT('errors.missingEmail'));
@@ -176,9 +176,10 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
       return;
     }
 
+    verifyAttemptRef.current = true;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token,
         type: 'recovery',
@@ -186,8 +187,8 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 
       if (error) throw error;
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
+      const activeSession = data?.session || (await supabase.auth.getSession()).data?.session;
+      if (!activeSession) {
         throw new Error(
           isHebrew
             ? 'לא נוצרה הפעלה לאחר האימות. נסו שוב.'
@@ -196,13 +197,15 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
       }
 
       setLoading(false);
+      verifyAttemptRef.current = false;
       navigateTo('resetPassword', { email: cleanEmail });
       Alert.alert(verifyT('alerts.verifiedTitle'), verifyT('alerts.verifiedMessage'));
     } catch (err) {
       setLoading(false);
+      verifyAttemptRef.current = false;
 
       const msg = String(err?.message || '').toLowerCase();
-      if (msg.includes('expired')) {
+      if (msg.includes('expired') || msg.includes('invalid') || msg.includes('otp')) {
         Alert.alert(verifyT('alerts.expiredTitle'), verifyT('alerts.expiredMessage'));
         return;
       }
@@ -225,6 +228,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
       if (!result.success) throw result.error;
 
       setResendLoading(false);
+      verifyAttemptRef.current = false;
       setCode(['', '', '', '', '', '']);
       setTimer(60);
       setTimeout(() => inputRefs.current[0]?.focus?.(), 200);
@@ -407,7 +411,10 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
                 )}
               </View>
 
-              <TouchableOpacity style={styles.backButton} onPress={() => navigateTo('forgotPassword')}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigateTo('forgotPassword', { email: cleanEmail })}
+              >
                 <FontAwesome name="arrow-right" size={16} color="#64748b" />
                 <Text style={[styles.backButtonText, isHebrew && styles.rtlText]}>
                   {verifyT('back')}

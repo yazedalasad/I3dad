@@ -109,7 +109,13 @@ export default function ResetPasswordScreen({ navigateTo, email }) {
           isHebrew ? 'לא ניתן לשנות סיסמה' : 'لا يمكن تغيير كلمة المرور',
           isHebrew
             ? 'אין הפעלה תקפה. חזרו למסך אימות הקוד ונסו שוב.'
-            : 'لا توجد جلسة صالحة. ارجع إلى صفحة التحقق من الرمز وحاول مرة أخرى.'
+            : 'لا توجد جلسة صالحة. ارجع إلى صفحة التحقق من الرمز وحاول مرة أخرى.',
+          [
+            {
+              text: isHebrew ? 'חזרה לאימות' : 'العودة للتحقق',
+              onPress: () => navigateTo('verifyCode', { email: String(email || '').trim() }),
+            },
+          ]
         );
         return;
       }
