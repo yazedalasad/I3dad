@@ -171,13 +171,76 @@ export function resolveAuthErrorMessage(error, { t, context = 'login' } = {}) {
     context === 'signup' ? 'auth.signup.errors.generic' : 'auth.login.errors.generic';
 
   for (const rule of rules) {
-    if (rule.match({ code, message })) {
+    if (rule.match({ code, message: message.toLowerCase() })) {
       return translate(rule.key);
     }
   }
 
   if (message) return message;
   return translate(fallbackKey);
+}
+
+function isEmailValidationMessage(message) {
+  const lower = String(message || '').toLowerCase();
+  return (
+    includesAny(lower, ['@gmail.com', 'gmail', 'אימייל', 'البريد', 'email']) &&
+    !includesAny(lower, ['invalid login', 'not confirmed', 'credentials'])
+  );
+}
+
+function isPasswordRequiredMessage(message) {
+  const lower = String(message || '').toLowerCase();
+  return (
+    includesAny(lower, ['סיסמה', 'password', 'كلمة المرور']) &&
+    includesAny(lower, ['חובה', 'required', 'مطلوب'])
+  );
+}
+
+/** Map login errors to specific email/password field messages. */
+export function resolveLoginFieldErrors(error, { t } = {}) {
+  const translate = typeof t === 'function' ? t : (key) => key;
+  const message = readMessage(error);
+  const lower = message.toLowerCase();
+
+  if (isEmailValidationMessage(message)) {
+    return {
+      email: message || translate('auth.login.errors.invalidEmail'),
+      password: null,
+      alert: null,
+    };
+  }
+
+  if (isPasswordRequiredMessage(message)) {
+    return {
+      email: null,
+      password: message || translate('auth.login.errors.passwordRequired'),
+      alert: null,
+    };
+  }
+
+  if (includesAny(lower, ['invalid login credentials', 'invalid credentials'])) {
+    return {
+      email: translate('auth.login.errors.invalidEmailField'),
+      password: translate('auth.login.errors.invalidPasswordField'),
+      alert: translate('auth.login.errors.invalidCredentials'),
+    };
+  }
+
+  if (includesAny(lower, ['email not confirmed', 'email confirmation'])) {
+    const emailMessage = translate('auth.login.errors.emailNotConfirmed');
+    return {
+      email: emailMessage,
+      password: null,
+      alert: emailMessage,
+    };
+  }
+
+  const alert = resolveAuthErrorMessage(error, { t, context: 'login' });
+  return {
+    email: null,
+    password: null,
+    alert,
+  };
 }
 
 export function isDuplicateStudentIdError(error) {
@@ -203,6 +266,7 @@ export function buildStudentIdExistsError() {
 
 export default {
   resolveAuthErrorMessage,
+  resolveLoginFieldErrors,
   isDuplicateStudentIdError,
   buildStudentIdExistsError,
 };

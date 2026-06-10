@@ -184,6 +184,14 @@ export const validatePassword = (password) => {
   return { isValid: true, error: null };
 };
 
+/** Login only — password must be present, not meet signup strength rules. */
+export const validateLoginPassword = (password) => {
+  if (!password || password.trim() === '') {
+    return { isValid: false, error: text.requiredPassword() };
+  }
+  return { isValid: true, error: null };
+};
+
 export const getPasswordStrength = (password) => {
   if (!password) return { strength: 0, label: '', color: '' };
   let strength = 0;

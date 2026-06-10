@@ -42,7 +42,6 @@ export const PRINCIPAL_SCREENS = new Set([
 
 /** Screens where floating controls are never shown. */
 export const HIDDEN_FLOATING_NAV_SCREENS = new Set([
-  'login',
   'signup',
   'forgotPassword',
   'verifyCode',

@@ -2,6 +2,7 @@ import {
   buildStudentIdExistsError,
   isDuplicateStudentIdError,
   resolveAuthErrorMessage,
+  resolveLoginFieldErrors,
 } from './authErrors';
 
 const t = (key) => key;
@@ -23,6 +24,16 @@ describe('authErrors', () => {
     expect(
       resolveAuthErrorMessage(buildStudentIdExistsError(), { t, context: 'signup' })
     ).toBe('auth.signup.errors.studentIdExists');
+  });
+
+  it('maps invalid credentials to separate field hints', () => {
+    const result = resolveLoginFieldErrors(
+      { message: 'Invalid login credentials' },
+      { t }
+    );
+    expect(result.email).toBe('auth.login.errors.invalidEmailField');
+    expect(result.password).toBe('auth.login.errors.invalidPasswordField');
+    expect(result.alert).toBe('auth.login.errors.invalidCredentials');
   });
 
   it('detects postgres unique violation as duplicate student id', () => {

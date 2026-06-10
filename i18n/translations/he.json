@@ -159,7 +159,11 @@
       "signupLink": "צור חשבון חדש",
       "backToHome": "חזרה לדף הבית",
       "errors": {
-        "invalidCredentials": "האימייל או הסיסמה שגויים",
+        "invalidCredentials": "האימייל או הסיסמה שגויים. בדוק/י את שניהם ונסה/י שוב.",
+        "invalidEmail": "האימייל חייב להיות חשבון Gmail (@gmail.com).",
+        "invalidEmailField": "בדוק/י את האימייל — ייתכן שהוא שגוי או לא רשום.",
+        "invalidPasswordField": "בדוק/י את הסיסמה — ייתכן שהיא שגויה.",
+        "passwordRequired": "הסיסמה היא שדה חובה.",
         "emailNotConfirmed": "אנא אשר את האימייל שלך תחילה",
         "generic": "אירעה שגיאה בהתחברות",
         "timeout": "פג תוקף החיבור. בדוק/י את האינטרנט ונסה/י שוב.",

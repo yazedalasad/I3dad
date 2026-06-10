@@ -17,8 +17,8 @@ import {
 import CustomButton from '../../components/Form/CustomButton';
 import CustomTextInput from '../../components/Form/CustomTextInput';
 import { useAuth } from '../../contexts/AuthContext';
-import { resolveAuthErrorMessage } from '../../utils/authErrors';
-import { validateEmail, validatePassword } from '../../utils/validation';
+import { resolveLoginFieldErrors } from '../../utils/authErrors';
+import { validateEmail, validateLoginPassword } from '../../utils/validation';
 
 export default function LoginScreen({ navigateTo }) {
   const { signIn } = useAuth();
@@ -54,7 +54,7 @@ export default function LoginScreen({ navigateTo }) {
       newErrors.email = emailValidation.error;
     }
 
-    const passwordValidation = validatePassword(password);
+    const passwordValidation = validateLoginPassword(password);
     if (!passwordValidation.isValid) {
       newErrors.password = passwordValidation.error;
     }
@@ -76,10 +76,14 @@ export default function LoginScreen({ navigateTo }) {
 
       if (error || result?.success === false) {
         console.error('auth error:', error?.message || error);
-        Alert.alert(
-          t('common.error'),
-          resolveAuthErrorMessage(error, { t, context: 'login' })
-        );
+        const fieldErrors = resolveLoginFieldErrors(error, { t });
+        setErrors({
+          email: fieldErrors.email || null,
+          password: fieldErrors.password || null,
+        });
+        if (fieldErrors.alert) {
+          Alert.alert(t('common.error'), fieldErrors.alert);
+        }
         return;
       }
 

@@ -10,7 +10,7 @@ import {
   AUTH_INIT_TIMEOUT_MS,
   AUTH_REQUEST_TIMEOUT_MS,
 } from '../utils/authHelpers';
-import { validateEmail, validatePassword } from '../utils/validation';
+import { validateEmail, validatePassword, validateLoginPassword } from '../utils/validation';
 import { buildStudentIdExistsError, isDuplicateStudentIdError } from '../utils/authErrors';
 import { isStudentIdTaken } from '../services/studentIdentityService';
 
@@ -574,7 +574,7 @@ export const AuthProvider = ({ children }) => {
         return authResult({ success: false, error: validationError });
       }
 
-      const passwordValidation = validatePassword(password);
+      const passwordValidation = validateLoginPassword(password);
       if (!passwordValidation.isValid) {
         const validationError = new Error(passwordValidation.error || 'Invalid password');
         console.error('auth error:', validationError.message);

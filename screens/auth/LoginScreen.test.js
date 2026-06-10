@@ -44,15 +44,33 @@ jest.mock('../../utils/authErrors', () => ({
     if (message.includes('Failed to fetch')) return t('auth.login.errors.network');
     return t('auth.login.errors.generic');
   },
+  resolveLoginFieldErrors: (error, { t }) => {
+    const message = String(error?.message || '');
+    if (message.includes('Invalid login credentials')) {
+      return {
+        email: t('auth.login.errors.invalidEmailField'),
+        password: t('auth.login.errors.invalidPasswordField'),
+        alert: t('auth.login.errors.invalidCredentials'),
+      };
+    }
+    if (message.includes('Email not confirmed')) {
+      const emailMessage = t('auth.login.errors.emailNotConfirmed');
+      return { email: emailMessage, password: null, alert: emailMessage };
+    }
+    if (message.includes('Failed to fetch')) {
+      return { email: null, password: null, alert: t('auth.login.errors.network') };
+    }
+    return { email: null, password: null, alert: t('auth.login.errors.generic') };
+  },
 }));
 
 const mockValidateEmail = jest.fn();
-const mockValidatePassword = jest.fn();
+const mockValidateLoginPassword = jest.fn();
 
 jest.mock('../../utils/validation', () => ({
   __esModule: true,
   validateEmail: (...args) => mockValidateEmail(...args),
-  validatePassword: (...args) => mockValidatePassword(...args),
+  validateLoginPassword: (...args) => mockValidateLoginPassword(...args),
 }));
 
 const mockSignIn = jest.fn();
@@ -78,7 +96,7 @@ describe('LoginScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockValidateEmail.mockReturnValue({ isValid: true, error: null });
-    mockValidatePassword.mockReturnValue({ isValid: true, error: null });
+    mockValidateLoginPassword.mockReturnValue({ isValid: true, error: null });
     mockSignIn.mockResolvedValue({ success: true, data: { user: { id: 'u1' } }, error: null });
   });
 
@@ -115,7 +133,7 @@ describe('LoginScreen', () => {
   });
 
   it('nav (negative): does NOT navigate to roleRouter when form invalid (password invalid)', async () => {
-    mockValidatePassword.mockReturnValueOnce({ isValid: false, error: 'bad pass' });
+    mockValidateLoginPassword.mockReturnValueOnce({ isValid: false, error: 'bad pass' });
     const navigateTo = jest.fn();
     const utils = render(<LoginScreen {...baseProps({ navigateTo })} />);
 
@@ -149,7 +167,7 @@ describe('LoginScreen', () => {
     expect(navigateTo).toHaveBeenCalledWith('principalRegister');
   });
 
-  it('login (negative): invalid credentials -> shows specific alert message key', async () => {
+  it('login (negative): invalid credentials -> shows field errors and alert', async () => {
     mockSignIn.mockResolvedValueOnce({ data: null, error: { message: 'Invalid login credentials' } });
     const utils = render(<LoginScreen {...baseProps()} />);
 
@@ -158,6 +176,8 @@ describe('LoginScreen', () => {
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('common.error', 'auth.login.errors.invalidCredentials');
+      expect(utils.getByText('auth.login.errors.invalidEmailField')).toBeTruthy();
+      expect(utils.getByText('auth.login.errors.invalidPasswordField')).toBeTruthy();
     });
   });
 
