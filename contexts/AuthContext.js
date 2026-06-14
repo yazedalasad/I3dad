@@ -154,9 +154,34 @@ export const AuthProvider = ({ children }) => {
 
   const refreshInFlightRef = useRef(null);
   const authOperationRef = useRef(null);
+  const authInFlightRef = useRef(false);
 
   const loading = initializingAuth;
   const authLoading = initializingAuth || authBusy;
+
+  const tryBeginAuth = (operation) => {
+    if (authInFlightRef.current) {
+      return false;
+    }
+    authInFlightRef.current = true;
+    authOperationRef.current = operation;
+    setAuthBusy(true);
+    return true;
+  };
+
+  const endAuth = () => {
+    authInFlightRef.current = false;
+    authOperationRef.current = null;
+    setAuthBusy(false);
+  };
+
+  const rollbackSignupSession = async (client) => {
+    try {
+      await client.auth.signOut();
+    } catch (error) {
+      console.error('signup rollback signOut failed:', error?.message || error);
+    }
+  };
 
   const fetchUserProfile = async (userId) => {
     const { data, error } = await requireSupabase()
@@ -404,7 +429,7 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      if (authOperationRef.current === 'signIn' || authOperationRef.current === 'signUp') {
+      if (authOperationRef.current) {
         return;
       }
 
@@ -424,11 +449,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signUp = async (email, password, studentInfo) => {
-    if (authBusy) {
+    if (!tryBeginAuth('signUp')) {
       return authResult({ success: false, error: new Error('Auth operation already in progress') });
     }
-    setAuthBusy(true);
-    authOperationRef.current = 'signUp';
 
     try {
       const normalizedEmail = normalizeAuthEmail(email);
@@ -514,6 +537,7 @@ export const AuthProvider = ({ children }) => {
 
         if (studentError) {
           console.error('auth error:', studentError?.message);
+          await rollbackSignupSession(client);
           if (isDuplicateStudentIdError(studentError)) {
             return authResult({ success: false, error: buildStudentIdExistsError() });
           }
@@ -531,6 +555,7 @@ export const AuthProvider = ({ children }) => {
 
         if (profileError) {
           console.error('auth error:', profileError?.message);
+          await rollbackSignupSession(client);
           return authResult({ success: false, error: profileError });
         }
       }
@@ -565,17 +590,14 @@ export const AuthProvider = ({ children }) => {
       console.error('auth error:', error?.message || error);
       return authResult({ success: false, error });
     } finally {
-      authOperationRef.current = null;
-      setAuthBusy(false);
+      endAuth();
     }
   };
 
   const signIn = async (email, password) => {
-    if (authBusy) {
+    if (!tryBeginAuth('signIn')) {
       return authResult({ success: false, error: new Error('Auth operation already in progress') });
     }
-    setAuthBusy(true);
-    authOperationRef.current = 'signIn';
 
     try {
       const normalizedEmail = normalizeAuthEmail(email);
@@ -646,16 +668,14 @@ export const AuthProvider = ({ children }) => {
       console.error('auth error:', error?.message || error);
       return authResult({ success: false, error });
     } finally {
-      authOperationRef.current = null;
-      setAuthBusy(false);
+      endAuth();
     }
   };
 
   const signOut = async () => {
-    if (authBusy) {
+    if (!tryBeginAuth('signOut')) {
       return authResult({ success: false, error: new Error('Auth operation already in progress') });
     }
-    setAuthBusy(true);
 
     try {
       const { error } = await withAuthTimeout(requireSupabase().auth.signOut(), AUTH_REQUEST_TIMEOUT_MS);
@@ -676,7 +696,7 @@ export const AuthProvider = ({ children }) => {
       console.error('auth error:', error?.message || error);
       return authResult({ success: false, error });
     } finally {
-      setAuthBusy(false);
+      endAuth();
     }
   };
 

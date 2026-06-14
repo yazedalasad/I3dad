@@ -75,6 +75,41 @@ Deno.serve(async (req: Request) => {
     }
 
     const preferredLanguage = normalizeLanguage(body.preferred_language || body.preferredLanguage || invitation.preferred_language || "ar");
+    const claimTimestamp = new Date().toISOString();
+
+    const { data: claimedInvitation, error: claimError } = await admin
+      .from("principal_invitations")
+      .update({
+        status: "used",
+        used_at: claimTimestamp,
+      })
+      .eq("id", invitation.id)
+      .eq("status", "pending")
+      .select("*")
+      .maybeSingle();
+
+    if (claimError) return json(500, { success: false, error: claimError.message });
+    if (!claimedInvitation) {
+      return json(409, {
+        success: false,
+        error: "Invitation is already used or being activated",
+        code: "used",
+      });
+    }
+
+    const rollbackInvitationClaim = async () => {
+      await admin
+        .from("principal_invitations")
+        .update({
+          status: "pending",
+          used_at: null,
+          principal_user_id: null,
+        })
+        .eq("id", invitation.id)
+        .eq("status", "used")
+        .is("principal_user_id", null);
+    };
+
     let userId = "";
     const list = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const existing = list.data?.users?.find((user: { id?: string; email?: string }) => normalizeEmail(user.email) === email);
@@ -101,7 +136,10 @@ Deno.serve(async (req: Request) => {
         app_metadata: { role: "principal" },
         user_metadata: authMetadata,
       });
-      if (updateError) return json(500, { success: false, error: updateError.message });
+      if (updateError) {
+        await rollbackInvitationClaim();
+        return json(500, { success: false, error: updateError.message });
+      }
     } else {
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email,
@@ -111,6 +149,7 @@ Deno.serve(async (req: Request) => {
         user_metadata: authMetadata,
       });
       if (createError || !created?.user?.id) {
+        await rollbackInvitationClaim();
         return json(500, { success: false, error: createError?.message || "Failed to create user" });
       }
       userId = created.user.id;
@@ -129,7 +168,10 @@ Deno.serve(async (req: Request) => {
         },
         { onConflict: "user_id" },
       );
-    if (profileError) return json(500, { success: false, error: profileError.message });
+    if (profileError) {
+      await rollbackInvitationClaim();
+      return json(500, { success: false, error: profileError.message });
+    }
 
     const { error: principalError } = await admin
       .from("principals")
@@ -150,22 +192,23 @@ Deno.serve(async (req: Request) => {
         { onConflict: "user_id" },
       );
 
-    if (principalError) return json(500, { success: false, error: principalError.message });
+    if (principalError) {
+      await rollbackInvitationClaim();
+      return json(500, { success: false, error: principalError.message });
+    }
 
-    const { error: usedError } = await admin
+    const { error: finalizeError } = await admin
       .from("principal_invitations")
       .update({
-        status: "used",
-        used_at: profileUpdatedAt,
         principal_user_id: userId,
         invited_name: fullName,
         invited_phone: phone || null,
         preferred_language: preferredLanguage,
       })
       .eq("id", invitation.id)
-      .eq("status", "pending");
+      .eq("status", "used");
 
-    if (usedError) return json(500, { success: false, error: usedError.message });
+    if (finalizeError) return json(500, { success: false, error: finalizeError.message });
 
     return json(200, {
       success: true,

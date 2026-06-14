@@ -21,7 +21,7 @@ import { resolveLoginFieldErrors } from '../../utils/authErrors';
 import { validateEmail, validateLoginPassword } from '../../utils/validation';
 
 export default function LoginScreen({ navigateTo }) {
-  const { signIn } = useAuth();
+  const { signIn, authLoading } = useAuth();
   const { t, i18n } = useTranslation();
   const { width } = useWindowDimensions();
 
@@ -64,7 +64,7 @@ export default function LoginScreen({ navigateTo }) {
   };
 
   const handleLogin = async () => {
-    if (loading || submitRef.current) return;
+    if (loading || authLoading || submitRef.current) return;
     if (!validateForm()) return;
 
     submitRef.current = true;

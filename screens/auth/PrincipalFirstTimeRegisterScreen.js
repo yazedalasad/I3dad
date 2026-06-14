@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -13,7 +13,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { supabase } from '../../config/supabase';
+
+import { useAuth } from '../../contexts/AuthContext';
 import principalRegisterAr from '../../i18n/principalRegister/ar.json';
 import principalRegisterHe from '../../i18n/principalRegister/he.json';
 import { isValidIsraeliId, normalizeIsraeliId } from '../../src/utils/israeliId';
@@ -54,6 +55,7 @@ function codeFromRoute(route) {
 const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) {
+  const { signIn } = useAuth();
   const { i18n } = useTranslation();
   const initialToken = tokenFromRoute(route);
   const routeCode = codeFromRoute(route);
@@ -62,6 +64,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const submitRef = useRef(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [lookupMode, setLookupMode] = useState(!initialToken);
@@ -203,6 +206,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   };
 
   const activate = async () => {
+    if (submitting || submitRef.current) return;
     if (!hasIsraeliIdDigits(form.identityNumber) || !isValidIsraeliId(form.identityNumber)) {
       Alert.alert(labels.invalidTitle, labels.invalidIdentity);
       return;
@@ -220,6 +224,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
       return;
     }
 
+    submitRef.current = true;
     setSubmitting(true);
     const precheck = await validatePrincipalInvitationEmailAndCode({
       token,
@@ -229,6 +234,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
 
     if (!precheck.success) {
       setSubmitting(false);
+      submitRef.current = false;
       Alert.alert(labels.invalidTitle, mapError(precheck.error?.message, precheck.data?.code, labels));
       return;
     }
@@ -246,16 +252,16 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
 
     if (!result.success) {
       setSubmitting(false);
+      submitRef.current = false;
       Alert.alert(labels.invalidTitle, mapError(result.error?.message, result.data?.code, labels));
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: form.email.trim().toLowerCase(),
-      password: form.password,
-    });
+    const signInResult = await signIn(form.email.trim().toLowerCase(), form.password);
+    const signInError = signInResult?.error;
 
     setSubmitting(false);
+    submitRef.current = false;
     setSuccess(true);
 
     if (signInError) {

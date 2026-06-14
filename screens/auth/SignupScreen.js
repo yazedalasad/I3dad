@@ -61,7 +61,7 @@ function buildSchoolOption({ id, name, city, savedName }) {
 }
 
 export default function SignupScreen({ navigateTo }) {
-  const { signUp } = useAuth();
+  const { signUp, authLoading } = useAuth();
   const { t, i18n } = useTranslation();
   const { width } = useWindowDimensions();
 
@@ -375,7 +375,7 @@ export default function SignupScreen({ navigateTo }) {
   };
 
   const handleSignup = async () => {
-    if (loading || submitRef.current) return;
+    if (loading || authLoading || submitRef.current) return;
     if (!validateStep3()) return;
 
     submitRef.current = true;

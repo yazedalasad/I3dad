@@ -1,6 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../config/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const colors = {
   bg: '#F6F8FF',
@@ -54,9 +55,11 @@ function strengthMeta(score) {
 }
 
 export default function PrincipalAcceptInviteScreen({ navigateTo, route }) {
+  const { signIn } = useAuth();
   const token = tokenFromRoute(route);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const submitRef = useRef(false);
   const [invitation, setInvitation] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -115,11 +118,13 @@ export default function PrincipalAcceptInviteScreen({ navigateTo, route }) {
   }, [acceptedTerms, confirmPassword, fullName, password, score]);
 
   const activate = async () => {
+    if (submitting || submitRef.current) return;
     if (validationError) {
       Alert.alert('تحقق من البيانات', validationError);
       return;
     }
 
+    submitRef.current = true;
     setSubmitting(true);
     setSuccess('');
 
@@ -135,16 +140,16 @@ export default function PrincipalAcceptInviteScreen({ navigateTo, route }) {
 
     if (fnError || data?.success === false) {
       setSubmitting(false);
+      submitRef.current = false;
       Alert.alert('تعذر تفعيل الحساب', fnError?.message || data?.error || 'حاول مرة أخرى.');
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: data.email || invitation.email,
-      password,
-    });
+    const signInResult = await signIn(data.email || invitation.email, password);
+    const signInError = signInResult?.error;
 
     setSubmitting(false);
+    submitRef.current = false;
     setSuccess('تم تفعيل حسابك بنجاح');
 
     if (signInError) {
