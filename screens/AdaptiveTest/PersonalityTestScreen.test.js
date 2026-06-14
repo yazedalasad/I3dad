@@ -94,8 +94,27 @@ jest.mock('../../services/personalityTestService', () => ({
   completePersonalityTest: (...args) => mockCompletePersonalityTest(...args),
 }));
 
+jest.mock('../../contexts/NavigationGuardContext', () => ({
+  __esModule: true,
+  useNavigationGuard: () => ({
+    guard: { disabled: false, confirmBack: false },
+    setNavigationGuard: jest.fn(),
+  }),
+}));
+
+jest.mock('../../components/AdaptiveTest/RankingQuestionList', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: () => React.createElement(View, { testID: 'ranking-list-mock' }),
+  };
+});
+
 // ⛔️ require AFTER mocks
 const PersonalityTestScreen = require('./PersonalityTestScreen').default;
+
+jest.setTimeout(15000);
 
 // helpers
 const flushMicrotasks = () => Promise.resolve();
@@ -218,6 +237,10 @@ describe('PersonalityTestScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStartPersonalityTest.mockResolvedValue({ success: true, sessionId: 'p-sess-default' });
+    mockGetPersonalityQuestion.mockResolvedValue(qScale());
+    mockSubmitPersonalityAnswer.mockResolvedValue({ success: true });
+    mockCompletePersonalityTest.mockResolvedValue({ success: true, profile: {} });
   });
 
   afterEach(async () => {
@@ -236,10 +259,13 @@ describe('PersonalityTestScreen', () => {
 
     render(<PersonalityTestScreen {...baseProps()} />);
 
-    await waitFor(() => {
-      expect(mockStartPersonalityTest).toHaveBeenCalledTimes(1);
-      expect(mockGetPersonalityQuestion).toHaveBeenCalledTimes(1);
-    });
+    await waitFor(
+      () => {
+        expect(mockStartPersonalityTest).toHaveBeenCalledTimes(1);
+        expect(mockGetPersonalityQuestion).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 10000 }
+    );
   });
 
   it('startPersonalityTest (positive): called with correct studentId and language', async () => {

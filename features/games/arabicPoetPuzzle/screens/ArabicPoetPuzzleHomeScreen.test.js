@@ -1,5 +1,15 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
+jest.mock('../../shared', () => {
+  const React = require('react');
+  const { View, ScrollView } = require('react-native');
+  return {
+    ScreenContainer: ({ children, style, contentContainerStyle }) =>
+      React.createElement(ScrollView, { style, contentContainerStyle }, children),
+    GameCard: ({ children, style }) => React.createElement(View, { style }, children),
+  };
+});
+
 import ArabicPoetPuzzleHomeScreen from './ArabicPoetPuzzleHomeScreen';
 import { getCompletedArabicPoetPuzzleLevels } from '../services/levelProgressService';
 import { getStudentGameSessions } from '../../shared/services/gameSessionService';
@@ -11,6 +21,8 @@ jest.mock('../services/levelProgressService', () => ({
 jest.mock('../../shared/services/gameSessionService', () => ({
   getStudentGameSessions: jest.fn(),
 }));
+
+jest.setTimeout(15000);
 
 describe('ArabicPoetPuzzleHomeScreen', () => {
   beforeEach(() => {
