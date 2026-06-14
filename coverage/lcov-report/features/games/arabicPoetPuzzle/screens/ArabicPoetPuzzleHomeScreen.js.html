@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">87.5% </span>
+                <span class="strong">90.9% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>21/24</span>
+                <span class='fraction'>20/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">61.76% </span>
+                <span class="strong">62.5% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>21/34</span>
+                <span class='fraction'>20/32</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">76.92% </span>
+                <span class="strong">81.81% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>10/13</span>
+                <span class='fraction'>9/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">91.3% </span>
+                <span class="strong">90.9% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>21/23</span>
+                <span class='fraction'>20/22</span>
             </div>
         
             
@@ -275,19 +275,7 @@
 <a name='L210'></a><a href='#L210'>210</a>
 <a name='L211'></a><a href='#L211'>211</a>
 <a name='L212'></a><a href='#L212'>212</a>
-<a name='L213'></a><a href='#L213'>213</a>
-<a name='L214'></a><a href='#L214'>214</a>
-<a name='L215'></a><a href='#L215'>215</a>
-<a name='L216'></a><a href='#L216'>216</a>
-<a name='L217'></a><a href='#L217'>217</a>
-<a name='L218'></a><a href='#L218'>218</a>
-<a name='L219'></a><a href='#L219'>219</a>
-<a name='L220'></a><a href='#L220'>220</a>
-<a name='L221'></a><a href='#L221'>221</a>
-<a name='L222'></a><a href='#L222'>222</a>
-<a name='L223'></a><a href='#L223'>223</a>
-<a name='L224'></a><a href='#L224'>224</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L213'></a><a href='#L213'>213</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -328,13 +316,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">8x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -410,9 +391,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -510,11 +488,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useCallback, useEffect, useState } from 'react';
-import { ImageBackground, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer, GameCard } from '../../shared';
 import { arabicPoetPuzzleLevels } from '../data/levels';
 import { desertTheme } from '../utils/theme';
-import desertThemeBgImage from '../assets/desert-theme-bg.png';
 import { getCompletedArabicPoetPuzzleLevels } from '../services/levelProgressService';
 import { getStudentGameSessions } from '../../shared/services/gameSessionService';
 &nbsp;
@@ -544,16 +521,9 @@ export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = <sp
   }, [loadCompletedLevels, navigation]);
 &nbsp;
   return (
-    &lt;ImageBackground
-      source={desertThemeBgImage}
-      resizeMode="cover"
-      style={styles.flex}
-    &gt;
-      &lt;ScreenContainer scroll style={styles.transparent}&gt;
+    &lt;ScreenContainer scroll style={styles.page} contentContainerStyle={styles.pageContent}&gt;
+      &lt;View style={styles.desertPanel}&gt;
         &lt;View style={styles.topBanner}&gt;
-          &lt;Pressable onPress={<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >navigation?.navigate?.('games')}</span> style={({ pressed }) =&gt; [styles.exitButton, pressed &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >styles.pressed]</span>}&gt;
-            &lt;Text style={styles.exitButtonText}&gt;{'\u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0644\u0623\u0644\u0639\u0627\u0628'}&lt;/Text&gt;
-          &lt;/Pressable&gt;
           &lt;Text style={styles.mainTitle}&gt;{'\u0643\u0646\u0648\u0632 \u0627\u0644\u0623\u0644\u0641\u0627\u0638'}&lt;/Text&gt;
           &lt;Text style={styles.mainSubtitle}&gt;
             {'\u0623\u0644\u0641\u0627\u0638 \u0634\u0639\u0631\u064a\u0629 \u0642\u062f\u064a\u0645\u0629 \u2022 \u0644\u0639\u0628\u0629 \u0643\u0644\u0645\u0627\u062a \u0639\u0631\u0628\u064a\u0629'}
@@ -627,47 +597,44 @@ export default function ArabicPoetPuzzleHomeScreen({ navigation, studentId = <sp
             &lt;/GameCard&gt;
           );
         })}
-      &lt;/ScreenContainer&gt;
-    &lt;/ImageBackground&gt;
+      &lt;/View&gt;
+    &lt;/ScreenContainer&gt;
   );
 }
 &nbsp;
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  transparent: { backgroundColor: 'transparent' },
+  page: {
+    backgroundColor: '#6B4428',
+  },
+  pageContent: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  desertPanel: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 720,
+    paddingHorizontal: 4,
+  },
   topBanner: {
     marginBottom: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
-  },
-  exitButton: {
-    alignSelf: 'flex-end',
-    borderRadius: 999,
-    backgroundColor: 'rgba(247, 228, 190, 0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(247, 228, 190, 0.42)',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginBottom: 10,
-  },
-  exitButtonText: {
-    color: '#F7E4BE',
-    fontSize: 13,
-    fontWeight: '900',
-    writingDirection: 'rtl',
   },
   mainTitle: {
     color: '#F7E4BE',
-    fontSize: 38,
+    fontSize: 34,
     fontWeight: '900',
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   mainSubtitle: {
     marginTop: 4,
     color: '#E8D4AF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   heroCard: { marginBottom: 16 },
   title: {
@@ -710,7 +677,7 @@ const styles = StyleSheet.create({
   },
   levelTheme: {
     marginTop: 8,
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 24,
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -718,7 +685,7 @@ const styles = StyleSheet.create({
   lockedText: {
     marginTop: 8,
     color: '#8F5B32',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -726,7 +693,7 @@ const styles = StyleSheet.create({
   completedText: {
     marginTop: 8,
     color: '#2F7D45',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -739,7 +706,7 @@ const styles = StyleSheet.create({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-20T08:53:20.443Z
+                at 2026-06-09T11:20:02.298Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

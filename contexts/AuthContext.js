@@ -462,6 +462,12 @@ export const AuthProvider = ({ children }) => {
         console.error('auth error:', duplicateError.message);
         return authResult({ success: false, error: duplicateError });
       }
+      if (studentIdTaken === null) {
+        const availabilityError = new Error('STUDENT_ID_CHECK_UNAVAILABLE');
+        availabilityError.code = 'SERVICE_UNAVAILABLE';
+        console.error('auth error:', availabilityError.message);
+        return authResult({ success: false, error: availabilityError });
+      }
 
       const studentMetadata = buildStudentMetadata(studentInfo);
 
@@ -483,8 +489,9 @@ export const AuthProvider = ({ children }) => {
 
       const needsEmailConfirmation = !authData.session;
       const newUserId = authData.user?.id;
+      const activeSession = authData.session;
 
-      if (newUserId) {
+      if (newUserId && activeSession) {
         const birthday = normalizeBirthday(studentInfo.birthday);
 
         const { error: studentError } = await client.from('students').insert([
@@ -513,7 +520,7 @@ export const AuthProvider = ({ children }) => {
           return authResult({ success: false, error: studentError });
         }
 
-        await client.from('user_profiles').upsert(
+        const { error: profileError } = await client.from('user_profiles').upsert(
           {
             user_id: newUserId,
             role: 'student',
@@ -521,6 +528,11 @@ export const AuthProvider = ({ children }) => {
           },
           { onConflict: 'user_id' }
         );
+
+        if (profileError) {
+          console.error('auth error:', profileError?.message);
+          return authResult({ success: false, error: profileError });
+        }
       }
 
       if (needsEmailConfirmation) {

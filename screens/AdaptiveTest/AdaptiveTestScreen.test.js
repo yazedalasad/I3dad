@@ -265,7 +265,8 @@ describe('AdaptiveTestScreen', () => {
           language: 'ar',
           subjectNames: props.subjectNames,
           assessmentCompleted: true,
-        })
+        }),
+        { replace: true }
       );
     });
   });

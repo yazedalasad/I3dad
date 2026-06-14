@@ -1,5 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +14,8 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../config/supabase';
+import principalRegisterAr from '../../i18n/principalRegister/ar.json';
+import principalRegisterHe from '../../i18n/principalRegister/he.json';
 import { isValidIsraeliId, normalizeIsraeliId } from '../../src/utils/israeliId';
 import {
   activatePrincipalAccount,
@@ -21,96 +24,18 @@ import {
   validatePrincipalInvitationEmailAndCode,
   validatePrincipalInvitationToken,
 } from '../../services/principalInvitationService';
+import { mapPrincipalInvitationError } from '../../utils/principalInvitationErrors';
 
-const copy = {
-  ar: {
-    title: 'تفعيل حساب مدير المدرسة',
-    subtitle: 'أكمل بياناتك لتفعيل حساب المدير المرتبط بمدرستك.',
-    welcome: 'مرحبًا بك',
-    school: 'المدرسة',
-    invitedEmail: 'البريد المدعو',
-    language: 'اللغة المفضلة',
-    email: 'البريد الإلكتروني',
-    fullName: 'الاسم الكامل',
-    phone: 'رقم الهاتف',
-    code: 'كود الدعوة / كود المدرسة',
-    password: 'كلمة المرور',
-    confirmPassword: 'تأكيد كلمة المرور',
-    activate: 'تفعيل الحساب',
-    activating: 'جاري تفعيل الحساب...',
-    loading: 'جاري التحقق من الدعوة...',
-    invalidTitle: 'الدعوة غير متاحة',
-    missingToken: 'افتح رابط الدعوة الذي وصلك بالبريد أو اطلب من الأدمن نسخ رابط الدعوة من لوحة الإدارة.',
-    backLogin: 'العودة لتسجيل الدخول',
-    invalidEmail: 'هذا البريد غير موجود ضمن دعوات المديرين. الرجاء التواصل مع الأدمن.',
-    invalidCode: 'الكود غير صحيح أو لا يتبع لهذه المدرسة.',
-    expired: 'انتهت صلاحية الدعوة. الرجاء طلب دعوة جديدة من الأدمن.',
-    success: 'تم تفعيل حساب المدير بنجاح.',
-    dashboard: 'الانتقال إلى لوحة المدير',
-    missing: 'أكمل جميع الحقول المطلوبة.',
-    passwordMismatch: 'كلمة المرور وتأكيدها غير متطابقين.',
-    weakPassword: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
-    steps: ['التحقق من الدعوة', 'إكمال البيانات', 'تفعيل الحساب'],
-  },
-  he: {
-    title: 'הפעלת חשבון מנהל בית ספר',
-    subtitle: 'השלם את הפרטים כדי להפעיל את חשבון המנהל המקושר לבית הספר שלך.',
-    welcome: 'ברוך הבא',
-    school: 'בית הספר',
-    invitedEmail: 'הדואר שהוזמן',
-    language: 'שפה מועדפת',
-    email: 'דואר אלקטרוני',
-    fullName: 'שם מלא',
-    phone: 'טלפון',
-    code: 'קוד הזמנה / קוד בית ספר',
-    password: 'סיסמה',
-    confirmPassword: 'אימות סיסמה',
-    activate: 'הפעל חשבון',
-    activating: 'מפעיל חשבון...',
-    loading: 'בודק את ההזמנה...',
-    invalidTitle: 'ההזמנה אינה זמינה',
-    missingToken: 'פתח את קישור ההזמנה שנשלח אליך במייל או בקש מהאדמין להעתיק את קישור ההזמנה.',
-    backLogin: 'חזרה להתחברות',
-    invalidEmail: 'הדואר האלקטרוני הזה לא נמצא ברשימת הזמנות המנהלים. יש לפנות לאדמין.',
-    invalidCode: 'הקוד שגוי או אינו שייך לבית הספר הזה.',
-    expired: 'תוקף ההזמנה פג. יש לבקש הזמנה חדשה מהאדמין.',
-    success: 'חשבון המנהל הופעל בהצלחה.',
-    dashboard: 'עבור ללוח המנהל',
-    missing: 'יש להשלים את כל השדות הנדרשים.',
-    passwordMismatch: 'הסיסמאות אינן תואמות.',
-    weakPassword: 'הסיסמה חייבת להכיל לפחות 8 תווים.',
-    steps: ['אימות הזמנה', 'השלמת פרטים', 'הפעלת חשבון'],
-  },
-  en: {
-    title: 'Activate Principal Account',
-    subtitle: 'Complete your details to activate the principal account linked to your school.',
-    welcome: 'Welcome',
-    school: 'School',
-    invitedEmail: 'Invited email',
-    language: 'Preferred language',
-    email: 'Email address',
-    fullName: 'Full name',
-    phone: 'Phone',
-    code: 'Invitation / School code',
-    password: 'Password',
-    confirmPassword: 'Confirm password',
-    activate: 'Activate account',
-    activating: 'Activating account...',
-    loading: 'Verifying invitation...',
-    invalidTitle: 'Invitation unavailable',
-    missingToken: 'Open the invitation link sent to your email, or ask the admin to copy the invitation link from the admin dashboard.',
-    backLogin: 'Back to login',
-    invalidEmail: 'This email is not invited as a principal. Please contact the system admin.',
-    invalidCode: 'The code is incorrect or does not belong to this school.',
-    expired: 'The invitation has expired. Please request a new invitation from the admin.',
-    success: 'Principal account activated successfully.',
-    dashboard: 'Go to Principal Dashboard',
-    missing: 'Please complete all required fields.',
-    passwordMismatch: 'Password and confirmation do not match.',
-    weakPassword: 'Password must be at least 8 characters.',
-    steps: ['Verify invitation', 'Complete details', 'Activate account'],
-  },
+const COPY = {
+  ar: principalRegisterAr,
+  he: principalRegisterHe,
 };
+
+function resolveLanguage(value) {
+  const lang = String(value || '').toLowerCase();
+  if (lang.startsWith('he')) return 'he';
+  return 'ar';
+}
 
 function tokenFromRoute(route) {
   const direct = route?.params?.token || route?.token;
@@ -126,22 +51,14 @@ function codeFromRoute(route) {
   return '';
 }
 
-function mapError(message, code, labels) {
-  const value = String(code || message || '').toLowerCase();
-  if (value.includes('expired')) return labels.expired;
-  if (value.includes('invalid_email')) return labels.invalidEmail;
-  if (value.includes('invalid_code')) return labels.invalidCode;
-  if (value.includes('used')) return labels.invalidTitle;
-  return message || labels.invalidTitle;
-}
-
 const hasIsraeliIdDigits = (value) => String(value || '').replace(/\D/g, '').length > 0;
 
 export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) {
+  const { i18n } = useTranslation();
   const initialToken = tokenFromRoute(route);
   const routeCode = codeFromRoute(route);
   const [resolvedToken, setResolvedToken] = useState('');
-  const [language, setLanguage] = useState('ar');
+  const [language, setLanguage] = useState(resolveLanguage(i18n?.language));
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -161,18 +78,15 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   });
   const { width } = useWindowDimensions();
 
-  const labels = copy[language] || copy.ar;
-  const identityLabel = language === 'he' ? 'תעודת זהות' : language === 'en' ? 'Israeli ID' : 'رقم الهوية';
-  const invalidIdentityMessage = language === 'he'
-    ? 'מספר תעודת הזהות אינו תקין'
-    : language === 'en'
-      ? 'Invalid Israeli ID number'
-      : 'رقم الهوية غير صحيح';
-  const isRtl = language === 'ar' || language === 'he';
+  const labels = COPY[language] || COPY.ar;
+  const isRtl = true;
   const textAlign = isRtl ? 'right' : 'left';
   const rowDirection = isRtl ? 'row-reverse' : 'row';
   const cardWidth = Math.min(width - 28, 620);
   const token = resolvedToken || initialToken;
+
+  const mapError = (message, code, activeLabels = labels) =>
+    mapPrincipalInvitationError(message, code, activeLabels);
 
   useEffect(() => {
     let mounted = true;
@@ -189,13 +103,16 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
       if (!mounted) return;
 
       if (!result.success) {
-        setError(mapError(result.error?.message, result.data?.code, copy.ar));
+        const fallbackLabels = COPY[resolveLanguage(i18n?.language)] || COPY.ar;
+        setError(mapError(result.error?.message, result.data?.code, fallbackLabels));
         setLoading(false);
         return;
       }
 
       const invite = result.data?.invitation || {};
-      const preferred = ['ar', 'he', 'en'].includes(invite.preferred_language) ? invite.preferred_language : 'ar';
+      const preferred = ['ar', 'he'].includes(invite.preferred_language)
+        ? invite.preferred_language
+        : resolveLanguage(i18n?.language);
       setLanguage(preferred);
       setInvitation(invite);
       setForm((current) => ({
@@ -212,7 +129,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
     return () => {
       mounted = false;
     };
-  }, [initialToken]);
+  }, [initialToken, i18n?.language, routeCode]);
 
   const passwordStrongEnough = form.password.length >= 8;
   const canSubmit = useMemo(
@@ -229,30 +146,6 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
   );
 
   const updateField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
-  const lookupLabels = {
-    ar: {
-      title: 'تسجيل دخول لأول مرة',
-      subtitle: 'أدخل البريد الإلكتروني المدعو كمدير، وسنرسل لك كود الدعوة على البريد.',
-      sendCode: 'إرسال الكود',
-      verifyCode: 'تحقق من الكود',
-      codeSent: 'تم إرسال كود الدعوة إلى بريدك.',
-    },
-    he: {
-      title: 'כניסה ראשונה',
-      subtitle: 'הזן את האימייל שהוזמן כמנהל, ונשלח אליו את קוד ההזמנה.',
-      sendCode: 'שלח קוד',
-      verifyCode: 'אמת קוד',
-      codeSent: 'קוד ההזמנה נשלח למייל שלך.',
-    },
-    en: {
-      title: 'First-time principal access',
-      subtitle: 'Enter the email invited as a principal, and we will send the invitation code to that email.',
-      sendCode: 'Send code',
-      verifyCode: 'Verify code',
-      codeSent: 'The invitation code was sent to your email.',
-    },
-  }[language] || {};
 
   const sendLookupCode = async () => {
     const email = form.email.trim().toLowerCase();
@@ -271,7 +164,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
       return;
     }
 
-    setLookupMessage(lookupLabels.codeSent);
+    setLookupMessage(labels.codeSent);
   };
 
   const resolveLookupCode = async () => {
@@ -292,7 +185,9 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
     }
 
     const invite = result.data?.invitation || {};
-    const preferred = ['ar', 'he', 'en'].includes(invite.preferred_language) ? invite.preferred_language : language;
+    const preferred = ['ar', 'he'].includes(invite.preferred_language)
+      ? invite.preferred_language
+      : language;
     setResolvedToken(result.data?.token || invite.invite_token || '');
     setLanguage(preferred);
     setInvitation(invite);
@@ -309,7 +204,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
 
   const activate = async () => {
     if (!hasIsraeliIdDigits(form.identityNumber) || !isValidIsraeliId(form.identityNumber)) {
-      Alert.alert(labels.invalidTitle, invalidIdentityMessage);
+      Alert.alert(labels.invalidTitle, labels.invalidIdentity);
       return;
     }
     if (!canSubmit) {
@@ -364,7 +259,9 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
     setSuccess(true);
 
     if (signInError) {
-      Alert.alert(labels.success, labels.backLogin, [{ text: labels.backLogin, onPress: () => navigateTo?.('login') }]);
+      Alert.alert(labels.signInFailedTitle, labels.signInFailedMessage, [
+        { text: labels.backLogin, onPress: () => navigateTo?.('login') },
+      ]);
     }
   };
 
@@ -384,7 +281,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
           <FontAwesome name="exclamation" size={22} color="#fff" />
         </View>
         <Text style={styles.errorTitle}>{labels.invalidTitle}</Text>
-        <Text style={styles.centerText}>{mapError(error, error, labels)}</Text>
+        <Text style={styles.centerText}>{error}</Text>
         <TouchableOpacity style={styles.solidButton} onPress={() => navigateTo?.('login')}>
           <Text style={styles.solidButtonText}>{labels.backLogin}</Text>
         </TouchableOpacity>
@@ -399,8 +296,8 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
           <View style={[styles.heroIcon, { alignSelf: isRtl ? 'flex-end' : 'flex-start' }]}>
             <FontAwesome name="envelope" size={24} color="#047857" />
           </View>
-          <Text style={[styles.title, { textAlign }]}>{lookupLabels.title}</Text>
-          <Text style={[styles.subtitle, { textAlign }]}>{lookupLabels.subtitle}</Text>
+          <Text style={[styles.title, { textAlign }]}>{labels.lookupTitle}</Text>
+          <Text style={[styles.subtitle, { textAlign }]}>{labels.lookupSubtitle}</Text>
 
           <Field
             label={labels.email}
@@ -412,7 +309,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
           />
           <TouchableOpacity style={[styles.activateButton, lookupLoading && styles.disabled]} onPress={sendLookupCode} disabled={lookupLoading}>
             <FontAwesome name="paper-plane" size={15} color="#fff" />
-            <Text style={styles.activateText}>{lookupLabels.sendCode}</Text>
+            <Text style={styles.activateText}>{labels.sendCode}</Text>
           </TouchableOpacity>
 
           {!!lookupMessage && <Text style={[styles.lookupMessage, { textAlign }]}>{lookupMessage}</Text>}
@@ -426,7 +323,7 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
             isRtl={isRtl}
           />
           <TouchableOpacity style={[styles.solidButton, lookupLoading && styles.disabled]} onPress={resolveLookupCode} disabled={lookupLoading}>
-            <Text style={styles.solidButtonText}>{lookupLabels.verifyCode}</Text>
+            <Text style={styles.solidButtonText}>{labels.verifyCode}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.backInline} onPress={() => navigateTo?.('login')}>
@@ -480,9 +377,8 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
         <Text style={[styles.label, { textAlign }]}>{labels.language}</Text>
         <View style={[styles.languageRow, { flexDirection: rowDirection }]}>
           {[
-            { value: 'ar', label: 'العربية' },
-            { value: 'he', label: 'עברית' },
-            { value: 'en', label: 'English' },
+            { value: 'ar', label: labels.langArabic },
+            { value: 'he', label: labels.langHebrew },
           ].map((item) => (
             <TouchableOpacity
               key={item.value}
@@ -497,13 +393,13 @@ export default function PrincipalFirstTimeRegisterScreen({ navigateTo, route }) 
         <Field label={labels.email} value={form.email} onChangeText={(value) => updateField('email', value.replace(/\s/g, ''))} icon="envelope" keyboardType="email-address" isRtl={isRtl} />
         <Field label={labels.fullName} value={form.fullName} onChangeText={(value) => updateField('fullName', value)} icon="user" isRtl={isRtl} />
         <Field
-          label={identityLabel}
+          label={labels.identityNumber}
           value={form.identityNumber}
           onChangeText={(value) => updateField('identityNumber', value.replace(/[^\d\s-]/g, ''))}
           icon="id-card"
           keyboardType="number-pad"
           isRtl={isRtl}
-          error={hasIsraeliIdDigits(form.identityNumber) && !isValidIsraeliId(form.identityNumber) ? invalidIdentityMessage : ''}
+          error={hasIsraeliIdDigits(form.identityNumber) && !isValidIsraeliId(form.identityNumber) ? labels.invalidIdentity : ''}
         />
         <Field label={labels.phone} value={form.phone} onChangeText={(value) => updateField('phone', value)} icon="phone" keyboardType="phone-pad" isRtl={isRtl} />
         <Field label={labels.code} value={form.invitationCode} onChangeText={(value) => updateField('invitationCode', value.toUpperCase())} icon="key" autoCapitalize="characters" isRtl={isRtl} />

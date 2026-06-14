@@ -31,7 +31,7 @@ describe('security QA regressions', () => {
     expect(envExample).toContain('EXPO_PUBLIC_SUPABASE_ANON_KEY=');
     expect(envExample).toContain('SUPABASE_SERVICE_ROLE_KEY=');
     expect(envExample).toContain('PROJECT_SERVICE_ROLE_KEY=');
-    expect(envExample).toContain('Never expose this in frontend code');
+    expect(envExample).toContain('Never expose in frontend code');
   });
 
   test('README documents required setup and verification commands', () => {

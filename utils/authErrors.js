@@ -119,6 +119,16 @@ const SIGNUP_RULES = [
   },
   {
     match: ({ message }) =>
+      includesAny(message, ['student_id_check_unavailable', 'service_unavailable']),
+    key: 'auth.signup.errors.serviceUnavailable',
+  },
+  {
+    match: ({ message }) =>
+      includesAny(message, ['auth operation already in progress', 'already in progress']),
+    key: 'auth.signup.errors.inProgress',
+  },
+  {
+    match: ({ message }) =>
       includesAny(message, ['password', 'weak password', 'password should']),
     key: 'auth.signup.errors.weakPassword',
   },

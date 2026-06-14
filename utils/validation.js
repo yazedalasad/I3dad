@@ -59,8 +59,10 @@ const text = {
   requiredPassword: () => (isHebrew() ? 'הסיסמה היא שדה חובה' : 'كلمة المرور مطلوبة'),
   passwordLength: () =>
     isHebrew()
-      ? 'הסיסמה חייבת להכיל לפחות 8 תווים'
-      : 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+      ? 'הסיסמה חייבת להכיל לפחות 10 תווים'
+      : 'كلمة المرور يجب أن تكون 10 أحرف على الأقل',
+  passwordNoSpaces: () =>
+    isHebrew() ? 'הסיסמה לא יכולה להכיל רווחים' : 'كلمة المرور لا يمكن أن تحتوي على مسافات',
   passwordUpper: () =>
     isHebrew()
       ? 'הסיסמה חייבת להכיל לפחות אות גדולה אחת (A-Z)'
@@ -180,7 +182,7 @@ export const validatePassword = (password) => {
   if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(password)) {
     return { isValid: false, error: text.passwordSpecial() };
   }
-  if (/\s/.test(password)) return { isValid: false, error: text.requiredPassword() };
+  if (/\s/.test(password)) return { isValid: false, error: text.passwordNoSpaces() };
   return { isValid: true, error: null };
 };
 

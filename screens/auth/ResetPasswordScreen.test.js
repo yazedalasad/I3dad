@@ -203,10 +203,11 @@ describe('ResetPasswordScreen', () => {
     expect(navigateTo).toHaveBeenCalledWith('login');
   });
 
-  it('reset (negative): no session -> shows "لا يمكن تغيير كلمة المرور" and does NOT update user', async () => {
+  it('reset (negative): no session -> shows session alert with verify option and does NOT update user', async () => {
     mockGetSession.mockResolvedValueOnce({ data: { session: null }, error: null });
 
-    const utils = render(<ResetPasswordScreen {...baseProps()} />);
+    const navigateTo = jest.fn();
+    const utils = render(<ResetPasswordScreen {...baseProps({ navigateTo, email: 'user@test.com' })} />);
 
     typePasswords(utils, { pass: 'Newpass123!', confirm: 'Newpass123!' });
     pressSave(utils);
@@ -214,11 +215,21 @@ describe('ResetPasswordScreen', () => {
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
         'لا يمكن تغيير كلمة المرور',
-        expect.stringContaining('لا توجد جلسة')
+        'لا توجد جلسة صالحة. ارجع إلى صفحة التحقق من الرمز وحاول مرة أخرى.',
+        [
+          {
+            text: 'العودة للتحقق',
+            onPress: expect.any(Function),
+          },
+        ]
       );
       expect(mockUpdateUser).not.toHaveBeenCalled();
       expect(mockSignOut).not.toHaveBeenCalled();
     });
+
+    const alertButtons = alertSpy.mock.calls[0][2];
+    alertButtons[0].onPress();
+    expect(navigateTo).toHaveBeenCalledWith('verifyCode', { email: 'user@test.com' });
   });
 
   it('reset (negative): same password error -> shows specific samePassword alert and does NOT call showSupabaseError format', async () => {

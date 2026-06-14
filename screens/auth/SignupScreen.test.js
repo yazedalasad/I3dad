@@ -341,7 +341,7 @@ describe('SignupScreen', () => {
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'auth.signup.success.title',
-        'تم إنشاء الحساب. افحص بريدك الإلكتروني لتأكيد الحساب.'
+        'auth.signup.success.emailConfirmation'
       );
     });
   });

@@ -351,6 +351,10 @@ export default function SignupScreen({ navigateTo }) {
         Alert.alert(t('common.error'), t('auth.signup.errors.studentIdExists'));
         return;
       }
+      if (taken === null) {
+        Alert.alert(t('common.error'), t('auth.signup.errors.serviceUnavailable'));
+        return;
+      }
 
       setStep(2);
       return;
@@ -403,13 +407,12 @@ export default function SignupScreen({ navigateTo }) {
       }
 
       if (result?.data?.needsEmailConfirmation) {
-        const confirmationMessage = isHebrew
-          ? 'החשבון נוצר. בדוק/י את הדוא״ל לאישור החשבון.'
-          : 'تم إنشاء الحساب. افحص بريدك الإلكتروني لتأكيد الحساب.';
-
         navigateTo('login');
         setTimeout(() => {
-          Alert.alert(t('auth.signup.success.title'), confirmationMessage);
+          Alert.alert(
+            t('auth.signup.success.title'),
+            t('auth.signup.success.emailConfirmation')
+          );
         }, 400);
         return;
       }

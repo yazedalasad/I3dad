@@ -30,9 +30,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">24.13% </span>
+                <span class="strong">24.48% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>35/145</span>
+                <span class='fraction'>36/147</span>
             </div>
         
             
@@ -580,7 +580,37 @@
 <a name='L515'></a><a href='#L515'>515</a>
 <a name='L516'></a><a href='#L516'>516</a>
 <a name='L517'></a><a href='#L517'>517</a>
-<a name='L518'></a><a href='#L518'>518</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -970,10 +1000,34 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1118,12 +1172,15 @@ import {
   Animated,
   Easing,
   I18nManager,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+&nbsp;
+import { font, lh, textColors, touchTargets, webContent } from '../../src/theme/typography';
 &nbsp;
 /* -------------------------------------------------- */
 /* Stable deterministic shuffle (same seed =&gt; same order) */
@@ -1353,7 +1410,7 @@ export default function QuestionCard({
           {typeof timeRemaining === 'number' &amp;&amp; (
 <span class="branch-1 cbranch-no" title="branch not covered" >            &lt;View style={styles.timerInline}&gt;</span>
               &lt;View style={styles.timerTop}&gt;
-                &lt;Ionicons name="time-outline" size={16} color={timerColor} /&gt;
+                &lt;Ionicons name="time-outline" size={20} color={timerColor} /&gt;
                 &lt;Text style={[styles.timerText, { color: timerColor }]}&gt;
                   {formatTime(timeRemaining)}
                 &lt;/Text&gt;
@@ -1384,7 +1441,7 @@ export default function QuestionCard({
         {/* Skip only during exam mode */}
         {!showFeedback &amp;&amp; !disabled &amp;&amp; <span class="branch-2 cbranch-no" title="branch not covered" >onSkipQuestion </span>&amp;&amp; (
 <span class="branch-3 cbranch-no" title="branch not covered" >          &lt;TouchableOpacity style={styles.skipButton} onPress={handleSkip} activeOpacity={0.88}&gt;</span>
-            &lt;Ionicons name="play-forward-outline" size={18} color="#F5B301" /&gt;
+            &lt;Ionicons name="play-forward-outline" size={20} color="#F5B301" /&gt;
             &lt;Text style={styles.skipText}&gt;{skipThisQuestion}&lt;/Text&gt;
           &lt;/TouchableOpacity&gt;
         )}
@@ -1410,18 +1467,18 @@ export default function QuestionCard({
 <span class="cstat-no" title="statement not covered" >          if (!showFeedback) {</span>
 <span class="cstat-no" title="statement not covered" >            rightIcon =</span>
               selectedAnswer === option.letter ? (
-                &lt;Ionicons name="checkmark-circle" size={22} color="#27AE60" /&gt;
+                &lt;Ionicons name="checkmark-circle" size={28} color="#27AE60" /&gt;
               ) : (
-                &lt;Ionicons name="ellipse-outline" size={22} color="#94A3B8" /&gt;
+                &lt;Ionicons name="ellipse-outline" size={28} color="#64748B" /&gt;
               );
           } else {
 <span class="cstat-no" title="statement not covered" >            rightIcon =</span>
               state === 'correct' ? (
-                &lt;Ionicons name="checkmark-circle" size={22} color="#27AE60" /&gt;
+                &lt;Ionicons name="checkmark-circle" size={28} color="#27AE60" /&gt;
               ) : state === 'incorrect' ? (
-                &lt;Ionicons name="close-circle" size={22} color="#E74C3C" /&gt;
+                &lt;Ionicons name="close-circle" size={28} color="#E74C3C" /&gt;
               ) : (
-                &lt;Ionicons name="ellipse-outline" size={22} color="#94A3B8" /&gt;
+                &lt;Ionicons name="ellipse-outline" size={28} color="#64748B" /&gt;
               );
           }
 &nbsp;
@@ -1449,10 +1506,7 @@ export default function QuestionCard({
                 ]}
               &gt;
                 &lt;View style={styles.optionRow}&gt;
-                  &lt;Text
-                    style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}
-                    numberOfLines={6}
-                  &gt;
+                  &lt;Text style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}&gt;
                     {option.text}
                   &lt;/Text&gt;
                   {rightIcon}
@@ -1492,22 +1546,24 @@ export default function QuestionCard({
 &nbsp;
 const styles = StyleSheet.create({
   page: {
-    flex: 1,
-    backgroundColor: '#F6F8FF',
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    width: '100%',
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 8,
+    alignSelf: 'center',
+    maxWidth: Platform.OS === 'web' ? <span class="branch-0 cbranch-no" title="branch not covered" >webContent.examMaxWidth </span>: undefined,
   },
 &nbsp;
   questionCard: {
-    marginTop: 6,
+    marginTop: 4,
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E6ECFF',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
     elevation: 2,
   },
 &nbsp;
@@ -1516,21 +1572,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   questionNumber: {
-    color: '#1B3A8A',
+    color: '#2455D6',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 16,
     flex: 1,
+    writingDirection: 'rtl',
   },
 &nbsp;
-  timerInline: { alignItems: 'flex-end', minWidth: 110 },
+  timerInline: { alignItems: 'flex-end', minWidth: 104 },
   timerTop: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 },
   timerText: { fontWeight: '900' },
   timerBar: {
-    width: 110,
-    height: 7,
+    width: 104,
+    height: 6,
     backgroundColor: 'rgba(27,58,138,0.12)',
     borderRadius: 999,
     overflow: 'hidden',
@@ -1538,35 +1595,42 @@ const styles = StyleSheet.create({
   timerProgress: { height: '100%', borderRadius: 999 },
 &nbsp;
   questionText: {
-    color: '#142B63',
-    fontSize: 18,
-    lineHeight: 28,
+    color: textColors.primary,
+    fontSize: font('question'),
+    lineHeight: lh('question'),
     fontWeight: '900',
+    writingDirection: 'rtl',
   },
 &nbsp;
   skipButton: {
+    alignSelf: 'flex-end',
     marginTop: 12,
-    borderRadius: 16,
-    paddingVertical: 10,
+    borderRadius: 999,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(245, 179, 1, 0.12)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(245, 179, 1, 0.28)',
+    borderColor: 'rgba(245, 179, 1, 0.45)',
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    justifyContent: 'flex-start',
+    gap: 7,
   },
-  skipText: { color: '#B37A00', fontWeight: '900' },
+  skipText: {
+    color: '#B37A00',
+    fontWeight: '900',
+    fontSize: font('helper'),
+    lineHeight: lh('helper'),
+    writingDirection: 'rtl',
+  },
 &nbsp;
-  options: { marginTop: 12, gap: 12 },
+  options: { marginTop: 10, gap: 10 },
 &nbsp;
   optionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E6ECFF',
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -1576,18 +1640,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minHeight: touchTargets.answerOptionMinHeight,
   },
 &nbsp;
-  optionSelected: { borderColor: '#F5B301', borderWidth: 2 },
+  optionSelected: {
+    borderColor: '#2455D6',
+    borderWidth: 2,
+    backgroundColor: '#F3F7FF',
+  },
   optionCorrect: {
     borderColor: '#27AE60',
-    borderWidth: 2,
-    backgroundColor: 'rgba(39,174,96,0.06)',
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(39,174,96,0.07)',
   },
   optionIncorrect: {
     borderColor: '#E74C3C',
-    borderWidth: 2,
+    borderWidth: 1.5,
     backgroundColor: 'rgba(231,76,60,0.06)',
   },
   optionDisabled: { opacity: 0.55 },
@@ -1595,9 +1665,10 @@ const styles = StyleSheet.create({
   optionText: {
     flex: 1,
     color: '#142B63',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: font('body'),
+    lineHeight: lh('body'),
     fontWeight: '800',
+    writingDirection: 'rtl',
   },
 &nbsp;
   explainCard: {
@@ -1611,8 +1682,18 @@ const styles = StyleSheet.create({
   explainCorrect: { borderColor: 'rgba(39,174,96,0.35)' },
   explainIncorrect: { borderColor: 'rgba(231,76,60,0.35)' },
   explainHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, marginBottom: 8 },
-  explainTitle: { color: '#142B63', fontWeight: '900' },
-  explainText: { color: '#2B3E70', fontWeight: '700', lineHeight: 20 },
+  explainTitle: {
+    color: textColors.primary,
+    fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
+  explainText: {
+    color: textColors.secondary,
+    fontWeight: '700',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
 });
 &nbsp;</pre></td></tr></table></pre>
 
@@ -1621,7 +1702,7 @@ const styles = StyleSheet.create({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-20T08:53:20.443Z
+                at 2026-06-09T11:20:02.298Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

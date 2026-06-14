@@ -122,7 +122,6 @@ const setRTL = (language) => {
 const normalizeLanguage = (lng) => {
   const value = String(lng || '').toLowerCase();
   if (value === 'he') return 'he';
-  if (value === 'en') return 'en';
   return 'ar';
 };
 

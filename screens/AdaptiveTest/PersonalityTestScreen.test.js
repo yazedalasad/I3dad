@@ -310,7 +310,8 @@ describe('PersonalityTestScreen', () => {
           studentId: props.studentId,
           language: props.language,
           personalitySessionId: 'p-existing-2',
-        })
+        }),
+        { replace: true }
       );
     });
   });
@@ -371,7 +372,8 @@ describe('PersonalityTestScreen', () => {
           language: 'ar',
           abilitySessionId: 'ability-1',
           personalitySessionId: 'p-sess-1',
-        })
+        }),
+        { replace: true }
       );
     });
   });
@@ -595,7 +597,8 @@ describe('PersonalityTestScreen', () => {
           language: 'ar',
           abilitySessionId: 'ability-1',
           personalitySessionId: 'p-sess-1',
-        })
+        }),
+        { replace: true }
       );
     });
   });
@@ -618,7 +621,8 @@ describe('PersonalityTestScreen', () => {
           language: 'ar',
           abilitySessionId: 'ability-XYZ',
           personalitySessionId: 'p-sess-insight',
-        })
+        }),
+        { replace: true }
       );
     });
   });

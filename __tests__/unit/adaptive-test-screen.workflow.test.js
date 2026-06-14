@@ -236,7 +236,8 @@ describe('AdaptiveTestScreen (__tests__/unit — workflow)', () => {
           sessionId: props.sessionId,
           language: 'ar',
           assessmentCompleted: true,
-        })
+        }),
+        { replace: true }
       );
     });
     expect(props.navigateTo).not.toHaveBeenCalledWith(

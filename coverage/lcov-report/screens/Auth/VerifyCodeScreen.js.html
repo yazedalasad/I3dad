@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">59.54% </span>
+                <span class="strong">59.85% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>78/131</span>
+                <span class='fraction'>82/137</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">46.05% </span>
+                <span class="strong">48.14% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>70/152</span>
+                <span class='fraction'>78/162</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">63.02% </span>
+                <span class="strong">62.9% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>75/119</span>
+                <span class='fraction'>78/124</span>
             </div>
         
             
@@ -781,7 +781,14 @@
 <a name='L716'></a><a href='#L716'>716</a>
 <a name='L717'></a><a href='#L717'>717</a>
 <a name='L718'></a><a href='#L718'>718</a>
-<a name='L719'></a><a href='#L719'>719</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L719'></a><a href='#L719'>719</a>
+<a name='L720'></a><a href='#L720'>720</a>
+<a name='L721'></a><a href='#L721'>721</a>
+<a name='L722'></a><a href='#L722'>722</a>
+<a name='L723'></a><a href='#L723'>723</a>
+<a name='L724'></a><a href='#L724'>724</a>
+<a name='L725'></a><a href='#L725'>725</a>
+<a name='L726'></a><a href='#L726'>726</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -805,6 +812,7 @@
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-yes">15x</span>
@@ -895,7 +903,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-yes">7x</span>
@@ -962,6 +969,7 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -981,7 +989,9 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
@@ -1007,6 +1017,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1190,7 +1201,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1528,6 +1542,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   const [resendLoading, setResendLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const inputRefs = useRef([]);
+  const verifyAttemptRef = useRef(false);
 &nbsp;
   const isHebrew = String(i18n?.language || '').toLowerCase().startsWith('he');
   const isWideLayout = width &gt;= 1040;
@@ -1608,9 +1623,8 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   }, []);
 &nbsp;
   useEffect(() =&gt; {
-    if (isComplete) {
-      handleVerify();
-    }
+    if (!isComplete || loading || verifyAttemptRef.current) return;
+    handleVerify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isComplete]);
 &nbsp;
@@ -1665,7 +1679,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
   };
 &nbsp;
   const handleVerify = async () =&gt; {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (loading) <span class="cstat-no" title="statement not covered" >return;</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (loading || verifyAttemptRef.current) <span class="cstat-no" title="statement not covered" >return;</span>
 &nbsp;
     <span class="missing-if-branch" title="if path not taken" >I</span>if (!cleanEmail) {
 <span class="cstat-no" title="statement not covered" >      Alert.alert(isHebrew ? 'שגיאה' : 'خطأ', verifyT('errors.missingEmail'));</span>
@@ -1677,9 +1691,10 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
       return;
     }
 &nbsp;
+    verifyAttemptRef.current = true;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token,
         type: 'recovery',
@@ -1687,8 +1702,8 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      if (error) <span class="cstat-no" title="statement not covered" >throw error;</span></span>
 &nbsp;
-      const { data: sessionData } = <span class="cstat-no" title="statement not covered" >await supabase.auth.getSession();</span>
-<span class="cstat-no" title="statement not covered" >      if (!sessionData?.session) {</span>
+      const activeSession = <span class="cstat-no" title="statement not covered" >data?.session || (await supabase.auth.getSession()).data?.session;</span>
+<span class="cstat-no" title="statement not covered" >      if (!activeSession) {</span>
 <span class="cstat-no" title="statement not covered" >        throw new Error(</span>
           isHebrew
             ? 'לא נוצרה הפעלה לאחר האימות. נסו שוב.'
@@ -1697,13 +1712,15 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
       }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      setLoading(false);</span>
+<span class="cstat-no" title="statement not covered" >      verifyAttemptRef.current = false;</span>
 <span class="cstat-no" title="statement not covered" >      navigateTo('resetPassword', { email: cleanEmail });</span>
 <span class="cstat-no" title="statement not covered" >      Alert.alert(verifyT('alerts.verifiedTitle'), verifyT('alerts.verifiedMessage'));</span>
     } catch (err) {
       setLoading(false);
+      verifyAttemptRef.current = false;
 &nbsp;
       const msg = String(err?.message || <span class="branch-1 cbranch-no" title="branch not covered" >'')</span>.toLowerCase();
-      if (msg.includes('expired')) {
+      if (msg.includes('expired') || msg.includes('invalid') || msg.includes('otp')) {
         Alert.alert(verifyT('alerts.expiredTitle'), verifyT('alerts.expiredMessage'));
         return;
       }
@@ -1726,6 +1743,7 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
 <span class="cstat-no" title="statement not covered" >      if (!result.success) <span class="cstat-no" title="statement not covered" >throw result.error;</span></span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      setResendLoading(false);</span>
+<span class="cstat-no" title="statement not covered" >      verifyAttemptRef.current = false;</span>
 <span class="cstat-no" title="statement not covered" >      setCode(['', '', '', '', '', '']);</span>
 <span class="cstat-no" title="statement not covered" >      setTimer(60);</span>
 <span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >()</span> =&gt; <span class="cstat-no" title="statement not covered" >inputRefs.current[0]?.focus?.(),</span> 200);</span>
@@ -1908,7 +1926,10 @@ export default function VerifyCodeScreen({ navigateTo, email }) {
                 )}
               &lt;/View&gt;
 &nbsp;
-              &lt;TouchableOpacity style={styles.backButton} onPress={() =&gt; navigateTo('forgotPassword')}&gt;
+              &lt;TouchableOpacity
+                style={styles.backButton}
+                onPress={() =&gt; navigateTo('forgotPassword', { email: cleanEmail })}
+              &gt;
                 &lt;FontAwesome name="arrow-right" size={16} color="#64748b" /&gt;
                 &lt;Text style={[styles.backButtonText, isHebrew &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >styles.rtlText]</span>}&gt;
                   {verifyT('back')}
@@ -1999,7 +2020,7 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   heroContent: {
@@ -2098,13 +2119,13 @@ const styles = StyleSheet.create({
   },
   verticalStepTitle: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     marginBottom: 4,
   },
   verticalStepText: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 13.5,
+    fontSize: 16.5,
     lineHeight: 21,
   },
   formContainer: {
@@ -2139,7 +2160,7 @@ const styles = StyleSheet.create({
   },
   formBadgeText: {
     color: '#27ae60',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   formTitle: {
@@ -2151,14 +2172,14 @@ const styles = StyleSheet.create({
   formLead: {
     marginTop: 8,
     marginBottom: 10,
-    fontSize: 14.5,
+    fontSize: 16.5,
     lineHeight: 22,
     color: '#5f7268',
     textAlign: 'left',
   },
   formEmail: {
     marginBottom: 24,
-    fontSize: 15,
+    fontSize: 17,
     color: '#166534',
     fontWeight: '700',
     textAlign: 'left',
@@ -2192,12 +2213,12 @@ const styles = StyleSheet.create({
   },
   timerText: {
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   resendText: {
     color: '#16a34a',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '800',
   },
   backButton: {
@@ -2210,7 +2231,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: '#64748b',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   rtlText: {
@@ -2224,7 +2245,7 @@ const styles = StyleSheet.create({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-20T08:53:20.443Z
+                at 2026-06-09T11:20:02.298Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

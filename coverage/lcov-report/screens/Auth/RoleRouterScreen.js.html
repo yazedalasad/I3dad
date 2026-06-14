@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">87.3% </span>
+                <span class="strong">83.82% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>55/63</span>
+                <span class='fraction'>57/68</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">87.5% </span>
+                <span class="strong">84.44% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>35/40</span>
+                <span class='fraction'>38/45</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">91.37% </span>
+                <span class="strong">87.09% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>53/58</span>
+                <span class='fraction'>54/62</span>
             </div>
         
             
@@ -227,7 +227,13 @@
 <a name='L162'></a><a href='#L162'>162</a>
 <a name='L163'></a><a href='#L163'>163</a>
 <a name='L164'></a><a href='#L164'>164</a>
-<a name='L165'></a><a href='#L165'>165</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -299,6 +305,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">9x</span>
 <span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-yes">7x</span>
@@ -448,7 +460,7 @@ async function getProfileRole(userId) {
 }
 &nbsp;
 export default function RoleRouterScreen({ navigateTo }) {
-  const { user, loading, profile } = useAuth();
+  const { user, initializingAuth, profile, studentDataLoading, profileError } = useAuth();
   const { t } = useTranslation();
   const navRef = useRef(navigateTo);
   const routedRef = useRef(false);
@@ -462,7 +474,13 @@ export default function RoleRouterScreen({ navigateTo }) {
     let cancelled = false;
 &nbsp;
     const route = async () =&gt; {
-      if (loading || routedRef.current) return;
+      if (initializingAuth || studentDataLoading || routedRef.current) return;
+&nbsp;
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (profileError) {
+<span class="cstat-no" title="statement not covered" >        routedRef.current = true;</span>
+<span class="cstat-no" title="statement not covered" >        navRef.current('login', {}, { replace: true });</span>
+<span class="cstat-no" title="statement not covered" >        return;</span>
+      }
 &nbsp;
       setStatusText('Checking session...');
       const authUser = user || (await getFreshAuthUser());
@@ -475,7 +493,7 @@ export default function RoleRouterScreen({ navigateTo }) {
         return;
       }
 &nbsp;
-      setStatusText('Checking role...');
+      <span class="missing-if-branch" title="else path not taken" >E</span>if (!cancelled) setStatusText('Checking role...');
       const metadataRole = roleFromUser(authUser);
       const contextRole = normalizeRole(profile?.role);
       const dbRole = metadataRole || contextRole ? '' : await getProfileRole(authUser.id);
@@ -506,7 +524,7 @@ export default function RoleRouterScreen({ navigateTo }) {
     return () =&gt; {
       cancelled = true;
     };
-  }, [user, loading, profile?.role]);
+  }, [user, initializingAuth, studentDataLoading, profile?.role, profileError]);
 &nbsp;
   return (
     &lt;View style={styles.container}&gt;
@@ -551,9 +569,9 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
+  subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  hint: { marginTop: 14, fontSize: 14, color: '#555', textAlign: 'center' },
+  hint: { marginTop: 14, fontSize: 16, color: '#555', textAlign: 'center' },
 });
 &nbsp;</pre></td></tr></table></pre>
 
@@ -562,7 +580,7 @@ const styles = StyleSheet.create({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-20T08:53:20.443Z
+                at 2026-06-09T11:20:02.298Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

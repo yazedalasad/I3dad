@@ -32,6 +32,28 @@ jest.mock('react-native', () => {
   return mockRN;
 });
 
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  return { LinearGradient: ({ children }) => <>{children}</> };
+});
+
+jest.mock('../../components/AdaptiveTest/RadarChart', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  return function RadarChartMock({ labels = [], headerTitle }) {
+    return (
+      <View testID="radar-chart-mock">
+        {!!headerTitle && <Text>{headerTitle}</Text>}
+        {labels.map((label) => (
+          <Text key={label}>{label}</Text>
+        ))}
+      </View>
+    );
+  };
+});
+
+jest.mock('../../components/AdaptiveTest/TraitDetailModal', () => () => null);
+
 const mockGetStudentPersonalityProfile = jest.fn();
 
 jest.mock('../../services/personalityTestService', () => ({
@@ -69,7 +91,7 @@ describe('PersonalityResultsScreen', () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
     const navigateTo = jest.fn();
 
-    const { getByText, getAllByText, queryByText } = render(
+    const { getByText, getAllByText, getByTestId, queryByText } = render(
       <PersonalityResultsScreen navigateTo={navigateTo} studentId="stu-1" language="ar" />
     );
 
@@ -77,17 +99,18 @@ describe('PersonalityResultsScreen', () => {
 
     await waitFor(() => {
       expect(queryByText('جاري التحميل…')).toBeNull();
-      expect(getByText('نتائج الشخصية')).toBeTruthy();
-      expect(getByText('ثقة 90%')).toBeTruthy();
-      expect(getByText('ملخص سريع')).toBeTruthy();
-      expect(getAllByText('الانفتاح').length).toBeGreaterThan(0);
-      expect(getAllByText(/80/).length).toBeGreaterThan(0);
-      expect(getByText('الرسم')).toBeTruthy();
-      expect(getByText('ماذا تعني هذه النتائج؟')).toBeTruthy();
-      expect(getByText('كيف يؤثر هذا على التوصيات؟')).toBeTruthy();
-      expect(getByText('عرض التقرير الكامل')).toBeTruthy();
-      expect(getByText('العودة للصفحة الرئيسية')).toBeTruthy();
     });
+
+    expect(getByText('نتائج الشخصية')).toBeTruthy();
+    expect(getByText('ثقة 90%')).toBeTruthy();
+    expect(getByText('ملخص سريع')).toBeTruthy();
+    expect(getAllByText('الانفتاح').length).toBeGreaterThan(0);
+    expect(getByTestId('radar-chart-mock')).toBeTruthy();
+    expect(getByText('خريطة السمات الخمس')).toBeTruthy();
+    expect(getByText('ماذا تعني هذه النتائج؟')).toBeTruthy();
+    expect(getByText('كيف يؤثر هذا على التوصيات؟')).toBeTruthy();
+    expect(getByText('عرض التقرير الكامل')).toBeTruthy();
+    expect(getByText('العودة للصفحة الرئيسية')).toBeTruthy();
 
     fireEvent.press(getByText('عرض التقرير الكامل'));
     expect(navigateTo).toHaveBeenCalledWith('studentInsightReport', {
@@ -115,21 +138,6 @@ describe('PersonalityResultsScreen', () => {
     expect(await findByText('פירוט הדוח המלא')).toBeTruthy();
   });
 
-  it('renders English LTR copy', async () => {
-    mockLanguage = 'en';
-    mockGetStudentPersonalityProfile.mockResolvedValueOnce(successPayload);
-
-    const { findByText, findAllByText } = render(
-      <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="en" />
-    );
-
-    expect(await findByText('Personality Results')).toBeTruthy();
-    expect(await findByText('Confidence 90%')).toBeTruthy();
-    expect(await findByText('Quick Summary')).toBeTruthy();
-    expect((await findAllByText('Conscientiousness')).length).toBeGreaterThan(0);
-    expect(await findByText('What does this mean?')).toBeTruthy();
-  });
-
   it('handles missing Big Five data without NaN or empty chart space', async () => {
     mockGetStudentPersonalityProfile.mockResolvedValueOnce({
       success: true,
@@ -154,12 +162,12 @@ describe('PersonalityResultsScreen', () => {
       insights: {},
     });
 
-    const { findAllByText, queryByText } = render(
+    const { findByText, getByTestId, queryByText } = render(
       <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="ar" />
     );
 
-    expect((await findAllByText(/55/)).length).toBeGreaterThan(0);
-    expect((await findAllByText(/0/)).length).toBeGreaterThan(0);
+    expect(await findByText('ثقة 75%')).toBeTruthy();
+    expect(getByTestId('radar-chart-mock')).toBeTruthy();
     expect(queryByText('NaN%')).toBeNull();
   });
 
@@ -171,7 +179,7 @@ describe('PersonalityResultsScreen', () => {
       <PersonalityResultsScreen navigateTo={jest.fn()} studentId="stu-1" language="ar" />
     );
 
-    expect(await findByText('سمات الشخصية الخمس')).toBeTruthy();
+    expect(await findByText('خريطة السمات الخمس')).toBeTruthy();
     expect((await findAllByText('التعاون')).length).toBeGreaterThan(0);
   });
 

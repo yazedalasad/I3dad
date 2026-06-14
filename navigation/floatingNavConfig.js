@@ -49,7 +49,6 @@ export const HIDDEN_FLOATING_NAV_SCREENS = new Set([
   'changePassword',
   'principalSetPassword',
   'principalAcceptInvite',
-  'principalRegister',
   'principalOnboarding',
   'roleRouter',
   ...ADMIN_SCREENS,

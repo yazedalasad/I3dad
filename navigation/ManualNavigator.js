@@ -387,7 +387,7 @@ function ManualNavigatorShell() {
     }
 
     if (currentScreen === 'principalAcceptInvite') {
-      return <PrincipalAcceptInviteScreen navigateTo={navigateTo} route={gameRoute} />;
+      return <PrincipalFirstTimeRegisterScreen navigateTo={navigateTo} route={gameRoute} />;
     }
 
     if (currentScreen === 'principalRegister') {
