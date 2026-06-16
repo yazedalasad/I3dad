@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import ProgressIndicator from '../../components/AdaptiveTest/ProgressIndicator';
 import QuestionCard from '../../components/AdaptiveTest/QuestionCard';
 import { useNavigationGuard } from '../../contexts/NavigationGuardContext';
 import { font, lh, textColors, webContent } from '../../src/theme/typography';
@@ -102,27 +101,6 @@ export default function AdaptiveTestScreen({
   const mountedRef = useRef(true);
   const skippedCountRef = useRef(0);
   const revealTimerRef = useRef(null);
-
-  /* -------------------- DERIVED -------------------- */
-  const totals = useMemo(() => {
-    const ids = Object.keys(subjectStates || {});
-    let answered = 0;
-    let correct = 0;
-    let target = 0;
-
-    ids.forEach((sid) => {
-      answered += Number(subjectStates[sid]?.questionsAnswered || 0);
-      correct += Number(subjectStates[sid]?.correctAnswers || 0);
-      target += Number(subjectStates[sid]?.targetQuestions || 0);
-    });
-
-    return {
-      answered,
-      correct,
-      incorrect: Math.max(0, answered - correct),
-      target,
-    };
-  }, [subjectStates]);
 
   const isViewingHistory = typeof viewingHistoryIndex === 'number';
   const viewedItem = isViewingHistory ? history[viewingHistoryIndex] : null;
@@ -648,14 +626,6 @@ export default function AdaptiveTestScreen({
         showsVerticalScrollIndicator
         nestedScrollEnabled
       >
-        <ProgressIndicator
-          current={totals.answered}
-          total={totals.target}
-          correctCount={totals.correct}
-          incorrectCount={totals.incorrect}
-          skippedCount={skippedCount}
-        />
-
         {(history.length > 0 || question) && (
           <View style={styles.navigatorWrap}>
           <View style={styles.navigatorHeader}>

@@ -56,6 +56,11 @@ function isHe(lang) {
   return String(lang || '').toLowerCase().startsWith('he');
 }
 
+function normalizeAnswerLetter(value) {
+  const letter = String(value || '').trim().toUpperCase();
+  return ['A', 'B', 'C', 'D'].includes(letter) ? letter : '';
+}
+
 export default function QuestionCard({
   question,
   selectedAnswer,
@@ -198,14 +203,20 @@ export default function QuestionCard({
    * - Exam mode: only selected highlight
    * - Review mode: correct + incorrect selection
    */
+  const correctLetter = normalizeAnswerLetter(question?.correct_answer);
+  const pickedLetter = normalizeAnswerLetter(selectedAnswer);
+
   const getOptionState = (letter) => {
+    const optionLetter = normalizeAnswerLetter(letter);
+    if (!optionLetter) return 'normal';
+
     if (!showFeedback) {
-      if (selectedAnswer === letter) return 'selected';
+      if (pickedLetter === optionLetter) return 'selected';
       return 'normal';
     }
 
-    if (letter === question?.correct_answer) return 'correct';
-    if (letter === selectedAnswer && !isCorrect) return 'incorrect';
+    if (correctLetter && optionLetter === correctLetter) return 'correct';
+    if (pickedLetter === optionLetter && !isCorrect) return 'incorrect';
     return 'normal';
   };
 
@@ -353,7 +364,14 @@ export default function QuestionCard({
                 ]}
               >
                 <View style={styles.optionRow}>
-                  <Text style={[styles.optionText, { textAlign: isRTL ? 'right' : 'left' }]}>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      { textAlign: isRTL ? 'right' : 'left' },
+                      showFeedback && state === 'correct' && styles.optionTextCorrect,
+                      showFeedback && state === 'incorrect' && styles.optionTextIncorrect,
+                    ]}
+                  >
                     {option.text}
                   </Text>
                   {rightIcon}
@@ -499,13 +517,13 @@ const styles = StyleSheet.create({
   },
   optionCorrect: {
     borderColor: '#27AE60',
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(39,174,96,0.07)',
+    borderWidth: 2,
+    backgroundColor: 'rgba(39,174,96,0.14)',
   },
   optionIncorrect: {
     borderColor: '#E74C3C',
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(231,76,60,0.06)',
+    borderWidth: 2,
+    backgroundColor: 'rgba(231,76,60,0.16)',
   },
   optionDisabled: { opacity: 0.55 },
 
@@ -516,6 +534,13 @@ const styles = StyleSheet.create({
     lineHeight: lh('body'),
     fontWeight: '800',
     writingDirection: 'rtl',
+  },
+  optionTextCorrect: {
+    color: '#1B7A43',
+  },
+  optionTextIncorrect: {
+    color: '#C0392B',
+    fontWeight: '900',
   },
 
   explainCard: {
