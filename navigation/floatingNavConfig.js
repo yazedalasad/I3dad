@@ -51,12 +51,13 @@ export const HIDDEN_FLOATING_NAV_SCREENS = new Set([
   'principalAcceptInvite',
   'principalOnboarding',
   'roleRouter',
+  'startAdaptiveTest',
   ...ADMIN_SCREENS,
   ...PRINCIPAL_SCREENS,
 ]);
 
 /** Active test flows — back shows a confirmation dialog unless disabled via guard. */
-export const CONFIRM_BACK_SCREENS = new Set(['startAdaptiveTest', 'personalityTest']);
+export const CONFIRM_BACK_SCREENS = new Set(['personalityTest']);
 
 export function getFloatingNavConfig(screen) {
   if (HIDDEN_FLOATING_NAV_SCREENS.has(screen)) {
