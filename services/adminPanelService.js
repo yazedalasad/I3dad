@@ -60,6 +60,7 @@ function normalizeQuestionRow(row) {
     question_text: questionText,
     subject_name: subject.name_ar || subject.name_he || subject.name_en || subject.code || row.subject_id || '-',
     correct_rate: totalUsed > 0 ? `${Math.round((totalCorrect / totalUsed) * 100)}%` : '-',
+    selection_priority: row.selection_priority ?? '-',
     correct_answer: correct || row.correct_answer || '-',
   };
 }

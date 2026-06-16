@@ -181,16 +181,19 @@ describe('AdaptiveTestScreen (__tests__/unit — workflow)', () => {
       fireEvent.press(getByTestId('pick-A'));
       await flushMicrotasks();
     });
-    await waitFor(() => {
-      expect(mockSubmitComprehensiveAnswer).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sessionId: 'sess-1',
-          studentId: 'stu-1',
-          selectedAnswer: 'A',
-          question: expect.objectContaining({ id: 'q1' }),
-        })
-      );
-    });
+    await waitFor(
+      () => {
+        expect(mockSubmitComprehensiveAnswer).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sessionId: 'sess-1',
+            studentId: 'stu-1',
+            selectedAnswer: 'A',
+            question: expect.objectContaining({ id: 'q1' }),
+          })
+        );
+      },
+      { timeout: 3000 }
+    );
     await waitFor(() => {
       expect(mockGetNextQuestion).toHaveBeenCalledTimes(2);
     });

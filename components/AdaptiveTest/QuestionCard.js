@@ -314,7 +314,7 @@ export default function QuestionCard({
           if (!showFeedback) {
             rightIcon =
               selectedAnswer === option.letter ? (
-                <Ionicons name="checkmark-circle" size={28} color="#27AE60" />
+                <Ionicons name="radio-button-on" size={28} color="#2455D6" />
               ) : (
                 <Ionicons name="ellipse-outline" size={28} color="#64748B" />
               );

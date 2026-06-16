@@ -24,6 +24,7 @@ import { regenerateRecommendations } from '../../services/recommendationService'
 
 const QUESTION_TIME_LIMIT = 60;
 const HEARTBEAT_MS = 15000;
+const ANSWER_REVEAL_MS = 900;
 
 export default function AdaptiveTestScreen({
   navigateTo,
@@ -67,6 +68,7 @@ export default function AdaptiveTestScreen({
   const [question, setQuestion] = useState(null);
   const [subjectStates, setSubjectStates] = useState(initialSubjectStates || {});
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState(QUESTION_TIME_LIMIT);
   const questionStartRef = useRef(Date.now());
@@ -99,6 +101,7 @@ export default function AdaptiveTestScreen({
   const timeoutHandledRef = useRef(false);
   const mountedRef = useRef(true);
   const skippedCountRef = useRef(0);
+  const revealTimerRef = useRef(null);
 
   /* -------------------- DERIVED -------------------- */
   const totals = useMemo(() => {
@@ -134,16 +137,34 @@ export default function AdaptiveTestScreen({
   useEffect(() => {
     const isActive = !initializing && !fetchingQuestion && !!shownQuestion;
     setNavigationGuard({
-      disabled: submitting || initializing || fetchingQuestion,
-      confirmBack: isActive && !submitting,
+      disabled: submitting || answerRevealed || initializing || fetchingQuestion,
+      confirmBack: isActive && !submitting && !answerRevealed,
     });
     return () => setNavigationGuard(null);
-  }, [initializing, fetchingQuestion, submitting, shownQuestion, setNavigationGuard]);
+  }, [initializing, fetchingQuestion, submitting, answerRevealed, shownQuestion, setNavigationGuard]);
 
   const shownSelectedAnswer = useMemo(() => {
     if (!isViewingHistory) return selectedAnswer;
     return history[viewingHistoryIndex]?.selectedAnswer ?? null;
   }, [isViewingHistory, selectedAnswer, history, viewingHistoryIndex]);
+
+  const shownAnswerIsCorrect = useMemo(() => {
+    if (!shownQuestion || !shownSelectedAnswer) return false;
+    const correct = String(shownQuestion.correct_answer || '')
+      .trim()
+      .toUpperCase();
+    const picked = String(shownSelectedAnswer).trim().toUpperCase();
+    return picked === correct;
+  }, [shownQuestion, shownSelectedAnswer]);
+
+  const showAnswerFeedback = answerRevealed || (isViewingHistory && isViewingAnswered);
+
+  function clearRevealTimer() {
+    if (revealTimerRef.current) {
+      clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
+  }
 
   // ✅ Question navigator squares:
   // - history items are numbered 1..history.length
@@ -195,6 +216,7 @@ export default function AdaptiveTestScreen({
     return () => {
       mounted = false;
       mountedRef.current = false;
+      clearRevealTimer();
       stopTimer();
       stopHeartbeat();
       stopAppStateTracking();
@@ -315,6 +337,8 @@ export default function AdaptiveTestScreen({
         return;
       }
 
+      setSelectedAnswer(null);
+      setAnswerRevealed(false);
       setQuestion(next.question);
       startTimer(QUESTION_TIME_LIMIT);
     } catch (e) {
@@ -328,7 +352,7 @@ export default function AdaptiveTestScreen({
 
   async function handleAnswer(answer) {
     if (submittingRef.current || finishingRef.current) return;
-    if (submitting || fetchingQuestion) return;
+    if (submitting || fetchingQuestion || answerRevealed) return;
 
     // If viewing history:
     // - answered items are view-only
@@ -338,22 +362,45 @@ export default function AdaptiveTestScreen({
     const activeQuestion = shownQuestion;
     if (!activeQuestion) return;
 
-    submittingRef.current = true;
+    const limitForThisAttempt =
+      isViewingHistory && isViewingPending
+        ? safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT)
+        : QUESTION_TIME_LIMIT;
+
+    const timeTakenSeconds =
+      isViewingHistory && isViewingPending
+        ? Math.max(0, Math.floor(limitForThisAttempt - safeNum(timeLeft, 0)))
+        : Math.floor((Date.now() - questionStartRef.current) / 1000);
+
     setSelectedAnswer(answer);
-    setSubmitting(true);
+    setAnswerRevealed(true);
     stopTimer();
 
+    clearRevealTimer();
+    revealTimerRef.current = setTimeout(() => {
+      revealTimerRef.current = null;
+      submitAnswerAfterReveal({
+        answer,
+        activeQuestion,
+        timeTakenSeconds,
+        limitForThisAttempt,
+      });
+    }, ANSWER_REVEAL_MS);
+  }
+
+  async function submitAnswerAfterReveal({
+    answer,
+    activeQuestion,
+    timeTakenSeconds,
+    limitForThisAttempt,
+  }) {
+    if (submittingRef.current || finishingRef.current) return;
+    if (!mountedRef.current) return;
+
+    submittingRef.current = true;
+    setSubmitting(true);
+
     try {
-      const limitForThisAttempt =
-        isViewingHistory && isViewingPending
-          ? safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT)
-          : QUESTION_TIME_LIMIT;
-
-      const timeTakenSeconds =
-        isViewingHistory && isViewingPending
-          ? Math.max(0, Math.floor(limitForThisAttempt - safeNum(timeLeft, 0)))
-          : Math.floor((Date.now() - questionStartRef.current) / 1000);
-
       const result = await adaptiveTestService.submitComprehensiveAnswer({
         sessionId,
         studentId,
@@ -366,6 +413,8 @@ export default function AdaptiveTestScreen({
       });
 
       if (!result?.success) {
+        setAnswerRevealed(false);
+        setSelectedAnswer(null);
         if (isViewingHistory && isViewingPending) {
           startTimer(safeNum(viewedItem?.timeLeftWhenLeft, QUESTION_TIME_LIMIT));
         } else {
@@ -486,7 +535,7 @@ export default function AdaptiveTestScreen({
   /* -------------------- NAVIGATOR -------------------- */
   function jumpToQuestion(item) {
     if (submittingRef.current || finishingRef.current) return;
-    if (submitting || fetchingQuestion) return;
+    if (submitting || fetchingQuestion || answerRevealed) return;
 
     if (item.type === 'current') {
       setViewingHistoryIndex(null);
@@ -672,14 +721,18 @@ export default function AdaptiveTestScreen({
         <QuestionCard
           question={shownQuestion}
           selectedAnswer={shownSelectedAnswer}
-          disabled={submitting || (isViewingHistory && isViewingAnswered)}
+          disabled={
+            submitting ||
+            answerRevealed ||
+            (isViewingHistory && isViewingAnswered)
+          }
           onAnswerSelect={handleAnswer}
-          onSkipQuestion={isViewingHistory ? null : handleSkipQuestion}
+          onSkipQuestion={isViewingHistory || answerRevealed ? null : handleSkipQuestion}
           language={language}
           timeRemaining={timeLeft}
           maxTime={QUESTION_TIME_LIMIT}
-          showFeedback={false}
-          isCorrect={false}
+          showFeedback={showAnswerFeedback}
+          isCorrect={shownAnswerIsCorrect}
         />
       </ScrollView>
     </SafeAreaView>

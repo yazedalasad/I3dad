@@ -1,4 +1,5 @@
 import { supabase } from '../../config/supabase';
+import { computeSelectionPriority } from '../../services/questionLearningService';
 
 const RECENT_LIMIT = 80;
 
@@ -21,20 +22,63 @@ function shuffle(items = []) {
   return copy;
 }
 
-export function pickRandomCandidate(candidates = [], difficultyTarget = null) {
+function pickWeightedCandidate(candidates = [], difficultyTarget = null) {
+  const target = safeNum(difficultyTarget, NaN);
+  const weights = candidates.map((question) => {
+    const priority = safeNum(question.selection_priority, computeSelectionPriority(question));
+    if (!Number.isFinite(target)) return Math.max(1, priority);
+    const distance = Math.abs(safeNum(question.difficulty, 0) - target);
+    return Math.max(1, priority) * (1 / (1 + distance * 0.65));
+  });
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return shuffle(candidates)[0];
+
+  let roll = Math.random() * total;
+  for (let index = 0; index < candidates.length; index += 1) {
+    roll -= weights[index];
+    if (roll <= 0) return candidates[index];
+  }
+  return candidates[candidates.length - 1];
+}
+
+export function pickRandomCandidate(candidates = [], difficultyTarget = null, options = {}) {
   if (!candidates.length) return null;
   const target = safeNum(difficultyTarget, NaN);
-  if (!Number.isFinite(target)) return shuffle(candidates)[0];
+  const useLearning = options.useLearning !== false;
 
   const sorted = shuffle(candidates).sort((left, right) => {
+    if (!Number.isFinite(target)) {
+      const priorityDelta =
+        safeNum(right.selection_priority, computeSelectionPriority(right)) -
+        safeNum(left.selection_priority, computeSelectionPriority(left));
+      if (priorityDelta !== 0) return priorityDelta;
+      return 0;
+    }
     const leftDistance = Math.abs(safeNum(left.difficulty, 0) - target);
     const rightDistance = Math.abs(safeNum(right.difficulty, 0) - target);
-    return leftDistance - rightDistance;
+    if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+    return (
+      safeNum(right.selection_priority, computeSelectionPriority(right)) -
+      safeNum(left.selection_priority, computeSelectionPriority(left))
+    );
   });
 
+  if (!Number.isFinite(target)) {
+    if (!useLearning) return sorted[0];
+    const topBand = sorted.slice(0, Math.min(4, sorted.length));
+    return pickWeightedCandidate(topBand) || sorted[0];
+  }
+
   const bestDistance = Math.abs(safeNum(sorted[0].difficulty, 0) - target);
-  const nearBest = sorted.filter((question) => Math.abs(safeNum(question.difficulty, 0) - target) <= bestDistance + 0.35);
-  return shuffle(nearBest)[0] || sorted[0];
+  const nearBest = sorted.filter(
+    (question) => Math.abs(safeNum(question.difficulty, 0) - target) <= bestDistance + 0.35
+  );
+
+  if (!useLearning || nearBest.length <= 1) {
+    return shuffle(nearBest)[0] || sorted[0];
+  }
+
+  return pickWeightedCandidate(nearBest, target) || nearBest[0] || sorted[0];
 }
 
 export async function getCurrentSessionQuestionIds(sessionId) {
@@ -86,11 +130,17 @@ async function loadCandidates({ subjectId, language, difficultyTarget }) {
   const { data, error } = await query;
   if (error) throw error;
 
-  const target = safeNum(difficultyTarget, NaN);
-  if (!Number.isFinite(target)) return data || [];
+  const ranked = (data || []).slice().sort((left, right) => {
+    const rightPriority = safeNum(right.selection_priority, computeSelectionPriority(right));
+    const leftPriority = safeNum(left.selection_priority, computeSelectionPriority(left));
+    return rightPriority - leftPriority;
+  });
 
-  const candidates = (data || []).filter((question) => Math.abs(safeNum(question.difficulty, 0) - target) <= 1.25);
-  return candidates.length ? candidates : data || [];
+  const target = safeNum(difficultyTarget, NaN);
+  if (!Number.isFinite(target)) return ranked;
+
+  const candidates = ranked.filter((question) => Math.abs(safeNum(question.difficulty, 0) - target) <= 1.25);
+  return candidates.length ? candidates : ranked;
 }
 
 export async function getNextDiverseQuestion({

@@ -2,6 +2,10 @@ import { supabase } from '../config/supabase';
 import { buildBehaviorSignals } from '../features/games/shared/utils/gameAnalytics';
 import { getNextDiverseQuestion } from '../src/services/questionSelectionService';
 import { recommendTopDegreesAfterSession } from './recommendationService';
+import {
+  recordQuestionOutcome,
+  refreshSubjectsLearningPriorities,
+} from './questionLearningService';
 
 /* -------------------------------------------------- */
 /* CONFIG                                              */
@@ -795,6 +799,12 @@ export async function submitComprehensiveAnswer({
 
     if (respErr) return { success: false, error: 'RESPONSE_INSERT_FAILED: ' + respErr.message };
 
+    recordQuestionOutcome({
+      questionId: question.id,
+      isCorrect,
+      timeTakenSeconds,
+    }).catch(() => {});
+
     // Update per-subject row (✅ store lastAnswerCorrect for fast ramp adaptivity)
     const { error: subjErr } = await supabase
       .from('test_session_subjects')
@@ -920,6 +930,11 @@ export async function completeComprehensiveAssessment({
       eventType: 'finish',
       metadata: { totalTimeSpentSeconds, skippedCount },
     });
+
+    const subjectIds = Object.keys(subjectStates || {}).filter(Boolean);
+    if (subjectIds.length) {
+      refreshSubjectsLearningPriorities(subjectIds).catch(() => {});
+    }
 
     return { success: true };
   } catch (e) {

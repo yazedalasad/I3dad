@@ -146,6 +146,7 @@ export const adminEntityConfigs = {
       { key: 'target_language', label: 'اللغة', width: 90 },
       { key: 'correct_answer', label: 'الإجابة', width: 90 },
       { key: 'times_used', label: 'مرات الظهور', width: 120 },
+      { key: 'selection_priority', label: 'أولوية التعلم', width: 120 },
       { key: 'is_active', label: 'الحالة', width: 120, render: (row) => <StatusBadge status={row.is_active === false ? 'غير مفعّل' : 'مفعّل'} /> },
       { key: 'actions', label: 'إجراءات', width: 190, render: () => <Actions labels={['تعديل', 'نسخ', 'تجربة']} /> },
     ],

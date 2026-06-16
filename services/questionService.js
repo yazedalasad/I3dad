@@ -8,6 +8,7 @@
  */
 
 import { supabase } from '../config/supabase';
+import { recordQuestionOutcome } from './questionLearningService';
 
 // In-memory cache for questions (per app runtime)
 let questionCache = {
@@ -269,36 +270,18 @@ function pickQuestion(list, strategy, targetDifficulty) {
 }
 
 /**
- * Update question usage statistics
+ * Update question usage statistics (delegates to learning service).
  */
-export async function updateQuestionStats(questionId, wasCorrect) {
-  try {
-    const { data: question } = await supabase
-      .from('questions')
-      .select('times_used, times_correct')
-      .eq('id', questionId)
-      .single();
-
-    if (!question) return { success: false };
-
-    const { error } = await supabase
-      .from('questions')
-      .update({
-        times_used: (question.times_used || 0) + 1,
-        times_correct: (question.times_correct || 0) + (wasCorrect ? 1 : 0),
-      })
-      .eq('id', questionId);
-
-    if (error) throw error;
-
-    // Invalidate this question only
+export async function updateQuestionStats(questionId, wasCorrect, options = {}) {
+  const result = await recordQuestionOutcome({
+    questionId,
+    isCorrect: !!wasCorrect,
+    timeTakenSeconds: options.timeTakenSeconds ?? null,
+  });
+  if (result.success) {
     delete questionCache.byId[questionId];
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating question stats:', error);
-    return { success: false, error: error.message };
   }
+  return result;
 }
 
 /**

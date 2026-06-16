@@ -6,6 +6,15 @@ jest.mock('../../config/supabase', () => ({
   },
 }));
 
+jest.mock('../../services/questionLearningService', () => ({
+  computeSelectionPriority: jest.fn((question) => {
+    const used = Number(question?.times_used || 0);
+    const correct = Number(question?.times_correct || 0);
+    if (used <= 0) return Number(question?.selection_priority || 50);
+    return Math.round((correct / used) * 100);
+  }),
+}));
+
 const {
   getNextDiverseQuestion,
   pickRandomCandidate,
@@ -35,6 +44,25 @@ describe('question selection service', () => {
     ], 1);
 
     expect(picked.id).toBe('target');
+  });
+
+  test('pickRandomCandidate prefers higher learning priority among similar difficulty', () => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.01;
+
+    try {
+      const picked = pickRandomCandidate(
+        [
+          { id: 'low', difficulty: 1, selection_priority: 20 },
+          { id: 'high', difficulty: 1, selection_priority: 95 },
+        ],
+        1
+      );
+
+      expect(picked.id).toBe('high');
+    } finally {
+      Math.random = originalRandom;
+    }
   });
 
   test('getNextDiverseQuestion avoids current session and recent questions when alternatives exist', async () => {
