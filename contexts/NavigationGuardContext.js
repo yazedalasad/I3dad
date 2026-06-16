@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
-const defaultGuard = { disabled: false, confirmBack: false };
+const defaultGuard = { disabled: false, confirmBack: false, hideFloatingNav: false };
 
 const NavigationGuardContext = createContext({
   guard: defaultGuard,
@@ -18,6 +18,7 @@ export function NavigationGuardProvider({ children }) {
     setGuardState({
       disabled: !!next.disabled,
       confirmBack: !!next.confirmBack,
+      hideFloatingNav: !!next.hideFloatingNav,
     });
   }, []);
 

@@ -21,10 +21,11 @@ import abilityService from '../../services/abilityService';
 import adaptiveTestService from '../../services/adaptiveTestService';
 import interestService from '../../services/interestService';
 import { regenerateRecommendations } from '../../services/recommendationService';
+import { isAdaptiveAnswerCorrect } from '../../utils/adaptiveTestAnswerUtils';
 
 const QUESTION_TIME_LIMIT = 60;
 const HEARTBEAT_MS = 15000;
-const ANSWER_REVEAL_MS = 900;
+const ANSWER_REVEAL_MS = 1200;
 
 export default function AdaptiveTestScreen({
   navigateTo,
@@ -139,6 +140,7 @@ export default function AdaptiveTestScreen({
     setNavigationGuard({
       disabled: submitting || answerRevealed || initializing || fetchingQuestion,
       confirmBack: isActive && !submitting && !answerRevealed,
+      hideFloatingNav: isActive,
     });
     return () => setNavigationGuard(null);
   }, [initializing, fetchingQuestion, submitting, answerRevealed, shownQuestion, setNavigationGuard]);
@@ -150,12 +152,8 @@ export default function AdaptiveTestScreen({
 
   const shownAnswerIsCorrect = useMemo(() => {
     if (!shownQuestion || !shownSelectedAnswer) return false;
-    const correct = String(shownQuestion.correct_answer || '')
-      .trim()
-      .toUpperCase();
-    const picked = String(shownSelectedAnswer).trim().toUpperCase();
-    return picked === correct;
-  }, [shownQuestion, shownSelectedAnswer]);
+    return isAdaptiveAnswerCorrect(shownQuestion, shownSelectedAnswer, language);
+  }, [shownQuestion, shownSelectedAnswer, language]);
 
   const showAnswerFeedback = answerRevealed || (isViewingHistory && isViewingAnswered);
 

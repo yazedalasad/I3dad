@@ -943,7 +943,8 @@ function ManualNavigatorShell() {
     'reviewAnswers',
   ];
 
-  const showFloatingNav = !floatingNavConfig.hidden && !initializingAuth;
+  const showFloatingNav =
+    !floatingNavConfig.hidden && !guard.hideFloatingNav && !initializingAuth;
 
   return (
     <View style={styles.container}>

@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import { buildBehaviorSignals } from '../features/games/shared/utils/gameAnalytics';
 import { getNextDiverseQuestion } from '../src/services/questionSelectionService';
+import { isAdaptiveAnswerCorrect } from '../utils/adaptiveTestAnswerUtils';
 import { recommendTopDegreesAfterSession } from './recommendationService';
 import {
   recordQuestionOutcome,
@@ -749,7 +750,11 @@ export async function submitComprehensiveAnswer({
     const state = subjectStates?.[subjectId] || subjectStatesFromUi?.[subjectId];
     if (!state) return { success: false, error: 'SUBJECT_STATE_MISSING' };
 
-    const isCorrect = selectedAnswer === question.correct_answer;
+    const isCorrect = isAdaptiveAnswerCorrect(
+      question,
+      selectedAnswer,
+      question?.target_language || 'ar'
+    );
 
     const nextAnswered = safeNum(state.questionsAnswered, 0) + 1;
     const nextCorrect = safeNum(state.correctAnswers, 0) + (isCorrect ? 1 : 0);

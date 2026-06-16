@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 
 import { font, lh, textColors, touchTargets, webContent } from '../../src/theme/typography';
+import { isAdaptiveAnswerCorrect, normalizeAnswerLetter, resolveCorrectAnswerLetter } from '../../utils/adaptiveTestAnswerUtils';
 
 /* -------------------------------------------------- */
 /* Stable deterministic shuffle (same seed => same order) */
@@ -54,11 +55,6 @@ function seededShuffle(list, seedStr) {
 
 function isHe(lang) {
   return String(lang || '').toLowerCase().startsWith('he');
-}
-
-function normalizeAnswerLetter(value) {
-  const letter = String(value || '').trim().toUpperCase();
-  return ['A', 'B', 'C', 'D'].includes(letter) ? letter : '';
 }
 
 export default function QuestionCard({
@@ -203,25 +199,29 @@ export default function QuestionCard({
    * - Exam mode: only selected highlight
    * - Review mode: correct + incorrect selection
    */
-  const correctLetter = normalizeAnswerLetter(question?.correct_answer);
+  const correctLetter = resolveCorrectAnswerLetter(question, lang);
   const pickedLetter = normalizeAnswerLetter(selectedAnswer);
+  const answerIsCorrect = Boolean(
+    pickedLetter && correctLetter && pickedLetter === correctLetter
+  );
+  const feedbackActive = showFeedback && Boolean(pickedLetter);
 
   const getOptionState = (letter) => {
     const optionLetter = normalizeAnswerLetter(letter);
     if (!optionLetter) return 'normal';
 
-    if (!showFeedback) {
+    if (!feedbackActive) {
       if (pickedLetter === optionLetter) return 'selected';
       return 'normal';
     }
 
     if (correctLetter && optionLetter === correctLetter) return 'correct';
-    if (pickedLetter === optionLetter && !isCorrect) return 'incorrect';
+    if (pickedLetter === optionLetter && !answerIsCorrect) return 'incorrect';
     return 'normal';
   };
 
   const handleSkip = () => {
-    if (onSkipQuestion && !disabled && !showFeedback) onSkipQuestion();
+    if (onSkipQuestion && !disabled && !feedbackActive) onSkipQuestion();
   };
 
   // Option pop animation
@@ -247,7 +247,7 @@ export default function QuestionCard({
     isArabic ? 'تخطي هذا السؤال' : 'דלג/י על השאלה'
   );
 
-  const explanationTitle = isCorrect
+  const explanationTitle = answerIsCorrect
     ? t('explanation.correctTitle', isArabic ? 'توضيح' : 'הסבר')
     : t('explanation.wrongTitle', isArabic ? 'تصحيح' : 'תיקון');
 
@@ -296,8 +296,33 @@ export default function QuestionCard({
           {questionText}
         </Text>
 
+        {feedbackActive && (
+          <View
+            style={[
+              styles.resultBanner,
+              answerIsCorrect ? styles.resultBannerCorrect : styles.resultBannerIncorrect,
+            ]}
+          >
+            <Ionicons
+              name={answerIsCorrect ? 'checkmark-circle' : 'close-circle'}
+              size={22}
+              color={answerIsCorrect ? '#1B7A43' : '#C0392B'}
+            />
+            <Text
+              style={[
+                styles.resultBannerText,
+                answerIsCorrect ? styles.resultBannerTextCorrect : styles.resultBannerTextIncorrect,
+              ]}
+            >
+              {answerIsCorrect
+                ? t('feedback.correct', isArabic ? 'إجابة صحيحة' : 'תשובה נכונה')
+                : t('feedback.incorrect', isArabic ? 'إجابة خاطئة' : 'תשובה שגויה')}
+            </Text>
+          </View>
+        )}
+
         {/* Skip only during exam mode */}
-        {!showFeedback && !disabled && onSkipQuestion && (
+        {!feedbackActive && !disabled && onSkipQuestion && (
           <TouchableOpacity style={styles.skipButton} onPress={handleSkip} activeOpacity={0.88}>
             <Ionicons name="play-forward-outline" size={20} color="#F5B301" />
             <Text style={styles.skipText}>{skipThisQuestion}</Text>
@@ -322,9 +347,9 @@ export default function QuestionCard({
 
           // Icon rules:
           let rightIcon = null;
-          if (!showFeedback) {
+          if (!feedbackActive) {
             rightIcon =
-              selectedAnswer === option.letter ? (
+              pickedLetter === option.letter ? (
                 <Ionicons name="radio-button-on" size={28} color="#2455D6" />
               ) : (
                 <Ionicons name="ellipse-outline" size={28} color="#64748B" />
@@ -358,8 +383,8 @@ export default function QuestionCard({
                 style={[
                   styles.optionCard,
                   state === 'selected' && styles.optionSelected,
-                  showFeedback && state === 'correct' && styles.optionCorrect,
-                  showFeedback && state === 'incorrect' && styles.optionIncorrect,
+                  feedbackActive && state === 'correct' && styles.optionCorrect,
+                  feedbackActive && state === 'incorrect' && styles.optionIncorrect,
                   disabled && styles.optionDisabled,
                 ]}
               >
@@ -368,8 +393,8 @@ export default function QuestionCard({
                     style={[
                       styles.optionText,
                       { textAlign: isRTL ? 'right' : 'left' },
-                      showFeedback && state === 'correct' && styles.optionTextCorrect,
-                      showFeedback && state === 'incorrect' && styles.optionTextIncorrect,
+                      feedbackActive && state === 'correct' && styles.optionTextCorrect,
+                      feedbackActive && state === 'incorrect' && styles.optionTextIncorrect,
                     ]}
                   >
                     {option.text}
@@ -383,11 +408,11 @@ export default function QuestionCard({
       </View>
 
       {/* Explanation shown ONLY in review mode */}
-      {showFeedback && !!String(explanationText || '').trim() && (
+      {feedbackActive && !!String(explanationText || '').trim() && (
         <Animated.View
           style={[
             styles.explainCard,
-            isCorrect ? styles.explainCorrect : styles.explainIncorrect,
+            answerIsCorrect ? styles.explainCorrect : styles.explainIncorrect,
             { opacity: cardOpacity, transform: [{ translateY: cardTranslateY }] },
           ]}
         >
@@ -395,7 +420,7 @@ export default function QuestionCard({
             <Ionicons
               name="bulb-outline"
               size={18}
-              color={isCorrect ? '#27AE60' : '#E74C3C'}
+              color={answerIsCorrect ? '#27AE60' : '#E74C3C'}
             />
             <Text style={styles.explainTitle}>{explanationTitle}</Text>
           </View>
@@ -466,6 +491,32 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     writingDirection: 'rtl',
   },
+
+  resultBanner: {
+    marginTop: 12,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+  },
+  resultBannerCorrect: {
+    backgroundColor: 'rgba(39,174,96,0.12)',
+    borderColor: 'rgba(39,174,96,0.35)',
+  },
+  resultBannerIncorrect: {
+    backgroundColor: 'rgba(231,76,60,0.14)',
+    borderColor: 'rgba(231,76,60,0.4)',
+  },
+  resultBannerText: {
+    fontWeight: '900',
+    fontSize: font('body'),
+    lineHeight: lh('body'),
+  },
+  resultBannerTextCorrect: { color: '#1B7A43' },
+  resultBannerTextIncorrect: { color: '#C0392B' },
 
   skipButton: {
     alignSelf: 'flex-end',
